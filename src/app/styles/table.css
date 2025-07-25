@@ -1,0 +1,126 @@
+.table {
+  max-width: 800px;
+  width: 100%;
+  padding: 0;
+  margin: 0 auto;
+  background-color: #fafafa;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table > .element {
+  font-size: clamp(20px, 1.67vw, 28px);
+  padding: 14px 16px;
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  transition: background-color 0.3s ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.table > .element > .element-icon {
+  width: 30%;
+  height: auto;
+  margin-right: 12px;
+  border-radius: 14px;
+}
+
+#withOptions .element {
+  flex-direction: column;
+}
+
+.table > .element:last-child {
+  border-bottom: none;
+}
+
+.table > .element-subject {
+  background-color: #f9f9f9;
+  align-items: center;
+}
+
+.table > .element-subject:hover {
+  background-color: #ece3fb;
+}
+
+.table > .element-section {
+  font-size: clamp(16px, 1.67vw, 20px);
+  background-color: #e0e0e0;
+}
+
+.table > .element-section:hover {
+  background-color: #d0c4e8;
+}
+
+.table > .element-topic {
+  font-size: clamp(16px, 1.67vw, 20px);
+  background-color: #f9f9f9;
+  padding-left: 48px;
+}
+
+.table > .element-topic:hover {
+  background-color: #ece3fb;
+}
+
+.options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.percentages-wrapper {
+  display: flex;
+  gap: 10px;
+  font-size: clamp(14px, 1.67vw, 18px);
+  align-items: center;
+}
+
+.element-title-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.element-title-container > div {
+  white-space: nowrap;
+}
+
+.percent {
+  font-weight: bold;
+}
+
+.green {
+  color: green;
+}
+
+.red {
+  color: red;
+}
+
+.btnElement {
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.element-title {
+  width: 100%;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+#withOptions {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .table > .element-topic {
+    padding-left: 32px;
+  }
+}
