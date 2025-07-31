@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import "@/app/styles/table.css";
-import Image from 'next/image';
+import "@/app/styles/components.css";
 import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
@@ -14,6 +14,8 @@ import Spinner from "@/app/components/spinner";
 interface Subject {
   id: number;
   name: string;
+  difficulty: number;
+  threshold: number;
   url: string;
   prompt: string;
 }
@@ -62,7 +64,8 @@ export default function MainPage() {
         showAlert(response.data.statusCode, response.data.message);
         setLoading(false);
       }
-    } catch (error) {
+    }
+    catch (error) {
       if (axios.isAxiosError(error)) {
         if (error.response) {
           showAlert(error.response.status, error.response.data.message || "Server error");
@@ -94,10 +97,14 @@ export default function MainPage() {
     router.push('/sections');
   };
 
+  function handleSubjectEdit(id: number) {
+    localStorage.setItem("subjectId", String(id));
+    router.push("/subject-edit");
+  }
+
   return (
     <>
       <Header />
-
       <main>
         {loading ? (
           <div className="spinner-wrapper">
@@ -105,7 +112,7 @@ export default function MainPage() {
           </div>
         ) : (
           <div className="table">
-            {subjects.map((subject: Subject) => (
+            {subjects.map((subject) => (
               <div
                 key={subject.id}
                 className="element element-subject"
@@ -114,17 +121,29 @@ export default function MainPage() {
                 style={{ cursor: "pointer" }}
               >
                 {subject.url ? (
-                  <Image
+                 <img
                     src={subject.url}
                     alt={subject.name}
                     className="element-icon"
-                    width={100}
-                    height={100}
-                    priority
-                    unoptimized
                   />
                 ) : null}
-                <div className="element-title">{subject.name}</div>
+                <div className="element-subject-options">
+                  <div>
+                    <div className="element-title">{subject.name}</div>
+                    <div>Trudność: {subject.difficulty}%</div>
+                    <div>Próg: {subject.threshold}%</div>
+                  </div>
+                  <button
+                    id={String(subject.id)}
+                    className="button btnSubjectOptionsEdit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSubjectEdit(Number(e.currentTarget.id))
+                    }}
+                  >
+                    Poziom
+                  </button>
+                </div>
               </div>
             ))}
           </div>

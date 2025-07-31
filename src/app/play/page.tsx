@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import { Home, ArrowLeft, Mic, Type, Play, Pause, X, ArrowUp } from 'lucide-react';
-import "@/app/styles/components.css";
+import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import RadioMessage from "@/app/components/radioMessage";
 import Message from "../components/message";
+
+// setTimeout -> x
 
 enum InsertPosition {
     None = 'None',
@@ -91,7 +93,9 @@ export default function PlayPage() {
             setSelectedSentences([0]);
         }
 
-        setLoading(false);
+        setTimeout(() => {
+            setLoading(false);
+        }, 1000);
     }, []);
 
     useEffect(() => {
@@ -472,7 +476,7 @@ export default function PlayPage() {
 
                 {(loading || transcribeLoading) ? (
                     <div className="spinner-wrapper">
-                        <Spinner visible={true} text={transcribeLoading ? "Przetwarzanie audio na tekst..." : "Ładowanie danych..."} />
+                        <Spinner visible={true} text={transcribeLoading ? "Przetwarzanie audio na tekst..." : ""} />
                     </div>
                 ) : (
                     <div className="play-container">
