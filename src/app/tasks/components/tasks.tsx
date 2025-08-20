@@ -8,11 +8,7 @@ export default function Tasks() {
     const [loading, setLoading] = useState(true);
   
     useEffect(() => {
-      const timer = setTimeout(() => {
         setLoading(false);
-      }, 600);
-  
-      return () => clearTimeout(timer);
     }, []);
   
     return (

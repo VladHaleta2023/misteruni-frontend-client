@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ToastProvider from "@/app/components/toastProvider";
 import "@/app/styles/globals.css";
+import Head from "next/head";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,8 +29,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <Head>
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+          integrity="sha384-mll67QQWQltMRkfnau3N8V4kCUzE4XQ8YGOpbMjaCPPKp9WtkVqO72U2TQJwwKz6"
+          crossOrigin="anonymous"
+        />
+      </Head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{
+          overflow: "hidden",
+          height: "100vh"
+        }}
       >
         {children}
         <ToastProvider />

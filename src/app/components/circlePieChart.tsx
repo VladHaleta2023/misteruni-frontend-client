@@ -60,6 +60,10 @@ export default function CirclePieChart({
           maxWidth: '800px',
           margin: '0 auto',
           userSelect: 'none',
+          alignItems: 'center',
+          justifyContent: 'center',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
         <div

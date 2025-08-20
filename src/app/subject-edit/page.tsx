@@ -97,7 +97,7 @@ export default function MainPage() {
         if (response.data?.statusCode === 200) {
             router.push("/");
         }
-      }, 1000);
+      }, 3000);
     }
     catch (error) {
       setLoading(false);

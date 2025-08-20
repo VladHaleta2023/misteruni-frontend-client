@@ -4,21 +4,38 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { Home, ArrowLeft, Mic, Type, Play, Pause, X, ArrowUp } from 'lucide-react';
+import { ArrowLeft, Mic, Type, Play, Pause, X, ArrowUp } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import RadioMessage from "@/app/components/radioMessage";
 import Message from "../components/message";
+import FormatText from "../components/formatText";
+import axios from "axios";
 
-// setTimeout -> x
+// subTask Add
 
 enum InsertPosition {
     None = 'None',
     Przed = 'Przed',
     Zamiast = 'Zamiast',
     Po = 'Po',
+}
+
+interface Subtopic {
+    name: string;
+    percent: number;
+}
+
+interface Task {
+    text: string;
+    solution: string;
+    options: string[];
+    subtopics: Subtopic[];
+    correctOptionIndex: number;
+    userOptionIndex: number;
+    userSolution: string;
 }
 
 export default function PlayPage() {
@@ -28,7 +45,8 @@ export default function PlayPage() {
     const [insertPosition, setInsertPosition] = useState<InsertPosition>(InsertPosition.None);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const chatRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const loadedRef = useRef(false);
 
     const [isMicMode, setIsMicMode] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -43,13 +61,22 @@ export default function PlayPage() {
     const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
     const [selectedSentencesWasEmpty, setSelectedSentencesWasEmpty] = useState<boolean>(false);
 
+    const [userOptionIndex, setUserOptionIndex] = useState(0);
+
     const maxHeight = 180;
     const maxHeightMobile = 120;
 
+    const [textLoading, setTextLoading] = useState<string>("");
+
+    const [task, setTask] = useState<Task>();
+
     const scrollToBottom = () => {
-        if (chatRef.current) {
-            chatRef.current.scrollTop = chatRef.current.scrollHeight;
-        }
+        if (!containerRef.current) return;
+        requestAnimationFrame(() => {
+            if (containerRef.current) {
+                containerRef.current!.scrollTop = containerRef.current!.scrollHeight;
+            }
+        });
     };
 
     const fixHeight = () => {
@@ -62,6 +89,393 @@ export default function PlayPage() {
         textarea.style.height = `${height}px`;
         textarea.style.overflowY = 'scroll';
     };
+
+   const fetchPendingTask = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
+        setTextLoading("Pobieranie zadania");
+
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
+                { signal }
+            );
+
+            if (response.data?.statusCode === 200) {
+                return response.data.task ?? null;
+            }
+
+            return null;
+        } catch (error) {
+            console.error(error);
+            handleApiError(error);
+            return null;
+        }
+    }, []);
+
+    const handleTextGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
+        setTextLoading("Generowanie treści zadania");
+
+        try {
+            let changed: string = "true";
+            let attempt: number = 0;
+            let text: string = "";
+            let errors: string[] = [];
+            let outputSubtopics: string[] = [];
+            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+
+            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                const taskTextResponse = await api.post(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
+                {
+                    changed,
+                    errors,
+                    attempt,
+                    text,
+                    outputSubtopics,
+                },
+                { signal }
+                );
+
+                if (taskTextResponse.data?.statusCode === 201) {
+                    changed = taskTextResponse.data.changed;
+                    errors = taskTextResponse.data.errors;
+                    text = taskTextResponse.data.text;
+                    outputSubtopics = taskTextResponse.data.outputSubtopics;
+                    attempt = taskTextResponse.data.attempt;
+                    console.log(`Generowanie treści zadania: Próba ${attempt}`);
+                } else {
+                    showAlert(400, `Nie udało się zgenerować treści zadania`);
+                    break;
+                }
+            }
+
+            return {
+                text,
+                outputSubtopics
+            }
+        }
+        catch (error: unknown) {
+            console.log(error);
+            handleApiError(error);
+            return {
+                text: "",
+                outputSubtopics: []
+            }
+        }
+    },[]);
+
+    const handleSolutionGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, text: string, signal?: AbortSignal) => {
+        setTextLoading("Generowanie rozwiązania zadania");
+
+        try {
+            let changed: string = "true";
+            let attempt: number = 0;
+            let errors: string[] = [];
+            let solution: string = "";
+            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+
+            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                const taskSolutionResponse = await api.post(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/solution-generate`,
+                {
+                    changed,
+                    errors,
+                    attempt,
+                    text,
+                    solution
+                },
+                { signal }
+                );
+
+                if (taskSolutionResponse.data?.statusCode === 201) {
+                    changed = taskSolutionResponse.data.changed;
+                    errors = taskSolutionResponse.data.errors;
+                    text = taskSolutionResponse.data.text;
+                    solution = taskSolutionResponse.data.solution;
+                    attempt = taskSolutionResponse.data.attempt;
+                    console.log(`Generowanie rozwiązania zadania: Próba ${attempt}`);
+                } else {
+                    showAlert(400, `Nie udało się zgenerować rozwiązania zadania`);
+                    break;
+                }
+            }
+
+            return solution;
+        }
+        catch (error: unknown) {
+            handleApiError(error);
+            console.log(error);
+            return "";
+        }
+    },[]);
+
+    const handleOptionsGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, text: string, solution: string, signal?: AbortSignal) => {
+        setTextLoading("Generowanie wariantów zadania");
+
+        try {
+            let changed: string = "true";
+            let attempt: number = 0;
+            let errors: string[] = [];
+            let options: string[] = [];
+            let correctOptionIndex: number = 0;
+            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+
+            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                const taskOptionsResponse = await api.post(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
+                {
+                    changed,
+                    errors,
+                    attempt,
+                    text,
+                    solution,
+                    options,
+                    correctOptionIndex
+                },
+                { signal }
+                );
+
+                if (taskOptionsResponse.data?.statusCode === 201) {
+                    changed = taskOptionsResponse.data.changed;
+                    errors = taskOptionsResponse.data.errors;
+                    text = taskOptionsResponse.data.text;
+                    solution = taskOptionsResponse.data.solution;
+                    options = taskOptionsResponse.data.options;
+                    correctOptionIndex = taskOptionsResponse.data.correctOptionIndex;
+                    solution = taskOptionsResponse.data.solution;
+                    attempt = taskOptionsResponse.data.attempt;
+                    console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
+                } else {
+                    showAlert(400, `Nie udało się zgenerować wariantów zadania`);
+                    break;
+                }
+            }
+
+            return {
+                options,
+                correctOptionIndex
+            };
+        }
+        catch (error: unknown) {
+            handleApiError(error);
+            console.log(error);
+            return {
+                options: [],
+                correctOptionIndex: 0
+            };
+        }
+    },[]);
+
+    const handleSaveTaskTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        text: string,
+        solution: string,
+        options: string[],
+        taskSubtopics: string[],
+        correctOptionIndex: number,
+        signal?: AbortSignal
+    ) => {
+        setTextLoading("Generowanie wariantów zadania");
+
+        try {
+            const response = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
+                {
+                    text,
+                    solution,
+                    options,
+                    correctOptionIndex,
+                    taskSubtopics
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode === 201) {
+                showAlert(200, "Zadanie zapisane pomyślnie");
+            } else {
+                showAlert(400, "Nie udało się zapisać zadania");
+            }
+        }
+        catch (error: unknown) {
+            handleApiError(error);
+            console.log(error);
+        }
+    }, []);
+
+    function handleApiError(error: unknown) {
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+                showAlert(error.response.status, error.response.data.message || "Server error");
+            } else {
+                showAlert(500, `Server error: ${error.message}`);
+            }
+        } else if (error instanceof Error) {
+            showAlert(500, `Server error: ${error.message}`);
+        } else {
+            showAlert(500, "Unknown error");
+        }
+    }
+
+    const loadTask = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        signal?: AbortSignal
+    ) => {
+        try {
+            const taskResult = await handleTextGenerate(
+                subjectId,
+                sectionId,
+                topicId,
+                signal
+            );
+            const text: string = taskResult?.text ?? "";
+            const taskSubtopics: string[] = taskResult?.outputSubtopics ?? [];
+
+            if (!text) {
+                showAlert(400, "Nie udało się wygenerować treści zadania");
+                return;
+            }
+
+            const solution: string = await handleSolutionGenerate(
+                subjectId,
+                sectionId,
+                topicId,
+                text,
+                signal
+            );
+            
+            if (!solution) {
+                showAlert(400, "Nie udało się wygenerować rozwiązania");
+                return;
+            }
+
+            const optionsResult = await handleOptionsGenerate(
+                subjectId,
+                sectionId,
+                topicId,
+                text,
+                solution,
+                signal
+            );
+            const options: string[] = optionsResult.options ?? [];
+            const correctOptionIndex: number = optionsResult.correctOptionIndex ?? 0;
+
+            if (!options.length) {
+                showAlert(400, "Nie udało się wygenerować wariantów odpowiedzi");
+                return;
+            }
+
+            await handleSaveTaskTransaction(
+                subjectId,
+                sectionId,
+                topicId,
+                text,
+                solution,
+                options,
+                taskSubtopics,
+                correctOptionIndex,
+                signal
+            );
+        } catch (error) {
+            handleApiError(error);
+            console.error(error);
+        }
+    }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction]);
+
+    useEffect(() => {
+        setLoading(true);
+
+        if (loadedRef.current) return;
+        loadedRef.current = true;
+
+        if (typeof window === "undefined") return;
+
+        const sId = localStorage.getItem("subjectId");
+        const secId = localStorage.getItem("sectionId");
+        const tId = localStorage.getItem("topicId");
+
+        if (!sId || !secId || !tId) {
+            showAlert(400, "Nie udało się pobrać ID");
+            return;
+        }
+
+        const subjectId = Number(sId);
+        const sectionId = Number(secId);
+        const topicId = Number(tId);
+
+        const controller = new AbortController();
+
+        const fetchTask = async () => {
+            const task = await fetchPendingTask(
+                subjectId,
+                sectionId,
+                topicId,
+                controller.signal
+            );
+
+            if (task) {
+                setTask({
+                    text: task.text ?? "",
+                    solution: task.solution ?? "",
+                    options: task.options ?? [],
+                    correctOptionIndex: task.correctOptionIndex ?? 0,
+                    subtopics: task.subtopics ?? [],
+                    userSolution: "",
+                    userOptionIndex: 0
+                });
+            } else {
+                await loadTask(subjectId, sectionId, topicId, controller.signal);
+                const newTask = await fetchPendingTask(subjectId, sectionId, topicId, controller.signal);
+                if (newTask) {
+                    setTask({
+                        text: newTask.text ?? "",
+                        solution: newTask.solution ?? "",
+                        options: newTask.options ?? [],
+                        correctOptionIndex: newTask.correctOptionIndex ?? 0,
+                        subtopics: newTask.subtopics ?? [],
+                        userSolution: "",
+                        userOptionIndex: 0
+                    });
+                }
+                else {
+                    setTask({
+                        text: "",
+                        solution: "",
+                        options: [],
+                        correctOptionIndex: 0,
+                        subtopics: [],
+                        userSolution: "",
+                        userOptionIndex: 0
+                    });
+                }
+            }
+
+            setLoading(false);
+        };
+
+        fetchTask();
+    }, [fetchPendingTask, loadTask]);
 
     useEffect(() => {
         setInsertPosition(InsertPosition.None);
@@ -92,18 +506,13 @@ export default function PlayPage() {
                 .catch(() => setSentences([]));
             setSelectedSentences([0]);
         }
-
-        setTimeout(() => {
-            setLoading(false);
-        }, 1000);
     }, []);
 
     useEffect(() => {
-        if (!transcribeLoading) {
+        if (containerRef.current && !loading && !transcribeLoading) {
             scrollToBottom();
-            fixHeight();
         }
-    }, [transcribes, transcribeLoading]);
+    }, [sentences, transcribes, loading, transcribeLoading]);
 
     const splitIntoSentences = async (text: string): Promise<string[]> => {
         try {
@@ -129,12 +538,6 @@ export default function PlayPage() {
             .catch(() => setSentences([]));
         fixHeight();
         localStorage.setItem("answerText", newValue);
-    };
-
-    const handleHomeClick = () => {
-        localStorage.removeItem("subjectId");
-        localStorage.removeItem("answerText");
-        router.push("/");
     };
 
     const handleBackClick = () => {
@@ -385,10 +788,7 @@ export default function PlayPage() {
     return (
         <>
             <Header>
-                <div className="menu-icons" style={{ justifyContent: "flex-start" }}>
-                    <div className="menu-icon" title="Strona Główna" onClick={handleHomeClick} style={{ cursor: "pointer" }}>
-                        <Home size={28} color="white" />
-                    </div>
+                <div className="menu-icons">
                     <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
                         <ArrowLeft size={28} color="white" />
                     </div>
@@ -476,25 +876,35 @@ export default function PlayPage() {
 
                 {(loading || transcribeLoading) ? (
                     <div className="spinner-wrapper">
-                        <Spinner visible={true} text={transcribeLoading ? "Przetwarzanie audio na tekst..." : ""} />
+                        <Spinner visible={true} text={transcribeLoading ? "Przetwarzanie audio na tekst..." : textLoading} />
                     </div>
                 ) : (
-                    <div className="play-container">
-                        <div className="chat" ref={chatRef}>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
-                            <div className="message robot">Zadanie od ChatGPT</div>
-                            <div className="message human">Rozwiązanie zadania od ChatGPT</div>
+                    <div className="play-container" ref={containerRef}>
+                        <div className="chat">
+                            <div className="message robot">
+                                <br />
+                                <div style={{fontWeight: "bold"}}>Tekst zadania:</div>
+                                <br />
+                                <div style={{paddingLeft: "20px"}}><FormatText content={task?.text ?? ""} /></div>
+                                <br />
+                                <div style={{fontWeight: "bold"}}>Warianty odpowiedzi:</div>
+                                <br />
+                                <div style={{paddingLeft: "20px", margin: "0px"}} className="radio-group">
+                                    {task?.options?.map((option, i) => (
+                                        <label key={i} className="radio-option" style={{marginBottom: "12px"}}>
+                                            <input
+                                                type="radio"
+                                                name="userOption"
+                                                value={i}
+                                                checked={userOptionIndex === i}
+                                                onChange={() => setUserOptionIndex(i)}
+                                            />
+                                            <span><FormatText content={option ?? ""} /></span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="message human">Nie chcę tego rozwiązać!</div>
                         </div>
 
                         <div className="answer-block">
@@ -566,7 +976,9 @@ export default function PlayPage() {
                                 <div
                                     className="bottom-icon-button"
                                     title={"Wysłać Odpowiedź"}
-                                    onClick={() => {}}
+                                    onClick={() => {
+                                        scrollToBottom();
+                                    }}
                                 >
                                     <ArrowUp size={28} color="white" />
                                 </div>

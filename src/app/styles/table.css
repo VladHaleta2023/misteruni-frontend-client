@@ -11,13 +11,56 @@
 }
 
 .table > .element {
-  font-size: clamp(20px, 1.67vw, 28px);
-  padding: 14px 16px;
+  font-size: clamp(16px, 1.67vw, 20px);
+  padding: 12px;
   display: flex;
   border-bottom: 1px solid #ccc;
   transition: background-color 0.3s ease;
   user-select: none;
   cursor: pointer;
+}
+
+.element-section {
+  background-color: #d9d9d9;
+  color: #000000;
+}
+
+.element-topic {
+  padding-left: 32px !important;
+  background-color: #f5f5f5;
+  color: #000000;
+}
+
+.element-subtopic {
+  padding-left: 72px !important;
+  font-size: clamp(14px, 1.67vw, 18px) !important;
+  background-color: #f5f5f5;
+  color: #000000;
+}
+
+.element-percent {
+  padding: 6px;
+  border: 1px solid black;
+}
+
+.element-percent.started {
+  background-color: transparent;
+  color: #000000;
+}
+
+.element-percent.completed {
+  background-color: #a7cba1;
+  color: #000000;
+}
+
+.element-percent.blocked {
+  background-color: #f5f5f5;
+  color: #000000;
+}
+
+.element-percent.progress {
+  background-color: #d7d470;
+  color: #000000;
 }
 
 .element-subject-options {
@@ -43,12 +86,23 @@
   border-radius: 12px;
 }
 
-.element-title {
-  font-weight: bold;
+.element-name {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  white-space: normal;
+  word-break: break-word;
+  margin: 8px;
 }
 
-#withOptions .element {
-  flex-direction: column;
+.element-options {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  word-break: normal;
+  word-wrap: normal;
+  gap: 6px;
 }
 
 .element:last-child {
@@ -62,39 +116,6 @@
 
 .element-subject:hover {
   background-color: #ece3fb;
-}
-
-.element-section {
-  font-size: clamp(16px, 1.67vw, 20px);
-  background-color: #e0e0e0;
-}
-
-.element-section:hover {
-  background-color: #d0c4e8;
-}
-
-.element-topic {
-  font-size: clamp(16px, 1.67vw, 20px);
-  background-color: #f9f9f9;
-  padding-left: 48px;
-}
-
-.element-topic:hover {
-  background-color: #ece3fb;
-}
-
-.options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.percentages-wrapper {
-  display: flex;
-  gap: 10px;
-  font-size: clamp(14px, 1.67vw, 18px);
-  align-items: center;
 }
 
 .element-title-container {
@@ -118,34 +139,32 @@
   font-weight: bold;
 }
 
-.green {
-  color: green;
-}
-
-.red {
-  color: red;
-}
-
 .btnElement {
   cursor: pointer;
   flex-shrink: 0;
 }
 
-#withOptions {
-  display: flex;
-  flex-direction: column;
+/*
+.btnElement > .play {
+  fill: currentColor;
+  stroke: none;
 }
+*/
 
 @media (max-width: 768px) {
-  .table > .element-topic {
-    padding-left: 32px;
-  }
-
   .element-subject-options {
     font-size: 18px;
   }
 
   .button {
     font-size: 16px;
+  }
+
+  .element-topic {
+    padding-left: 24px !important;
+  }
+
+  .element-subtopic {
+    padding-left: 64px !important;
   }
 }
