@@ -2,7 +2,7 @@
 
 :root {
   --main-width: calc(100vw - var(--dropdown-width));
-  --main-height: 0px;
+  --main-height: auto;
 }
 
 * {
@@ -22,7 +22,7 @@ body, html {
   height: 100%;
   margin: 0;
   min-height: 100vh;
-  background-color: #f0f0f0;
+  background-color: #e0e0e0;
 }
 
 main {
@@ -34,4 +34,5 @@ main {
   word-break: break-word;
   font-size: 16px;
   height: var(--main-height);
+  background-color: #e0e0e0;
 }

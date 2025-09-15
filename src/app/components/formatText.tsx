@@ -13,7 +13,7 @@ export default function FormatText({ content }: FormatTextProps) {
 
   useEffect(() => {
     if (ref.current) {
-      ref.current.textContent = content;
+      ref.current.innerHTML = content;
 
       renderMathInElement(ref.current, {
         delimiters: [

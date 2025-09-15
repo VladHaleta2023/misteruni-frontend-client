@@ -4,12 +4,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, ListCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import "@/app/styles/table.css";
-import Statistics from "@/app/sections/components/statistic";
-// AlignLeft FileText FileCheck HelpCircle MessageSquare
+import Tasks from "./components/tasks";
 
-export default function SectionsPage() {
+export default function TasksPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,16 +21,7 @@ export default function SectionsPage() {
   }, []);
 
   function handleBackClick() {
-    localStorage.removeItem("subjectId");
-    localStorage.removeItem("sectionId");
-    localStorage.removeItem("topicId");
-    router.push("/");
-  }
-
-  function handleTasksClick() {
-    localStorage.removeItem("topicId");
-    localStorage.removeItem("sectionId");
-    router.push("/sections/tasks");
+    router.back();
   }
 
   return (
@@ -46,20 +36,11 @@ export default function SectionsPage() {
           >
             <ArrowLeft size={28} color="white" />
           </div>
-
-          <div
-            className="menu-icon"
-            title={"Przełącz do zadań"}
-            onClick={handleTasksClick}
-            style={{ cursor: "pointer" }}
-          >
-            <ListCheck size={28} color="white" />
-          </div>
         </div>
       </Header>
 
       <main style={{ padding: "0px" }}>
-        <Statistics />
+        <Tasks />
       </main>
     </>
   );

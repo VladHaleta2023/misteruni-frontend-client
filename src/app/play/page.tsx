@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Mic, Type, Play, Pause, X, ArrowUp } from 'lucide-react';
+import { ArrowLeft, Mic, Type, X, Check } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -13,6 +13,7 @@ import RadioMessage from "@/app/components/radioMessage";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
 import axios from "axios";
+import { ITask, Task } from "../scripts/task";
 
 // subTask Add
 
@@ -28,16 +29,6 @@ interface Subtopic {
     percent: number;
 }
 
-interface Task {
-    text: string;
-    solution: string;
-    options: string[];
-    subtopics: Subtopic[];
-    correctOptionIndex: number;
-    userOptionIndex: number;
-    userSolution: string;
-}
-
 export default function PlayPage() {
     const router = useRouter();
     const [transcribeLoading, setTranscribeLoading] = useState(false);
@@ -46,7 +37,6 @@ export default function PlayPage() {
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const loadedRef = useRef(false);
 
     const [isMicMode, setIsMicMode] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -61,14 +51,43 @@ export default function PlayPage() {
     const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
     const [selectedSentencesWasEmpty, setSelectedSentencesWasEmpty] = useState<boolean>(false);
 
-    const [userOptionIndex, setUserOptionIndex] = useState(0);
-
-    const maxHeight = 180;
-    const maxHeightMobile = 120;
+    const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
     const [textLoading, setTextLoading] = useState<string>("");
+    const [task, setTask] = useState<Task>(
+        new Task({
+            id: 0,
+            stage: 0,
+            text: "",
+            solution: "",
+            options: [],
+            subtopics: [],
+            correctOptionIndex: 0,
+            answered: false,
+            finished: false,
+            userOptionIndex: 0,
+            userSolution: "",
+            audioFiles: [],
+            subTasks: []
+        })
+    );
 
-    const [task, setTask] = useState<Task>();
+    const updateTask = (fields: Partial<ITask>) => {
+        setTask(prev => {
+            if (!prev) return prev;
+            const newTask = new Task(prev.getTask());
+            newTask.updateTask(fields);
+            return newTask;
+        });
+    };
+
+    const fullUpdateTask = (task: ITask) => {
+        setTask(new Task(task));
+    };
+
+    const [subjectId, setSubjectId] = useState<number | null>(null);
+    const [sectionId, setSectionId] = useState<number | null>(null);
+    const [topicId, setTopicId] = useState<number | null>(null);
 
     const scrollToBottom = () => {
         if (!containerRef.current) return;
@@ -79,21 +98,12 @@ export default function PlayPage() {
         });
     };
 
-    const fixHeight = () => {
-        const textarea = textareaRef.current;
-        if (!textarea) return;
-
-        const isMobile = window.innerWidth <= 768;
-        const height = isMobile ? maxHeightMobile : maxHeight;
-
-        textarea.style.height = `${height}px`;
-        textarea.style.overflowY = 'scroll';
-    };
-
-   const fetchPendingTask = useCallback(
-        async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-        setTextLoading("Pobieranie zadania");
-
+    const fetchPendingTask = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        signal?: AbortSignal) => {
+        
         if (!subjectId) {
             showAlert(400, "Przedmiot nie został znaleziony");
             return null;
@@ -109,11 +119,17 @@ export default function PlayPage() {
             return null;
         }
 
+        const controller = new AbortController();
+        if (!signal) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller.signal;
+
         try {
             const response = await api.get(
                 `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
-                { signal }
+                { signal: activeSignal }
             );
+
+            if (activeSignal.aborted) return null;
 
             if (response.data?.statusCode === 200) {
                 return response.data.task ?? null;
@@ -121,186 +137,240 @@ export default function PlayPage() {
 
             return null;
         } catch (error) {
-            console.error(error);
+            if ((error as DOMException)?.name === "AbortError") return null;
             handleApiError(error);
             return null;
+        } finally {
+            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+        }
+    }, []);
+
+    const fetchTaskById = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        signal?: AbortSignal) => {
+        
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        if (!taskId) {
+            showAlert(400, "Zadanie nie zostało znalezione");
+            return null;
+        }
+
+        const controller = new AbortController();
+        if (!signal) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller.signal;
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
+                { signal: activeSignal }
+            );
+
+            if (activeSignal.aborted) return null;
+
+            if (response.data?.statusCode === 200) {
+                return response.data.task;
+            }
+
+            return null;
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return null;
+            handleApiError(error);
+            return null;
+        } finally {
+            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
         }
     }, []);
 
     const handleTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-        setTextLoading("Generowanie treści zadania");
+            setTextLoading("Generowanie treści zadania");
 
-        try {
-            let changed: string = "true";
-            let attempt: number = 0;
-            let text: string = "";
-            let errors: string[] = [];
-            let outputSubtopics: string[] = [];
-            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
 
-            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                const taskTextResponse = await api.post(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
-                {
-                    changed,
-                    errors,
-                    attempt,
-                    text,
-                    outputSubtopics,
-                },
-                { signal }
-                );
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let text = "";
+                let errors: string[] = [];
+                let outputSubtopics: string[] = [];
+                const MAX_ATTEMPTS = 1;
 
-                if (taskTextResponse.data?.statusCode === 201) {
-                    changed = taskTextResponse.data.changed;
-                    errors = taskTextResponse.data.errors;
-                    text = taskTextResponse.data.text;
-                    outputSubtopics = taskTextResponse.data.outputSubtopics;
-                    attempt = taskTextResponse.data.attempt;
-                    console.log(`Generowanie treści zadania: Próba ${attempt}`);
-                } else {
-                    showAlert(400, `Nie udało się zgenerować treści zadania`);
-                    break;
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
+                        { changed, errors, attempt, text, outputSubtopics },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        text = response.data.text;
+                        outputSubtopics = response.data.outputSubtopics;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie treści zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się zgenerować treści zadania");
+                        break;
+                    }
                 }
-            }
 
-            return {
-                text,
-                outputSubtopics
+                return { text, outputSubtopics };
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return { text: "", outputSubtopics: [] };
+                handleApiError(error);
+                return { text: "", outputSubtopics: [] };
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
-        }
-        catch (error: unknown) {
-            console.log(error);
-            handleApiError(error);
-            return {
-                text: "",
-                outputSubtopics: []
-            }
-        }
-    },[]);
+        }, []
+    );
 
     const handleSolutionGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, text: string, signal?: AbortSignal) => {
-        setTextLoading("Generowanie rozwiązania zadania");
+            setTextLoading("Generowanie rozwiązania zadania");
 
-        try {
-            let changed: string = "true";
-            let attempt: number = 0;
-            let errors: string[] = [];
-            let solution: string = "";
-            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
 
-            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                const taskSolutionResponse = await api.post(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/solution-generate`,
-                {
-                    changed,
-                    errors,
-                    attempt,
-                    text,
-                    solution
-                },
-                { signal }
-                );
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let errors: string[] = [];
+                let solution = "";
+                const MAX_ATTEMPTS = 1;
 
-                if (taskSolutionResponse.data?.statusCode === 201) {
-                    changed = taskSolutionResponse.data.changed;
-                    errors = taskSolutionResponse.data.errors;
-                    text = taskSolutionResponse.data.text;
-                    solution = taskSolutionResponse.data.solution;
-                    attempt = taskSolutionResponse.data.attempt;
-                    console.log(`Generowanie rozwiązania zadania: Próba ${attempt}`);
-                } else {
-                    showAlert(400, `Nie udało się zgenerować rozwiązania zadania`);
-                    break;
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return "";
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/solution-generate`,
+                        { changed, errors, attempt, text, solution },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return "";
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        text = response.data.text;
+                        solution = response.data.solution;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie rozwiązania zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się zgenerować rozwiązania zadania");
+                        break;
+                    }
                 }
-            }
 
-            return solution;
-        }
-        catch (error: unknown) {
-            handleApiError(error);
-            console.log(error);
-            return "";
-        }
-    },[]);
+                return solution;
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return "";
+                handleApiError(error);
+                return "";
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
 
     const handleOptionsGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, text: string, solution: string, signal?: AbortSignal) => {
-        setTextLoading("Generowanie wariantów zadania");
+            setTextLoading("Generowanie wariantów zadania");
 
-        try {
-            let changed: string = "true";
-            let attempt: number = 0;
-            let errors: string[] = [];
-            let options: string[] = [];
-            let correctOptionIndex: number = 0;
-            const MAX_ATTEMPTS = 2; // Модно поменять на 10
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
 
-            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                const taskOptionsResponse = await api.post(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                {
-                    changed,
-                    errors,
-                    attempt,
-                    text,
-                    solution,
-                    options,
-                    correctOptionIndex
-                },
-                { signal }
-                );
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let errors: string[] = [];
+                let options: string[] = [];
+                let correctOptionIndex = 0;
+                const MAX_ATTEMPTS = 1;
 
-                if (taskOptionsResponse.data?.statusCode === 201) {
-                    changed = taskOptionsResponse.data.changed;
-                    errors = taskOptionsResponse.data.errors;
-                    text = taskOptionsResponse.data.text;
-                    solution = taskOptionsResponse.data.solution;
-                    options = taskOptionsResponse.data.options;
-                    correctOptionIndex = taskOptionsResponse.data.correctOptionIndex;
-                    solution = taskOptionsResponse.data.solution;
-                    attempt = taskOptionsResponse.data.attempt;
-                    console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
-                } else {
-                    showAlert(400, `Nie udało się zgenerować wariantów zadania`);
-                    break;
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
+                        { changed, errors, attempt, text, solution, options, correctOptionIndex },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        text = response.data.text;
+                        solution = response.data.solution;
+                        options = response.data.options;
+                        correctOptionIndex = response.data.correctOptionIndex;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się wygenerować wariantów zadania");
+                        break;
+                    }
                 }
-            }
 
-            return {
-                options,
-                correctOptionIndex
-            };
-        }
-        catch (error: unknown) {
-            handleApiError(error);
-            console.log(error);
-            return {
-                options: [],
-                correctOptionIndex: 0
-            };
-        }
-    },[]);
+                return { options, correctOptionIndex };
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return { options: [], correctOptionIndex: 0 };
+                handleApiError(error);
+                return { options: [], correctOptionIndex: 0 };
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
 
     const handleSaveTaskTransaction = useCallback(async (
         subjectId: number,
         sectionId: number,
         topicId: number,
+        stage: number,
         text: string,
         solution: string,
         options: string[],
         taskSubtopics: string[],
         correctOptionIndex: number,
-        signal?: AbortSignal
+        signal?: AbortSignal,
+        id?: number
     ) => {
-        setTextLoading("Generowanie wariantów zadania");
-
         try {
             const response = await api.post(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
                 {
+                    id,
+                    stage,
                     text,
                     solution,
                     options,
@@ -310,25 +380,153 @@ export default function PlayPage() {
                 { signal }
             );
 
-            if (response.data?.statusCode === 201) {
+            if (response.data?.statusCode === 200) {
                 showAlert(200, "Zadanie zapisane pomyślnie");
             } else {
+                setLoading(false);
                 showAlert(400, "Nie udało się zapisać zadania");
             }
         }
         catch (error: unknown) {
+            setLoading(false);
             handleApiError(error);
-            console.log(error);
+        }
+    }, []);
+
+    const handleProblemsGenerate = useCallback(async (
+            subjectId: number,
+            sectionId: number,
+            topicId: number,
+            text: string,
+            subtopics: Subtopic[],
+            solution: string,
+            options: string[],
+            correctOptionIndex: number,
+            userSolution: string,
+            userOptionIndex: number,
+            signal?: AbortSignal
+        ) => {
+            setTextLoading("Obliczanie procentów podtematów");
+
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
+
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let errors: string[] = [];
+                let outputSubtopics: string[] = [];
+                const taskSubtopics = subtopics?.map(s => s.name) ?? [];
+                const MAX_ATTEMPTS = 1;
+
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return null;
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
+                        { changed, errors, attempt, text, solution, options, correctOptionIndex, userSolution, userOptionIndex, subtopics: taskSubtopics, outputSubtopics },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return null;
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        outputSubtopics = response.data.outputSubtopics;
+                        attempt = response.data.attempt;
+                        console.log(`Obliczanie procentów podtematów: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się obliczyć procentów podtematów");
+                        break;
+                    }
+                }
+
+                return outputSubtopics;
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return [];
+                handleApiError(error);
+                return null;
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
+
+    const handleTaskUserSolutionSave = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        userSolution: string,
+        userOptionIndex: number,
+        signal?: AbortSignal
+    ) => {
+        try {
+            setTextLoading("Zapisywanie rozwiązania");
+
+            const taskUserSolutionResponse = await api.put(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/user-solution`,
+            {
+                userSolution,
+                userOptionIndex
+            },
+            { signal }
+            );
+
+            if (taskUserSolutionResponse.data?.statusCode !== 200) {
+                setLoading(false);
+                showAlert(400, `Nie udało się zapisać odpowiedź`);
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
+    const handleSaveSubtopicsProgressTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        id: number,
+        subtopics: Subtopic[],
+        signal?: AbortSignal
+    ) => {
+        try {
+            const response = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${id}/subtopicsProgress-transaction`,
+                {
+                    subtopics
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode === 200) {
+                showAlert(200, "Podtematy zostały zapisane pomyślnie");
+            } else {
+                setLoading(false);
+                showAlert(400, "Nie udało się zapisać podtematy zadania");
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
         }
     }, []);
 
     function handleApiError(error: unknown) {
         if (axios.isAxiosError(error)) {
+            if (error.code === "ERR_CANCELED") return;
+
             if (error.response) {
-                showAlert(error.response.status, error.response.data.message || "Server error");
+                showAlert(error.response.status, error.response.data?.message || "Server error");
             } else {
                 showAlert(500, `Server error: ${error.message}`);
             }
+        } else if (error instanceof DOMException && error.name === "AbortError") {
+            return;
         } else if (error instanceof Error) {
             showAlert(500, `Server error: ${error.message}`);
         } else {
@@ -340,153 +538,253 @@ export default function PlayPage() {
         subjectId: number,
         sectionId: number,
         topicId: number,
+        stage: number,
         signal?: AbortSignal
     ) => {
         try {
-            const taskResult = await handleTextGenerate(
-                subjectId,
-                sectionId,
-                topicId,
-                signal
-            );
-            const text: string = taskResult?.text ?? "";
-            const taskSubtopics: string[] = taskResult?.outputSubtopics ?? [];
+            let text: string = "";
+            let taskSubtopics: string[] = [];
 
-            if (!text) {
-                showAlert(400, "Nie udało się wygenerować treści zadania");
+            if (stage < 1) {
+                const taskResult = await handleTextGenerate(subjectId, sectionId, topicId, signal);
+                text = taskResult?.text ?? "";
+                taskSubtopics = taskResult?.outputSubtopics ?? [];
+
+                if (!text) {
+                    setLoading(false);
+                    showAlert(400, "Nie udało się wygenerować treści zadania");
+                    return;
+                }
+
+                stage = 1;
+
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", [], taskSubtopics, 0, signal);
+            }
+
+            let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            if (!newTask) {
                 return;
             }
 
-            const solution: string = await handleSolutionGenerate(
-                subjectId,
-                sectionId,
-                topicId,
-                text,
-                signal
-            );
-            
-            if (!solution) {
-                showAlert(400, "Nie udało się wygenerować rozwiązania");
+            const taskId = newTask.id;
+            text = newTask.text ?? "";
+            taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
+
+            if (stage < 2) {
+                const solution = await handleSolutionGenerate(subjectId, sectionId, topicId, text, signal);
+
+                if (!solution) {
+                    setLoading(false);
+                    showAlert(400, "Nie udało się wygenerować rozwiązania");
+                    return;
+                }
+
+                stage = 2;
+
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], taskSubtopics, 0, signal, taskId);
+            }
+
+            newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            if (!newTask) {
                 return;
             }
 
-            const optionsResult = await handleOptionsGenerate(
-                subjectId,
-                sectionId,
-                topicId,
-                text,
-                solution,
-                signal
-            );
-            const options: string[] = optionsResult.options ?? [];
-            const correctOptionIndex: number = optionsResult.correctOptionIndex ?? 0;
+            text = newTask.text ?? "";
+            const solution = newTask.solution ?? "";
 
-            if (!options.length) {
-                showAlert(400, "Nie udało się wygenerować wariantów odpowiedzi");
-                return;
+            if (stage < 3) {
+                const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, text, solution, signal);
+                const options = optionsResult.options ?? [];
+                const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
+
+                if (!options.length) {
+                    setLoading(false);
+                    showAlert(400, "Nie udało się wygenerować wariantów odpowiedzi");
+                    return;
+                }
+
+                stage = 3;
+
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, taskSubtopics, correctOptionIndex, signal, taskId);
             }
-
-            await handleSaveTaskTransaction(
-                subjectId,
-                sectionId,
-                topicId,
-                text,
-                solution,
-                options,
-                taskSubtopics,
-                correctOptionIndex,
-                signal
-            );
         } catch (error) {
+            setLoading(false);
             handleApiError(error);
-            console.error(error);
         }
     }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction]);
 
     useEffect(() => {
+        const handleUnload = () => {
+            controllersRef.current.forEach((controller: AbortController) => controller.abort());
+            controllersRef.current = [];
+        };
+
+        window.addEventListener("beforeunload", handleUnload);
+        return () => window.removeEventListener("beforeunload", handleUnload);
+    }, []);
+
+    useEffect(() => {
+        const sId = Number(localStorage.getItem("subjectId"));
+        const secId = Number(localStorage.getItem("sectionId"));
+        const tId = Number(localStorage.getItem("topicId"));
+
+        if (sId && secId && tId) {
+            setSubjectId(sId);
+            setSectionId(secId);
+            setTopicId(tId);
+        } else {
+            showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
+        }
+    }, []);
+
+    const controllerRef = useRef<AbortController | null>(null);
+    const controllersRef = useRef<AbortController[]>([]);
+
+    useEffect(() => {
+        if (!subjectId || !sectionId || !topicId) return;
+
         setLoading(true);
 
-        if (loadedRef.current) return;
-        loadedRef.current = true;
-
-        if (typeof window === "undefined") return;
-
-        const sId = localStorage.getItem("subjectId");
-        const secId = localStorage.getItem("sectionId");
-        const tId = localStorage.getItem("topicId");
-
-        if (!sId || !secId || !tId) {
-            showAlert(400, "Nie udało się pobrać ID");
-            return;
-        }
-
-        const subjectId = Number(sId);
-        const sectionId = Number(secId);
-        const topicId = Number(tId);
+        if (controllerRef.current) controllerRef.current.abort();
 
         const controller = new AbortController();
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
 
-        const fetchTask = async () => {
-            const task = await fetchPendingTask(
-                subjectId,
-                sectionId,
-                topicId,
-                controller.signal
-            );
+        const fetchAndLoadTask = async () => {
+            try {
+                setTextLoading("Pobieranie zadania");
 
-            if (task) {
-                setTask({
-                    text: task.text ?? "",
-                    solution: task.solution ?? "",
-                    options: task.options ?? [],
-                    correctOptionIndex: task.correctOptionIndex ?? 0,
-                    subtopics: task.subtopics ?? [],
-                    userSolution: "",
-                    userOptionIndex: 0
-                });
-            } else {
-                await loadTask(subjectId, sectionId, topicId, controller.signal);
-                const newTask = await fetchPendingTask(subjectId, sectionId, topicId, controller.signal);
-                if (newTask) {
-                    setTask({
-                        text: newTask.text ?? "",
-                        solution: newTask.solution ?? "",
-                        options: newTask.options ?? [],
-                        correctOptionIndex: newTask.correctOptionIndex ?? 0,
-                        subtopics: newTask.subtopics ?? [],
-                        userSolution: "",
-                        userOptionIndex: 0
+                let task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+                if (signal.aborted) return;
+
+                const stage = task?.stage ?? 0;
+
+                const taskId: number = Number(localStorage.getItem("taskId"));
+
+                if (task && task.id)
+                    localStorage.setItem("taskId", task.id);
+
+                if (!task && taskId) {
+                    task = await fetchTaskById(
+                        subjectId,
+                        sectionId,
+                        topicId,
+                        taskId,
+                        signal
+                    );
+
+                    if (signal.aborted) return;
+
+                    setUserOptionIndex(task.userOptionIndex ?? 0);
+
+                    fullUpdateTask(task);
+
+                    setLoading(false);
+                    return;
+                }
+
+                if (!task || stage < 3) {
+                    await loadTask(subjectId, sectionId, topicId, stage, signal);
+                    if (signal.aborted) return;
+                }
+
+                task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+                if (signal.aborted) return;
+
+                if (!task) {
+                    showAlert(400, "Nie udało się pobrać zadania");
+                    setLoading(false);
+                    return;
+                }
+
+                if (task.answered && !task.finished) {
+                    setUserOptionIndex(task.userOptionIndex ?? 0);
+
+                    fullUpdateTask(task);
+
+                    const data = await handleProblemsGenerate(
+                        subjectId ?? 0,
+                        sectionId ?? 0,
+                        topicId ?? 0,
+                        task.text ?? "",
+                        task.subtopics ?? [],
+                        task.solution ?? "",
+                        task.options ?? [],
+                        task.correctOptionIndex ?? 0,
+                        task.userSolution ?? "",
+                        task.userOptionIndex ?? 0,
+                        signal
+                    );
+
+                    if (signal.aborted) return;
+
+                    if (!data) return;
+
+                    const outputSubtopics: Subtopic[] = subtractPercents(
+                        task.subtopics ?? [],
+                        data.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
+                    );
+
+                    await handleSaveSubtopicsProgressTransaction(
+                        subjectId ?? 0,
+                        sectionId ?? 0,
+                        topicId ?? 0,
+                        task.id ?? 0,
+                        outputSubtopics
+                    );
+
+                    if (signal.aborted) return;
+
+                    updateTask({
+                        subtopics: outputSubtopics ?? [],
+                        answered: true,
+                        finished: true,
                     });
                 }
                 else {
-                    setTask({
-                        text: "",
-                        solution: "",
-                        options: [],
-                        correctOptionIndex: 0,
-                        subtopics: [],
-                        userSolution: "",
-                        userOptionIndex: 0
-                    });
+                    fullUpdateTask(task);
                 }
-            }
 
-            setLoading(false);
+                setLoading(false);
+            } catch (error) {
+                if ((error as DOMException)?.name === "AbortError") return;
+                setLoading(false);
+                handleApiError(error);
+            } finally {
+                controllersRef.current = controllersRef.current.filter(c => c !== controller);
+                setLoading(false);
+            }
         };
 
-        fetchTask();
-    }, [fetchPendingTask, loadTask]);
+        fetchAndLoadTask();
+
+        return () => {
+            controller.abort();
+            controllerRef.current = null;
+        };
+    }, [subjectId, sectionId, topicId]);
+
+    const adjustTextareaRows = (value: string) => {
+        if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            textarea.value = value;
+            textarea.rows = 1;
+            const fontSize = 20;
+            const lineHeight = fontSize * 1.4;
+            const lines = Math.ceil(textarea.scrollHeight / lineHeight);
+            textarea.rows = lines;
+        }
+    };
 
     useEffect(() => {
         setInsertPosition(InsertPosition.None);
         setMsgVisible(false);
 
         setMainHeight();
-        fixHeight();
 
         const handleResize = () => {
             setMainHeight();
-            fixHeight();
         };
 
         window.addEventListener("resize", handleResize);
@@ -501,6 +799,7 @@ export default function PlayPage() {
 
         if (savedAnswer) {
             setTextValue(savedAnswer);
+            adjustTextareaRows(savedAnswer);
             splitIntoSentences(savedAnswer)
                 .then(sentences => setSentences(sentences))
                 .catch(() => setSentences([]));
@@ -508,15 +807,32 @@ export default function PlayPage() {
         }
     }, []);
 
+    const firstLoadRef = useRef(true);
+
     useEffect(() => {
-        if (containerRef.current && !loading && !transcribeLoading) {
+        if (!containerRef.current) return;
+
+        if (firstLoadRef.current && !loading) {
+            firstLoadRef.current = false;
+            return;
+        }
+
+        if (transcribeLoading || !loading) {
             scrollToBottom();
         }
     }, [sentences, transcribes, loading, transcribeLoading]);
 
     const splitIntoSentences = async (text: string): Promise<string[]> => {
         try {
-            const response = await api.post("/options/split-into-sentences", { text });
+            const response = await api.post("/options/split-into-sentences", { 
+                text,
+                language: "pl"
+            });
+
+            if (response.status !== 201) {
+                showAlert(400, `Nie udało się podzielić tekstu na zdania`);
+                return [];
+            }
 
             const sentences = response.data?.sentences;
 
@@ -526,6 +842,7 @@ export default function PlayPage() {
 
             return [];
         } catch {
+            showAlert(400, `Nie udało się podzielić tekstu na zdania`);
             return [];
         }
     };
@@ -533,34 +850,37 @@ export default function PlayPage() {
     const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newValue = e.target.value;
         setTextValue(newValue);
-        splitIntoSentences(newValue)
-            .then(sentences => setSentences(sentences))
-            .catch(() => setSentences([]));
-        fixHeight();
         localStorage.setItem("answerText", newValue);
+        adjustTextareaRows(newValue);
     };
 
     const handleBackClick = () => {
-        router.push("/sections");
+        localStorage.removeItem("answerText");
+        localStorage.removeItem("taskId");
+
+        router.back();
     };
 
     const toggleInputMode = () => {
         setIsMicMode(prev => !prev);
-        const savedAnswer = localStorage.getItem("answerText");
+        scrollToBottom();
+    };
 
-        if (savedAnswer) {
+    useEffect(() => {
+        const savedAnswer = localStorage.getItem("answerText") || "";
+
+        if (!isMicMode) {
+            textareaRef.current?.focus({ preventScroll: true });
             setTextValue(savedAnswer);
+            adjustTextareaRows(savedAnswer);
+        }
+        else {
             splitIntoSentences(savedAnswer)
                 .then(sentences => setSentences(sentences))
                 .catch(() => setSentences([]));
             setSelectedSentences([0]);
         }
-        else {
-            setTextValue("");
-            setSentences([]);
-            setSelectedSentences([]);
-        }
-    };
+    }, [isMicMode]);
 
     const handleSentenceSelect = (id: number) => {
         setSelectedSentences(prev => {
@@ -588,6 +908,7 @@ export default function PlayPage() {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('part_id', part_id.toString());
+            formData.append('language', "pl");
 
             const response = await api.post(`/options/${subjectId}/audio-transcribe`, formData, {
                 headers: {
@@ -639,7 +960,7 @@ export default function PlayPage() {
                     const chunkFile = new File([chunk], `part_${partId}.webm`, { type: 'audio/webm' });
 
                     const transcription = await fetchAudioTranscribe(partId, chunkFile, subjectId);
-                    
+
                     if (transcription) {
                         newTranscribes.push(transcription);
                     } else {
@@ -650,31 +971,27 @@ export default function PlayPage() {
                     partId += 1;
                 }
 
+                const newSentences = await splitIntoSentences(newTranscribes.join(" "));
+
                 if (insertPosition === InsertPosition.None) {
-                    const newTextValue = newTranscribes.join(" ");
+                    const newTextValue = newSentences.join(" ");
                     setTranscribes(prev => [...prev, ...newTranscribes]);
                     setTextValue(newTextValue);
-                    splitIntoSentences(newTextValue)
-                        .then(sentences => setSentences(sentences))
-                        .catch(() => setSentences([]));
-                    fixHeight();
+                    setSentences(newSentences);
+                    setSelectedSentences(newSentences.map((_, i) => i)); // выделяем все вставленные
                     localStorage.setItem("answerText", newTextValue);
                 }
                 else if (insertPosition === InsertPosition.Przed) {
-                    const newSentences = await splitIntoSentences(newTranscribes.join(" "));
-                    setTranscribes(prev => [...prev, ...newTranscribes]);
                     const minIndex = Math.min(...selectedSentences);
                     const updatedSentences = [...sentences];
                     updatedSentences.splice(minIndex, 0, ...newSentences);
                     const newTextValue = updatedSentences.join(" ");
                     setSentences(updatedSentences);
                     setTextValue(newTextValue);
-                    fixHeight();
+                    setSelectedSentences(newSentences.map((_, i) => minIndex + i));
                     localStorage.setItem("answerText", newTextValue);
                 }
                 else if (insertPosition === InsertPosition.Zamiast) {
-                    const newSentences = await splitIntoSentences(newTranscribes.join(" "));
-                    setTranscribes(prev => [...prev, ...newTranscribes]);
                     const minIndex = Math.min(...selectedSentences);
                     const maxIndex = Math.max(...selectedSentences);
                     const updatedSentences = [...sentences];
@@ -682,20 +999,17 @@ export default function PlayPage() {
                     const newTextValue = updatedSentences.join(" ");
                     setSentences(updatedSentences);
                     setTextValue(newTextValue);
-                    fixHeight();
+                    setSelectedSentences(newSentences.map((_, i) => minIndex + i));
                     localStorage.setItem("answerText", newTextValue);
-                    setSelectedSentences([0]);
                 }
                 else if (insertPosition === InsertPosition.Po) {
-                    const newSentences = await splitIntoSentences(newTranscribes.join(" "));
-                    setTranscribes(prev => [...prev, ...newTranscribes]);
                     const maxIndex = Math.max(...selectedSentences);
                     const updatedSentences = [...sentences];
                     updatedSentences.splice(maxIndex + 1, 0, ...newSentences);
                     const newTextValue = updatedSentences.join(" ");
                     setSentences(updatedSentences);
                     setTextValue(newTextValue);
-                    fixHeight();
+                    setSelectedSentences(newSentences.map((_, i) => maxIndex + 1 + i));
                     localStorage.setItem("answerText", newTextValue);
                 }
 
@@ -724,7 +1038,10 @@ export default function PlayPage() {
     };
 
     const togglePlayPause = () => {
-        if (!isMicMode) return;
+        if (!isMicMode) {
+            toggleInputMode();
+            return;
+        }
 
         if (!isPlaying) {
             if (sentences.length !== 0) {
@@ -784,6 +1101,149 @@ export default function PlayPage() {
             localStorage.setItem("answerText", "");
         }
     }
+
+    function subtractPercents(subtopics: Subtopic[], outputSubtopics: Subtopic[]): Subtopic[] {
+        const outputMap = new Map<string, number>(
+            outputSubtopics.map(item => [item.name, item.percent])
+        );
+
+        return subtopics.map(item => {
+            const subtractValue = outputMap.get(item.name) || 0;
+            return {
+                name: item.name,
+                percent: 100 - subtractValue
+            };
+        });
+    }
+
+    function isEmptyString(str: string): boolean {
+        return /^\s*$/.test(str);
+    }
+
+    const handleSubmitTaskClick = useCallback(async () => {
+        if (isEmptyString(textValue)) {
+            showAlert(400, "Odpowiedź nie może być pusta");
+            return;
+        }
+
+        scrollToBottom();
+
+        if (controllerRef.current) {
+            controllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        controllerRef.current = controller;
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
+
+        if (!task?.getTask().answered) {
+            setLoading(true);
+            try {
+                localStorage.removeItem("answerText");
+                setTextValue("");
+                setSentences([]);
+                setSelectedSentences([]);
+                setTranscribes([]);
+
+                updateTask({
+                    answered: true,
+                    userSolution: textValue,
+                    userOptionIndex: userOptionIndex ?? 0
+                });
+
+                await handleTaskUserSolutionSave(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    task?.getTask().id ?? 0,
+                    textValue,
+                    userOptionIndex ?? 0,
+                    signal
+                );
+
+                if (signal.aborted) return;
+
+                const newTask: ITask = await fetchPendingTask(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    signal
+                );
+                if (signal.aborted || !newTask) return showAlert(400, "Nie udało się pobrać zadania");
+
+                fullUpdateTask(newTask);
+
+                const data = await handleProblemsGenerate(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    newTask.text ?? "",
+                    newTask.subtopics ?? [],
+                    newTask.solution ?? "",
+                    newTask.options ?? [],
+                    newTask.correctOptionIndex ?? 0,
+                    newTask.userSolution ?? "",
+                    newTask.userOptionIndex ?? 0,
+                    signal
+                );
+
+                if (signal.aborted || !data) return;
+
+                const outputSubtopics: Subtopic[] = subtractPercents(
+                    newTask.subtopics ?? [],
+                    data.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
+                );
+
+                await handleSaveSubtopicsProgressTransaction(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    newTask.id ?? 0,
+                    outputSubtopics,
+                    signal
+                );
+
+                if (signal.aborted) return;
+
+                updateTask({
+                    finished: true,
+                    answered: true,
+                    subtopics: outputSubtopics
+                });
+
+            }
+            catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return;
+                handleApiError(error);
+            }
+            finally {
+                if (!signal.aborted) setLoading(false);
+                controllersRef.current = controllersRef.current.filter(c => c !== controller);
+                controllerRef.current = null;
+            }
+        }
+    }, [task, textValue, userOptionIndex, subjectId, sectionId, topicId]);
+
+    const shuffledOptions = useMemo(() => {
+        const optionsWithIndex = (task?.getTask().options ?? []).map((option, i) => ({
+            option,
+            originalIndex: i
+        }));
+
+        for (let i = optionsWithIndex.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [optionsWithIndex[i], optionsWithIndex[j]] = [optionsWithIndex[j], optionsWithIndex[i]];
+        }
+
+        return optionsWithIndex;
+    }, [task?.getTask().options]); 
+
+    useEffect(() => {
+        if (shuffledOptions.length > 0 && userOptionIndex === null) {
+            setUserOptionIndex(shuffledOptions[0].originalIndex);
+        }
+    }, [shuffledOptions, userOptionIndex]);
 
     return (
         <>
@@ -882,107 +1342,144 @@ export default function PlayPage() {
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
                             <div className="message robot">
-                                <br />
                                 <div style={{fontWeight: "bold"}}>Tekst zadania:</div>
-                                <br />
-                                <div style={{paddingLeft: "20px"}}><FormatText content={task?.text ?? ""} /></div>
-                                <br />
+                                <div style={{paddingLeft: "20px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
+                            </div>
+                            <div className="message human">
                                 <div style={{fontWeight: "bold"}}>Warianty odpowiedzi:</div>
-                                <br />
-                                <div style={{paddingLeft: "20px", margin: "0px"}} className="radio-group">
-                                    {task?.options?.map((option, i) => (
-                                        <label key={i} className="radio-option" style={{marginBottom: "12px"}}>
+                                <div style={{ margin: "12px"}} className="radio-group">
+                                    {shuffledOptions.map(({ option, originalIndex }) => (
+                                        <label key={originalIndex} className="radio-option" style={{marginBottom: "12px"}}>
                                             <input
                                                 type="radio"
                                                 name="userOption"
-                                                value={i}
-                                                checked={userOptionIndex === i}
-                                                onChange={() => setUserOptionIndex(i)}
+                                                value={originalIndex}
+                                                checked={userOptionIndex === originalIndex}
+                                                onChange={() => setUserOptionIndex(originalIndex)}
+                                                disabled={task.getTask().finished}
                                             />
                                             <span><FormatText content={option ?? ""} /></span>
                                         </label>
                                     ))}
                                 </div>
-                            </div>
-                            <div className="message human">Nie chcę tego rozwiązać!</div>
-                        </div>
-
-                        <div className="answer-block">
-                            {!isMicMode ? (
-                                <textarea
-                                    ref={textareaRef}
-                                    className="message answer"
-                                    placeholder="Wpisz rozwiązanie..."
-                                    onInput={handleInput}
-                                    value={textValue}
-                                    rows={1}
-                                />
-                            ) : (
-                                <div className="message answer sentences">
-                                    {sentences.map((sentence, i) => {
-                                        const isSelected = selectedSentences.includes(i);
-                                        const handleClick = () => {
-                                            if (isSelected) handleSentenceDeselect(i);
-                                            else handleSentenceSelect(i);
-                                        };
-                                        return (
-                                            <span
-                                                key={i}
-                                                className={`sentence ${isSelected ? 'active' : ''}`}
-                                                onClick={handleClick}
-                                            >
-                                                {sentence}
-                                            </span>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                            <div className="bottom-bar">
-                                <div className="bottom-bar-options">
-                                    <div
-                                        className="bottom-icon-button"
-                                        title={isMicMode ? "Mikrofon (włączony)" : "Wpisz tekst"}
-                                        onClick={toggleInputMode}
-                                    >
-                                        {isMicMode ? <Mic size={28} color="white" /> : <Type size={28} color="white" />}
-                                    </div>
-                                    <div
-                                        className={`bottom-icon-button ${!isMicMode ? "disabled" : ""}`}
+                                <br />
+                                <div style={{fontWeight: "bold"}}>Rozwiązanie:</div>
+                                {!isMicMode ? (
+                                    !task.getTask().finished ? (
+                                    <textarea
+                                        ref={textareaRef}
+                                        placeholder="Wpisz rozwiązanie..."
+                                        onInput={handleInput}
+                                        className="answer-block"
+                                        value={textValue}
+                                        rows={1}
+                                        name="userSolution"
+                                        id="userSolution"
+                                    />) : (
+                                         <div className="answer-block readonly">
+                                            {task.getTask().userSolution || ""}
+                                        </div>
+                                    )
+                                ) : (
+                                    !task.getTask().finished ? (
+                                    <div className="sentences" style={{marginTop: "8px"}}>
+                                        {sentences.map((sentence, i) => {
+                                            const isSelected = selectedSentences.includes(i);
+                                            const handleClick = () => {
+                                                if (isSelected) handleSentenceDeselect(i);
+                                                else handleSentenceSelect(i);
+                                            };
+                                            return (
+                                                <span
+                                                    key={i}
+                                                    className={`sentence ${isSelected ? 'active' : ''}`}
+                                                    onClick={handleClick}
+                                                >
+                                                    {sentence}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>) : (
+                                        <div className="answer-block readonly">
+                                            {task.getTask().userSolution || ""}
+                                        </div>
+                                    )
+                                )}
+                                {!task.getTask().finished ? (<div className="options">
+                                    <button
+                                        className={isMicMode
+                                            ? `btnOption ${isPlaying ? 'darkgreen' : ''}`
+                                            : 'btnOption disabled'}
                                         title={isPlaying ? "Pauza" : "Start"}
                                         onClick={togglePlayPause}
                                         style={{ cursor: isMicMode ? "pointer" : "not-allowed" }}
                                     >
-                                        {isPlaying ? <Pause size={28} color="white" /> : <Play size={28} color="white" />}
-                                    </div>
-                                    <div
-                                        className="bottom-icon-button"
-                                        title="Usuń"
-                                        style={{ cursor: "pointer" }}
-                                        onClick={() => {
-                                            if (isMicMode) {
-                                                if (sentences.length !== 0 && selectedSentences.length === 0) {
-                                                    setSelectedSentencesWasEmpty(true);
-                                                    const allIndexes = sentences.map((_, index) => index);
-                                                    setSelectedSentences(allIndexes);
-                                                }
-                                            }
-
-                                            setMsgDeleteVisible(true);
-                                        }}
+                                        <Mic size={28} color="white" />
+                                    </button>
+                                    <button
+                                        className={isMicMode ? `btnOption disabled` : `btnOption`}
+                                        title={isMicMode ? "Mikrofon (włączony)" : "Wpisz tekst"}
+                                        onClick={toggleInputMode}
+                                        style={{ cursor: isMicMode ? "not-allowed" : "pointer" }}
                                     >
-                                        <X size={28} color="white" />
+                                        <Type size={28} color="white" />
+                                    </button>
+                                    <div style={{
+                                        display: "flex",
+                                        gap: "6px",
+                                        marginLeft: "auto"
+                                    }}>
+                                        <button
+                                            className="btnOption"
+                                            title="Usuń"
+                                            style={{
+                                                cursor: "pointer"
+                                            }}
+                                            onClick={() => {
+                                                if (isMicMode) {
+                                                    if (sentences.length !== 0 && selectedSentences.length === 0) {
+                                                        setSelectedSentencesWasEmpty(true);
+                                                        const allIndexes = sentences.map((_, index) => index);
+                                                        setSelectedSentences(allIndexes);
+                                                    }
+                                                }
+
+                                                setMsgDeleteVisible(true);
+                                            }}
+                                        >
+                                            <X size={28} color="white" />
+                                        </button>
+                                        <button
+                                            className="btnOption"
+                                            title={"Wysłać Odpowiedź"}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleSubmitTaskClick();
+                                            }}
+                                        >
+                                            <Check size={28} color="white" />
+                                        </button>
+                                    </div>
+                                </div>) : null}
+                            </div>
+                            {task?.getTask().finished && (
+                            <>
+                                <div className="message robot">
+                                    <div style={{fontWeight: "bold"}}>Procenty podtematów:</div>
+                                    {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
+                                        <div key={index}>
+                                            <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="message robot">
+                                    <div style={{fontWeight: "bold"}}>Rozwiązanie zadania:</div>
+                                    <div>
+                                        <FormatText content={task?.getTask().solution} />
                                     </div>
                                 </div>
-                                <div
-                                    className="bottom-icon-button"
-                                    title={"Wysłać Odpowiedź"}
-                                    onClick={() => {
-                                        scrollToBottom();
-                                    }}
-                                >
-                                    <ArrowUp size={28} color="white" />
-                                </div>
-                            </div>
+                            </>
+                            )}
                         </div>
                     </div>
                 )}

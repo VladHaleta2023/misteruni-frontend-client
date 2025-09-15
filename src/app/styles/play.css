@@ -6,25 +6,24 @@ html, body, #__next {
 .play-container {
   max-width: 800px;
   width: 100%;
+  overflow-y: auto;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
-.play-container > .chat {
+.chat {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  overflow-y: auto;
   padding-bottom: 16px;
   box-sizing: border-box;
   scroll-behavior: smooth;
 }
 
-.play-container > .chat > .message {
+.message {
   font-size: 20px;
-  padding: 14px 18px;
+  padding: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
   word-break: break-word;
@@ -36,7 +35,30 @@ html, body, #__next {
   width: 90%;
 }
 
-.play-container > .chat > .robot {
+.answer-block {
+  width: 100%;
+  margin-top: 8px;
+  user-select: text;
+  resize: none;
+}
+
+textarea {
+  outline: none;
+  box-shadow: none;
+}
+
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+  box-shadow: 0 0 0px 1000px white inset !important;
+  -webkit-text-fill-color: #000 !important;
+}
+
+textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.message.robot {
   color: black;
   align-self: flex-start;
   width: 100%;
@@ -45,79 +67,76 @@ html, body, #__next {
   border-radius: 0px;
 }
 
-.play-container > .chat > .human {
+.options {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btnOption {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #7e2ba9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.btnOption.darkgreen {
+  background-color: darkgreen;
+}
+
+.btnOption.disabled {
+  background-color: #a76bd6;
+}
+
+.btnSubmit {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #7e2ba9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  width: 200px;
+}
+
+.message.human {
   background-color: #c0c0c0;
   color: black;
   align-self: flex-end;
 }
 
-.answer-block {
-  width: 100%;
-  background-color: #C0c0c0;
-  border-radius: 16px 16px 0 0;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  bottom: 0;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  padding: 14px 18px;
-}
-
-.answer-block .message.answer {
-  color: black;
-  outline: none;
-  resize: none;
-  overflow-y: auto;
-  min-height: calc(1.4em * 1 + 28px);
-  max-height: 180px;
-  height: auto;
-  height: 280px;
-  box-sizing: border-box;
-  width: 100%;
-  font-size: 24px;
-  line-height: 1.4;
-}
-
-.answer-block .message.answer.sentences {
-  line-height: 1.8;
+.sentences {
   white-space: normal;
+  line-height: 1.4;
+  padding: 0px;
+  box-shadow: none;
+  width: 100%;
+  border-radius: none;
 }
 
 .sentence {
   display: inline;
-  margin-right: 0.4em;
   padding: 4px 6px;
-  background-color: #dfe6fd;
+  background-color: transparent;
   border-radius: 8px;
-  user-select: text;
+  user-select: none;
   cursor: pointer;
 }
 
 .sentence.active {
-  background-color: #c8b9f7;
+  background-color: #a8b8f0;
 }
 
-.answer-block .bottom-bar {
-  display: flex;
-  margin-top: 14px;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.answer-block .bottom-bar .bottom-bar-options {
-  display: flex;
-  gap: 8px;
-}
-
-.answer-block .bottom-icon-button {
-  padding: 10px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  background-color: #7e2ba9;
-}
-
-.answer-block .bottom-icon-button.disabled {
+.disabled {
   opacity: 0.6;
   cursor: not-allowed;
   user-select: none;
@@ -126,13 +145,31 @@ html, body, #__next {
   color: #aaa;
 }
 
-@media (max-width: 768px) {
-  .answer-block .message.answer {
-    max-height: 120px;
-    height: 120px;
-  }
+progress.progress-bar {
+  appearance: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+}
 
-  .play-container > .chat > .message,
+progress.progress-bar::-webkit-progress-bar {
+  background-color: #9ca3af;
+  border-radius: 8px;
+}
+
+progress.progress-bar::-webkit-progress-value {
+  transition: background-color 0.2s ease, color 0.2s ease;
+  background-color: #7e2ba9;
+  border-radius: 8px;
+  transition: width 0.4s ease;
+}
+
+progress.progress-bar::-moz-progress-bar {
+  background: linear-gradient(to right, #2563eb, #4f46e5);
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .message,
   .answer-block .message.answer {
     font-size: 18px;
   }

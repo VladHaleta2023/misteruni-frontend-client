@@ -1,10 +1,10 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts';
 import { useState, useEffect } from 'react';
 
 const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte', 'Zablokowane'];
-const COLORS = ['#1b5e20', '#bfa000', '#d6d6d6', '#4a4a4a'];
+const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb', '#4a4a4a'];
 
 interface CirclePieChartProps {
   percents: [number, number, number, number];
@@ -93,7 +93,7 @@ export default function CirclePieChart({
                 isAnimationActive={false}
                 tabIndex={-1}
               >
-                {data.map((_, index) => (
+                {data.slice(0, -1).map((_, index) => (
                   <Cell
                     key={`cell-${index}`}
                     fill={COLORS[index % COLORS.length]}
@@ -101,6 +101,15 @@ export default function CirclePieChart({
                   />
                 ))}
               </Pie>
+              <Label
+                value={`+15`}
+                position="center"
+                style={{
+                  fontSize: 'clamp(18px, 3vw, 26px)',
+                  fontWeight: '600',
+                  fill: '#333',
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -111,11 +120,11 @@ export default function CirclePieChart({
             display: 'flex',
             flexDirection: 'column',
             minWidth: '100px',
-            fontSize: 'clamp(14px, 1.67vw, 18px)',
+            fontSize: 'clamp(14px, 1.67vw, 16px)',
             color: '#333',
           }}
         >
-          {data.map((item, index) => (
+          {data.slice(0, -1).map((item, index) => (
             <div
               key={index}
               style={{
@@ -145,7 +154,7 @@ export default function CirclePieChart({
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
+          gap: 0px;
         }
         .container.desktop {
           flex-direction: row;

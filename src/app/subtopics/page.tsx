@@ -4,11 +4,11 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ListCheck } from 'lucide-react';
 import "@/app/styles/table.css";
-import Tasks from "./components/tasks";
+import Statistics from "@/app/subtopics/components/statistic";
 
-export default function SectionsPage() {
+export default function SubtopicsPage() {
   const router = useRouter();
 
   useEffect(() => {
@@ -21,7 +21,12 @@ export default function SectionsPage() {
   }, []);
 
   function handleBackClick() {
+    localStorage.removeItem("topicId");
     router.push("/sections");
+  }
+
+  function handleTasksClick() {
+    router.push("/subtopics/tasks");
   }
 
   return (
@@ -36,11 +41,20 @@ export default function SectionsPage() {
           >
             <ArrowLeft size={28} color="white" />
           </div>
+
+          <div
+            className="menu-icon"
+            title={"Przełącz do zadań"}
+            onClick={handleTasksClick}
+            style={{ cursor: "pointer" }}
+          >
+            <ListCheck size={28} color="white" />
+          </div>
         </div>
       </Header>
 
       <main style={{ padding: "0px" }}>
-        <Tasks />
+        <Statistics />
       </main>
     </>
   );

@@ -8,6 +8,7 @@ import axios from "axios";
 import api from "@/app/utils/api";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import { useRouter } from "next/navigation";
+import FormatText from "@/app/components/formatText";
 
 type Status = 'blocked' | 'started' | 'progress' | 'completed';
 
@@ -31,6 +32,7 @@ interface Topic {
 interface Section {
   id: number;
   name: string;
+  type: string;
   percent: number;
   blocked: boolean;
   status: Status;
@@ -46,6 +48,8 @@ export default function Statistics() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
+
+  const [total, setTotal] = useState<[number, number, number, number]>([0, 0, 0, 0]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -99,6 +103,12 @@ export default function Statistics() {
       if (response.data?.statusCode === 200) {
         const fetchedSections: Section[] = response.data.sections;
         setSections(fetchedSections);
+        setTotal([
+          Math.round(Number(response.data.total.completed)),
+          Math.round(Number(response.data.total.progress)),
+          Math.round(Number(response.data.total.started)),
+          Math.round(Number(response.data.total.blocked))
+        ]);
       } else {
         showAlert(response.data.statusCode, response.data.message);
       }
@@ -141,23 +151,36 @@ export default function Statistics() {
     }));
   };
 
-  const handleTopicClick = (sectionId: number, topic: Topic) => {
+  const handleTopicPlayClick = (sectionId: number, topic: Topic, sectionType: string) => {
     if (topic.blocked) return;
 
-    if (topicId === topic.id && sectionId === sectionId) {
-      setTopicId(null);
-      setSectionId(null);
-      localStorage.removeItem("sectionId");
-      localStorage.removeItem("topicId");
+    setTopicId(topic.id);
+    setSectionId(sectionId);
+    localStorage.setItem("sectionId", String(sectionId));
+    localStorage.setItem("topicId", String(topic.id));
+
+    if (sectionType == "InteractiveQuestion") {
+      router.push("/interactive-play");
     }
     else {
-      setTopicId(topic.id);
-      setSectionId(sectionId);
-      localStorage.setItem("sectionId", String(sectionId));
-      localStorage.setItem("topicId", String(topic.id));
+      router.push("/play");
     }
+  };
 
-    router.push("/play");
+  const handleTopicClick = (sectionId: number, topic: Topic, sectionType: string) => {
+    if (topic.blocked) return;
+
+    setTopicId(topic.id);
+    setSectionId(sectionId);
+    localStorage.setItem("sectionId", String(sectionId));
+    localStorage.setItem("topicId", String(topic.id));
+
+    if (sectionType == "InteractiveQuestion") {
+      router.push("/subtopics/tasks");
+    }
+    else {
+      router.push("/subtopics");
+    }
   };
 
   /*
@@ -226,9 +249,10 @@ export default function Statistics() {
         </div>
       ) : (
         <>
-          <CirclePieChart percents={[40, 30, 20, 10]} />
-          <br />
-          <div className="table">
+          <CirclePieChart percents={total} />
+          <div className="table" style={{
+            marginTop: "12px"
+          }}>
             {sections.flatMap((section) => [
               <div
                 className={`element element-section`}
@@ -253,13 +277,14 @@ export default function Statistics() {
                   )}
                 </div>
 
-                <div className="element-name">{section.name}</div>
+                <div className="element-name">
+                  <FormatText content={section.name ?? ""} />
+                </div>
 
                 <div className="element-options">
                   <div
                     className={`element-percent ${section.status}`}
-                    style={{ marginRight: "38px" }}
-                  >{section.percent}%</div>
+                  >{Math.round(section.percent)}%</div>
                 </div>
               </div>,
 
@@ -267,17 +292,23 @@ export default function Statistics() {
                 ? section.topics.flatMap((topic) => [
                     <div
                       className={`element element-topic`}
+                      onClick={(e) => {
+                          e.stopPropagation();
+                          handleTopicClick(section.id, topic, section.type);
+                        }}
                       style={{ justifyContent: "space-between" }}
                       key={`topic-${section.id}-${topic.id}`}
                     >
-                      <div className="element-name">{topic.name}</div>
+                      <div className="element-name">
+                        <FormatText content={topic.name ?? ""} />
+                      </div>
                       <div className="element-options">
-                        <div className={`element-percent ${topic.status}`}>{topic.percent}%</div>
+                        <div className={`element-percent ${topic.status}`}>{Math.round(topic.percent)}%</div>
                         <button
                           className="btnElement"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleTopicClick(section.id, topic);
+                            handleTopicPlayClick(section.id, topic, section.type);
                           }}
                         >
                           <Play size={32} color="black" />
@@ -288,6 +319,7 @@ export default function Statistics() {
                 : []),
             ])}
           </div>
+          <br />
         </>
       )}
     </>

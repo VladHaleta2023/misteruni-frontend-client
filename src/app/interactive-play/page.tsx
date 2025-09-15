@@ -1,0 +1,1106 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Header from "@/app/components/header";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Text, Type } from 'lucide-react';
+import "@/app/styles/play.css";
+import "@/app/styles/message.css";
+import Spinner from "@/app/components/spinner";
+import { showAlert } from "@/app/scripts/showAlert";
+import { ITask } from "../scripts/task";
+import api from "@/app/utils/api";
+import axios from "axios";
+import FormatText from "../components/formatText";
+import React from "react";
+import { setMainHeight } from "../scripts/mainHeight";
+
+export default function InteractivePlayPage() {
+    const router = useRouter();
+    const [loading, setLoading] = useState(true);
+    const [textLoading, setTextLoading] = useState<string>("");
+
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    const [sentences, setSentences] = useState<string[]>([]);
+    const [isOriginal, setIsOriginal] = useState<boolean>(true);
+    const [isSentences, setIsSentences] = useState<boolean>(true);
+    const [userOptionIndices, setUserOptionIndices] = useState<number[]>([]);
+    const [words, setWords] = useState<string[]>([]);
+    
+    console.log(userOptionIndices);
+
+    const [task, setTask] = useState<ITask>({
+            id: 0,
+            stage: 0,
+            text: "",
+            solution: "",
+            options: [],
+            subtopics: [],
+            correctOptionIndex: 0,
+            answered: false,
+            finished: false,
+            userOptionIndex: 0,
+            userSolution: "",
+            subTasks: [],
+            audioFiles: []
+        }
+    );
+    
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const [subjectId, setSubjectId] = useState<number | null>(null);
+    const [sectionId, setSectionId] = useState<number | null>(null);
+    const [topicId, setTopicId] = useState<number | null>(null);
+    const [audioRepeat, setAudioRepeat] = useState<number>(0);
+
+    const [selectedWords, setSelectedWords] = useState<number[]>([0]);
+
+    const [progress, setProgress] = useState(0);
+    const [durations, setDurations] = useState<number[]>([]);
+    const [currentTimeFormatted, setCurrentTimeFormatted] = useState("0:00");
+    const [totalTimeFormatted, setTotalTimeFormatted] = useState("0:00");
+
+    function handleApiError(error: unknown) {
+        if (axios.isAxiosError(error)) {
+            if (error.code === "ERR_CANCELED") return;
+
+            if (error.response) {
+                showAlert(error.response.status, error.response.data?.message || "Server error");
+            } else {
+                showAlert(500, `Server error: ${error.message}`);
+            }
+        } else if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+        } else if (error instanceof Error) {
+            showAlert(500, `Server error: ${error.message}`);
+        } else {
+            showAlert(500, "Unknown error");
+        }
+    }
+
+    const fetchPendingTask = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        signal?: AbortSignal) => {
+        
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        const controller = new AbortController();
+        if (!signal) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller.signal;
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
+                { signal: activeSignal }
+            );
+
+            if (activeSignal.aborted) return null;
+
+            if (response.data?.statusCode === 200) {
+                return response.data.task ?? null;
+            }
+
+            return null;
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return null;
+            handleApiError(error);
+            return null;
+        } finally {
+            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+        }
+    }, []);
+
+    const fetchTaskById = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        signal?: AbortSignal) => {
+        
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        if (!taskId) {
+            showAlert(400, "Zadanie nie zostało znalezione");
+            return null;
+        }
+
+        const controller = new AbortController();
+        if (!signal) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller.signal;
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
+                { signal: activeSignal }
+            );
+
+            if (activeSignal.aborted) return null;
+
+            if (response.data?.statusCode === 200) {
+                return response.data.task;
+            }
+
+            return null;
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return null;
+            handleApiError(error);
+            return null;
+        } finally {
+            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+        }
+    }, []);
+
+    const handleInteractiveTextGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
+            setTextLoading("Generowanie treści zadania");
+
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
+
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let text = "";
+                let translate = "";
+                let errors: string[] = [];
+                const MAX_ATTEMPTS = 1;
+
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return { text: "", translate: "" };
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/interactive-task-generate`,
+                        { changed, errors, attempt, text, translate },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return { text: "", translate: "" };
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        text = response.data.text;
+                        translate = response.data.translate;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie treści zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się zgenerować treści zadania");
+                        break;
+                    }
+                }
+
+                return { text, translate };
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return { text: "", translate: "" };
+                handleApiError(error);
+                return { text: "", translate: "" };
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
+
+    const handleQuestionsTaskGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, text: string, signal?: AbortSignal) => {
+            setTextLoading("Generowanie pytań etapowych zadania");
+
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
+
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let questions: string[] = [];
+                let errors: string[] = [];
+                const MAX_ATTEMPTS = 1;
+
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return [];
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/questions-task-generate`,
+                        { changed, errors, attempt, text, questions },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return [];
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        questions = response.data.questions;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie pytań etapowych zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się zgenerować pytań etapowych zadania");
+                        break;
+                    }
+                }
+
+                return questions;
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return [];
+                handleApiError(error);
+                return [];
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
+
+    const handleOptionsGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, text: string, solution: string, currentsubTaskIndex: number, allSubTasks: number, signal?: AbortSignal) => {
+            setTextLoading(`Generowanie wariantów zadania pytania etapowego ${currentsubTaskIndex}/${allSubTasks}`);
+
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
+
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let errors: string[] = [];
+                let options: string[] = [];
+                let correctOptionIndex = 0;
+                const MAX_ATTEMPTS = 1;
+
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+
+                    const response = await api.post(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
+                        { changed, errors, attempt, text, solution, options, correctOptionIndex },
+                        { signal: activeSignal }
+                    );
+
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        text = response.data.text;
+                        solution = response.data.solution;
+                        options = response.data.options;
+                        correctOptionIndex = response.data.correctOptionIndex;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się wygenerować wariantów zadania");
+                        break;
+                    }
+                }
+
+                return { options, correctOptionIndex };
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return { options: [], correctOptionIndex: 0 };
+                handleApiError(error);
+                return { options: [], correctOptionIndex: 0 };
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
+
+    const handleSaveTaskTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        stage: number,
+        text: string,
+        solution: string,
+        options: string[],
+        taskSubtopics: string[],
+        correctOptionIndex: number,
+        signal?: AbortSignal,
+        id?: number
+    ) => {
+        try {
+            const response = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
+                {
+                    id,
+                    stage,
+                    text,
+                    solution,
+                    options,
+                    correctOptionIndex,
+                    taskSubtopics
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode === 200) {
+                showAlert(200, "Zadanie zapisane pomyślnie");
+            } else {
+                setLoading(false);
+                showAlert(400, "Nie udało się zapisać zadania");
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
+    const handleSaveSubTasksTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        tasks: {
+            stage: number,
+            text: string,
+            solution: string,
+            options: string[],
+            taskSubtopics: string[],
+            correctOptionIndex: number,
+            id?: number
+        }[],
+        text: string,
+        solution: string,
+        signal?: AbortSignal
+    ) => {
+        try {
+            const response = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/questions-task-transaction`,
+                {
+                    tasks
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode === 200) {
+                await handleSaveTaskTransaction(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    2,
+                    text,
+                    solution,
+                    [],
+                    [],
+                    0,
+                    signal,
+                    taskId
+                );
+                showAlert(200, "Pytania etapowe zapisane pomyślnie");
+            } else {
+                setLoading(false);
+                showAlert(400, "Nie udało się zapisać pytań etapowych");
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
+    const handleSaveAudioTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        text: string,
+        stage: number,
+        language: string,
+        signal?: AbortSignal
+    ) => {
+        try {
+            setTextLoading("Generowanie audio zadania");
+
+            const response = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/audio-transaction`,
+                {
+                    text,
+                    stage,
+                    language
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode === 200) {
+                showAlert(200, "Audio zapisane pomyślnie");
+            } else {
+                setLoading(false);
+                showAlert(400, "Nie udało się zapisać audio");
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
+    const loadTask = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        stage: number,
+        signal?: AbortSignal
+    ) => {
+        try {
+            let text: string = "";
+            let translate: string = "";
+            let questions: string[] = [];
+
+            if (stage < 1) {
+                const taskResult = await handleInteractiveTextGenerate(subjectId, sectionId, topicId, signal);
+                text = taskResult?.text ?? "";
+                translate = taskResult?.translate ?? "";
+
+                if (!text) {
+                    setLoading(false);
+                    showAlert(400, "Nie udało się wygenerować treści zadania");
+                    return;
+                }
+
+                stage = 1;
+
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, translate, [], [], 0, signal);
+            }
+
+            let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            if (!newTask) {
+                return;
+            }
+
+            const taskId = newTask.id;
+            text = newTask.text ?? "";
+            translate = newTask.solution ?? "";
+
+            if (stage < 2) {
+                questions = await handleQuestionsTaskGenerate(subjectId, sectionId, topicId, text, signal);
+                
+                if (!questions) {
+                    setLoading(false);
+                    showAlert(400, "Nie udało się wygenerować pytań etapowych zadania");
+                    return;
+                }
+
+                stage = 2;
+
+                const tasks = questions.map((text) => ({
+                    text,
+                    stage,
+                    solution: text,
+                    taskSubtopics: [],
+                    options: [],
+                    correctOptionIndex: 0
+                }));
+
+                await handleSaveSubTasksTransaction(subjectId, sectionId, topicId, taskId, tasks, text, translate, signal);
+            }
+
+            newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            if (!newTask) {
+                return;
+            }
+
+            text = newTask.text ?? "";
+            translate = newTask.solution ?? "";
+            const subTasks = newTask.subTasks ?? [];
+
+            if (stage < 3) {
+                for (let i = 0; i < subTasks.length; i++) {
+                    if (subTasks[i].stage < 3) {
+                        const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, subTasks[i].text, text, i + 1, subTasks.length, signal);
+                        const options = optionsResult.options ?? [];
+                        const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
+                        subTasks[i].options = options;
+                        subTasks[i].correctOptionIndex = correctOptionIndex;
+                        subTasks[i].stage = 3;
+                        await handleSaveSubTasksTransaction(
+                            subjectId,
+                            sectionId,
+                            topicId,
+                            taskId,
+                            subTasks,
+                            text,
+                            translate,
+                            signal
+                        );
+                    }
+                }
+
+                await handleSaveTaskTransaction(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    3,
+                    text,
+                    translate,
+                    [],
+                    [],
+                    0,
+                    signal,
+                    taskId
+                );
+            }
+
+            if (stage < 4) {
+                await handleSaveAudioTransaction(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    taskId,
+                    text,
+                    4,
+                    "en",
+                    signal
+                );
+            }
+        } catch (error) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, [handleInteractiveTextGenerate, handleQuestionsTaskGenerate, handleOptionsGenerate, handleSaveTaskTransaction, handleSaveSubTasksTransaction]);
+
+    const splitIntoSentences = async (text: string, language = "en"): Promise<string[]> => {
+        try {
+            const response = await api.post("/options/split-into-sentences", { 
+                text,
+                language
+            });
+
+            const sentences = response.data?.sentences;
+
+            if (Array.isArray(sentences) && sentences.every(item => typeof item === 'string')) {
+                return sentences;
+            }
+
+            return [];
+        } catch {
+            return [];
+        }
+    };
+
+    useEffect(() => {
+        const handleUnload = () => {
+            controllersRef.current.forEach((controller: AbortController) => controller.abort());
+            controllersRef.current = [];
+        };
+
+        window.addEventListener("beforeunload", handleUnload);
+        return () => window.removeEventListener("beforeunload", handleUnload);
+    }, []);
+
+    useEffect(() => {
+        const sId = Number(localStorage.getItem("subjectId"));
+        const secId = Number(localStorage.getItem("sectionId"));
+        const tId = Number(localStorage.getItem("topicId"));
+
+        if (sId && secId && tId) {
+            setSubjectId(sId);
+            setSectionId(secId);
+            setTopicId(tId);
+        } else {
+            showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
+        }
+
+        const audioRepeatNum = Number(localStorage.getItem("audioRepeat"));
+
+        if (audioRepeatNum)
+            setAudioRepeat(audioRepeatNum);
+        else {
+            setAudioRepeat(0)
+            localStorage.setItem("audioRepeat", String(0));
+        }
+    }, []);
+
+    useEffect(() => {
+        setMainHeight();
+
+        const handleResize = () => {
+            setMainHeight();
+        };
+
+        window.addEventListener("resize", handleResize);
+
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, []);
+
+    const controllerRef = useRef<AbortController | null>(null);
+    const controllersRef = useRef<AbortController[]>([]);
+
+    function extractWords(text: string): string[] {
+        return text
+            .match(/\p{L}+/gu) || []; 
+    }
+
+    useEffect(() => {
+        if (!subjectId || !sectionId || !topicId) return;
+
+        setLoading(true);
+
+        if (controllerRef.current) controllerRef.current.abort();
+
+        const controller = new AbortController();
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
+
+        const fetchAndLoadTask = async () => {
+            try {
+                setTextLoading("Pobieranie zadania");
+
+                let task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+                if (signal.aborted) return;
+
+                const stage = task?.stage ?? 0;
+
+                const taskId: number = Number(localStorage.getItem("taskId"));
+
+                if (task && task.id)
+                    localStorage.setItem("taskId", task.id);
+
+                if (!task && taskId) {
+                    task = await fetchTaskById(
+                        subjectId,
+                        sectionId,
+                        topicId,
+                        taskId,
+                        signal
+                    );
+
+                    if (signal.aborted) return;
+
+                    setTask(task);
+                    setSentences(await splitIntoSentences(task.text));
+                    setWords(extractWords(task.text));
+
+                    setLoading(false);
+                    return;
+                }
+
+                if (!task || stage < 4) {
+                    await loadTask(subjectId, sectionId, topicId, stage, signal);
+                    if (signal.aborted) return;
+                }
+
+                task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+
+                setTask(task);
+                setSentences(await splitIntoSentences(task.text));
+                setWords(extractWords(task.text));
+                
+                setLoading(false);
+            } catch (error) {
+                if ((error as DOMException)?.name === "AbortError") return;
+                setSentences([]);
+                setLoading(false);
+                handleApiError(error);
+            } finally {
+                controllersRef.current = controllersRef.current.filter(c => c !== controller);
+                setLoading(false);
+            }
+        };
+
+        fetchAndLoadTask();
+
+        return () => {
+            controller.abort();
+            controllerRef.current = null;
+        };
+    }, [subjectId, sectionId, topicId]);
+
+    const firstLoadRef = useRef(true);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        if (firstLoadRef.current && !loading) {
+            firstLoadRef.current = false;
+            return;
+        }
+    }, [loading]);
+
+    const handleBackClick = () => {
+        localStorage.removeItem("answerText");
+        localStorage.removeItem("taskId");
+        localStorage.removeItem("audioRepeat");
+
+        router.back();
+    };
+
+    const handlePlayPause = () => {
+        const audioEl = audioRef.current;
+        if (!audioEl) return;
+
+        setIsPlaying(prev => !prev);
+    };
+
+    const handleNext = () => {
+        if (!task.audioFiles || task.audioFiles.length === 0) return;
+
+        setCurrentIndex(prev => (prev + 1) % task.audioFiles.length);
+    };
+
+    const handlePrev = () => {
+        if (!task.audioFiles || task.audioFiles.length === 0) return;
+
+        setCurrentIndex(prev => (prev === 0 ? 0 : prev - 1));
+    };
+
+    useEffect(() => {
+        const audioEl = audioRef.current;
+        if (!audioEl) return;
+
+        const playAudio = async () => {
+            try {
+                if (isPlaying) {
+                    await audioEl.play();
+                } else {
+                    audioEl.pause();
+                }
+            } catch (err) {
+                console.log("Audio play blocked by browser", err);
+            }
+        };
+
+        playAudio();
+    }, [currentIndex, isPlaying]);
+
+    const shuffledOptionsBySubTask = useMemo(() => {
+        return (task?.subTasks ?? []).map(subTask => {
+            const optionsWithIndex = (subTask.options ?? []).map((option, i) => ({
+                option,
+                originalIndex: i
+            }));
+
+            for (let i = optionsWithIndex.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [optionsWithIndex[i], optionsWithIndex[j]] = [optionsWithIndex[j], optionsWithIndex[i]];
+            }
+
+            return optionsWithIndex;
+        });
+    }, [task?.subTasks]);
+
+    useEffect(() => {
+        if (!task?.subTasks || !shuffledOptionsBySubTask) return;
+
+        const initialIndices = task.subTasks.map((subTask, subTaskIndex) => {
+            const shuffled = shuffledOptionsBySubTask[subTaskIndex];
+            if (shuffled && shuffled.length > 0) {
+                return shuffled[0].originalIndex;
+            }
+            return -1;
+        });
+
+        setUserOptionIndices(initialIndices);
+    }, [task?.subTasks, shuffledOptionsBySubTask]);
+
+    const handleSubmitTaskClick = useCallback(async () => {
+        if (!subjectId || !sectionId || !topicId) return;
+
+        setLoading(true);
+        setTextLoading("Obliczanie procentów tematu");
+
+        const controller = new AbortController();
+        controllerRef.current = controller;
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
+
+        try {
+            const result = await api.put(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/percents`,
+            {
+                userOptions: userOptionIndices
+            },
+            { signal }
+            );
+
+            if (result.data?.statusCode !== 200) {
+                setLoading(false);
+                showAlert(400, `Nie udało się zapisać odpowiedź`);
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+        finally {
+            const newTask = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
+
+            setTask(newTask);
+            setSentences(await splitIntoSentences(newTask.text));
+            setWords(extractWords(newTask.text));
+
+            setLoading(false);
+        }
+    }, [subjectId, sectionId, topicId, task, userOptionIndices]);
+
+    async function handleTranslateclick() {
+        if (isOriginal) {
+            setIsOriginal(false);
+            setSentences(await splitIntoSentences(task.solution, "pl"));
+        }
+        else {
+            setIsOriginal(true);
+            setSentences(await splitIntoSentences(task.text));
+        }
+    }
+
+    function handleTextOptionclick() {
+        if (isSentences)
+            setIsSentences(false);
+        else
+            setIsSentences(true);
+    }
+
+    const handleWordClick = (index: number) => {
+        setSelectedWords(prev =>
+        prev.includes(index)
+            ? prev.filter(i => i !== index)
+            : [...prev, index]
+        );
+    };
+
+    useEffect(() => {
+        const loadDurations = async () => {
+            const promises = task.audioFiles.map(
+                (src: string) =>
+                new Promise<number>((resolve) => {
+                    const audio = new Audio(src);
+                    audio.onloadedmetadata = () => resolve(audio.duration);
+                })
+            );
+            const results = await Promise.all(promises);
+            setDurations(results);
+
+            const total = results.reduce((sum, d) => sum + d, 0);
+            setTotalTimeFormatted(formatTime(total));
+        };
+
+        loadDurations();
+    }, [task.audioFiles]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (!audioRef.current) return;
+            const currentTime = audioRef.current.currentTime;
+            const previousTime = durations
+                .slice(0, currentIndex)
+                .reduce((sum, d) => sum + d, 0);
+            const totalTime = durations.reduce((sum, d) => sum + d, 0);
+            const percent = totalTime ? ((previousTime + currentTime) / totalTime) * 100 : 0;
+            setProgress(percent);
+
+            setCurrentTimeFormatted(formatTime(previousTime + currentTime));
+        }, 200);
+
+        return () => clearInterval(interval);
+    }, [currentIndex, durations]);
+
+    const formatTime = (seconds: number) => {
+        const min = Math.floor(seconds / 60);
+        const sec = Math.floor(seconds % 60);
+        return `${min}:${sec.toString().padStart(2, "0")}`;
+    };
+
+    return (
+        <>
+            <Header>
+                <div className="menu-icons">
+                    <div className="menu-icon" title="Słownik" onClick={() => { console.log("Słownik!!!") }} style={{ cursor: "pointer" }}>
+                        <Text size={28} color="white" />
+                    </div>
+                    <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+                        <ArrowLeft size={28} color="white" />
+                    </div>
+                </div>
+            </Header>
+
+            <main>
+                {(loading) ? (
+                    <div className="spinner-wrapper">
+                        <Spinner visible={true} text={textLoading ?? ""} />
+                    </div>
+                ) : (
+                    <div className="play-container" ref={containerRef}>
+                        <div className="chat">
+                            <div className="message robot">
+                                {!task.finished ? (<div style={{fontWeight: "bold", fontSize: "20px"}}>
+                                    {audioRepeat}/3
+                                </div>) : null}
+                                {task.finished ? (<div className="sentences context">
+                                    {isSentences ? (
+                                        sentences.map((sentence, i) => (
+                                            <span
+                                            key={i}
+                                            className={`sentence ${i === currentIndex ? "active" : ""}`}
+                                            >
+                                            {sentence}
+                                            </span>
+                                        ))
+                                        ) : (
+                                        words.map((word, i) => {
+                                            const isSelected = selectedWords.includes(i);
+                                            return (
+                                            <span
+                                                key={i}
+                                                className={`sentence ${isSelected ? "active" : ""}`}
+                                                onClick={() => handleWordClick(i)}
+                                            >
+                                                {word}
+                                            </span>
+                                            );
+                                        })
+                                    )}
+                                </div>) : null}
+                                <div className="options">
+                                    {task.finished && isSentences ? (<button className="btnOption" onClick={handlePrev}>
+                                        <ChevronLeft size={24} />
+                                    </button>) : null}
+                                    {isSentences ? (<button
+                                        className="btnOption"
+                                        onClick={handlePlayPause}
+                                        disabled={(!task.finished && audioRepeat >= 3) ? true : false}>
+                                        {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+                                    </button>) : null}
+                                    {task.finished && isSentences ? (<button className="btnOption" onClick={handleNext}>
+                                        <ChevronRight size={24} />
+                                    </button>) : null}
+                                    <div style={{
+                                        display: "flex",
+                                        gap: "6px",
+                                        marginLeft: "auto"}}
+                                    >
+                                        {task.finished ? (<button
+                                            className={isSentences ? `btnOption disabled` : `btnOption`}
+                                            onClick={handleTextOptionclick}
+                                        >
+                                            <Type size={24} />
+                                        </button>) : null}
+                                        {task.finished && isSentences ? (<button
+                                            className="btnOption"
+                                            style={{minWidth: "48px"}}
+                                            onClick={handleTranslateclick}
+                                        >
+                                            {isOriginal ? "EN" : "PL"}
+                                        </button>) : null}
+                                        {!isSentences ? (<button
+                                            className="btnOption"
+                                        >
+                                            <Plus size={24} />
+                                        </button>) : null}
+                                    </div>
+                                    {!task.finished ? (<div style={{marginLeft: "8px", flexGrow: 1}}>
+                                        <progress
+                                            value={progress}
+                                            max={100}
+                                            className="progress-bar"
+                                            style={{width: "100%"}}
+                                        />
+                                        <div style={{fontSize: "14px"}}>
+                                            {currentTimeFormatted} / {totalTimeFormatted}
+                                        </div>
+                                    </div>) : null}
+                                    <audio
+                                        ref={audioRef}
+                                        src={task.audioFiles[currentIndex] || ''}
+                                        onEnded={() => {
+                                            setCurrentIndex(prev => {
+                                                if (!task.audioFiles || prev + 1 >= task.audioFiles.length) {
+                                                    setIsPlaying(false);
+                                                    setAudioRepeat(audioRepeat + 1);
+                                                    localStorage.setItem("audioRepeat", String(audioRepeat + 1));
+                                                    return 0;
+                                                } else {
+                                                    setIsPlaying(true);
+                                                    return prev + 1;
+                                                }
+                                            });
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                            <br />
+                            {task.subTasks.map((subTask, subTaskIndex) => (
+                                <div key={subTask.id} style={{display: "flex", flexDirection: "column"}}>
+                                    <div className="message robot">
+                                        <FormatText content={subTask.text ? `${subTaskIndex + 1}. ${subTask.text}` : ""} />
+                                    </div>
+                                    <div className="message human">
+                                        <div style={{ margin: "0px"}} className="radio-group">
+                                        {shuffledOptionsBySubTask[subTaskIndex]?.map(({ option, originalIndex }) => (
+                                            <label
+                                                key={originalIndex}
+                                                className="radio-option"
+                                                style={{ marginBottom: "12px" }}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    name={`userOption-${subTaskIndex}`}
+                                                    value={originalIndex}
+                                                    checked={
+                                                        task.finished ?
+                                                        task.subTasks[subTaskIndex].userOptionIndex == originalIndex :
+                                                        userOptionIndices[subTaskIndex] === originalIndex
+                                                    }
+                                                    onChange={() => {
+                                                        const newIndices = [...userOptionIndices];
+                                                        newIndices[subTaskIndex] = originalIndex;
+                                                        setUserOptionIndices(newIndices);
+                                                    }}
+                                                    disabled={subTask.finished}
+                                                />
+                                                <span><FormatText content={option ?? ""} /></span>
+                                            </label>
+                                        ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {!task.finished ? (<div style={{
+                                display: "flex",
+                                justifyContent: "center"
+                            }}>
+                                <button
+                                    onClick={handleSubmitTaskClick}
+                                    className="btnSubmit"
+                                >
+                                    Podtwierdź
+                                </button>
+                            </div>) : null}
+                        </div>
+                    </div>
+                )}
+            </main>
+        </>
+    );
+}

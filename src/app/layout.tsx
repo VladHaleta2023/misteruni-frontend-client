@@ -36,6 +36,27 @@ export default function RootLayout({
           integrity="sha384-mll67QQWQltMRkfnau3N8V4kCUzE4XQ8YGOpbMjaCPPKp9WtkVqO72U2TQJwwKz6"
           crossOrigin="anonymous"
         />
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_Main-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_Math-Italic.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_AMS-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
       </Head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
