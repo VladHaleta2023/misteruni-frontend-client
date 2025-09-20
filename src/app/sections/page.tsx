@@ -40,20 +40,19 @@ export default function SectionsPage() {
         <div className="menu-icons">
           <div
             className="menu-icon"
-            title="Wrócić"
-            onClick={handleBackClick}
-            style={{ cursor: "pointer" }}
-          >
-            <ArrowLeft size={28} color="white" />
-          </div>
-
-          <div
-            className="menu-icon"
             title={"Przełącz do zadań"}
             onClick={handleTasksClick}
             style={{ cursor: "pointer" }}
           >
             <ListCheck size={28} color="white" />
+          </div>
+          <div
+            className="menu-icon"
+            title="Wrócić"
+            onClick={handleBackClick}
+            style={{ cursor: "pointer" }}
+          >
+            <ArrowLeft size={28} color="white" />
           </div>
         </div>
       </Header>

@@ -15,6 +15,7 @@ export interface ITask {
     correctOptionIndex: number;
     answered: boolean;
     finished: boolean;
+    percent: number;
     userOptionIndex: number;
     userSolution: string;
 }

@@ -111,42 +111,44 @@ export default function MainPage() {
             <Spinner noText />
           </div>
         ) : (
-          <div className="table">
-            {subjects.map((subject) => (
-              <div
-                key={subject.id}
-                className="element element-subject"
-                id={`${subject.id}`}
-                onClick={() => handleSubjectClick(subject.id)}
-                style={{ cursor: "pointer" }}
-              >
-                {subject.url ? (
-                 <img
-                    src={subject.url}
-                    alt={subject.name}
-                    className="element-icon"
-                  />
-                ) : null}
-                <div className="element-subject-options">
-                  <div>
-                    <div className="element-title">{subject.name}</div>
-                    <div>Trudność: {subject.difficulty}%</div>
-                    <div>Próg: {subject.threshold}%</div>
+          <>
+            <div className="table">
+              {subjects.map((subject) => (
+                <div
+                  key={subject.id}
+                  className="element element-subject"
+                  id={`${subject.id}`}
+                  onClick={() => handleSubjectClick(subject.id)}
+                  style={{ cursor: "pointer" }}
+                >
+                  {subject.url ? (
+                  <img
+                      src={subject.url}
+                      alt={subject.name}
+                      className="element-icon"
+                    />
+                  ) : null}
+                  <div className="element-subject-options">
+                    <div>
+                      <div className="element-title">{subject.name}</div>
+                      <div>Trudność: {subject.difficulty}%</div>
+                      <div>Próg: {subject.threshold}%</div>
+                    </div>
+                    <button
+                      id={String(subject.id)}
+                      className="button btnSubjectOptionsEdit"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubjectEdit(Number(e.currentTarget.id))
+                      }}
+                    >
+                      Poziom
+                    </button>
                   </div>
-                  <button
-                    id={String(subject.id)}
-                    className="button btnSubjectOptionsEdit"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSubjectEdit(Number(e.currentTarget.id))
-                    }}
-                  >
-                    Poziom
-                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </main>
     </>

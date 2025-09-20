@@ -29,13 +29,12 @@ export default function InteractivePlayPage() {
     const [isSentences, setIsSentences] = useState<boolean>(true);
     const [userOptionIndices, setUserOptionIndices] = useState<number[]>([]);
     const [words, setWords] = useState<string[]>([]);
-    
-    console.log(userOptionIndices);
 
     const [task, setTask] = useState<ITask>({
             id: 0,
             stage: 0,
             text: "",
+            percent: 0,
             solution: "",
             options: [],
             subtopics: [],
@@ -195,7 +194,7 @@ export default function InteractivePlayPage() {
                 let text = "";
                 let translate = "";
                 let errors: string[] = [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { text: "", translate: "" };
@@ -245,7 +244,7 @@ export default function InteractivePlayPage() {
                 let attempt = 0;
                 let questions: string[] = [];
                 let errors: string[] = [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return [];
@@ -295,7 +294,7 @@ export default function InteractivePlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let correctOptionIndex = 0;
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
@@ -493,6 +492,7 @@ export default function InteractivePlayPage() {
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            
             if (!newTask) {
                 return;
             }
@@ -539,9 +539,17 @@ export default function InteractivePlayPage() {
                         const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, subTasks[i].text, text, i + 1, subTasks.length, signal);
                         const options = optionsResult.options ?? [];
                         const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
+
+                        if (!options.length || options.length != 4) {
+                            setLoading(false);
+                            showAlert(400, "Nie udało się wygenerować wariantów odpowiedzi");
+                            return;
+                        }
+
                         subTasks[i].options = options;
                         subTasks[i].correctOptionIndex = correctOptionIndex;
                         subTasks[i].stage = 3;
+                        
                         await handleSaveSubTasksTransaction(
                             subjectId,
                             sectionId,
@@ -882,6 +890,53 @@ export default function InteractivePlayPage() {
             setIsSentences(true);
     }
 
+    const handleAddWord = useCallback(async () => {
+        const text = selectedWords.map(index => words[index]).join(" ");
+
+        console.log(text);
+
+        if (!text || text == "") {
+            showAlert(400, "Nieprawidłowo wybrane słowy");
+            return;
+        }
+
+        if (!subjectId || !sectionId || !topicId) return;
+
+        setLoading(true);
+        setTextLoading("Dodawanie słowa lub wyrazu do słownika");
+
+        const controller = new AbortController();
+        controllerRef.current = controller;
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
+
+        try {
+            const result = await api.post(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/words`,
+            {
+                text
+            },
+            { signal }
+            );
+
+            if (result.data?.statusCode === 200) {
+                setLoading(false);
+                showAlert(200, `Dodawanie słowa lub wyrazu udane`);
+            }
+            else {
+                setLoading(false);
+                showAlert(400, `Nie udało się dodać słowo lub wyraz`);
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+        finally {
+            setLoading(false);
+        }
+    }, [subjectId, sectionId, topicId, task, selectedWords, words]);
+
     const handleWordClick = (index: number) => {
         setSelectedWords(prev =>
         prev.includes(index)
@@ -932,11 +987,15 @@ export default function InteractivePlayPage() {
         return `${min}:${sec.toString().padStart(2, "0")}`;
     };
 
+    const handleVocabluaryClick = useCallback(async () => {
+        router.push("/vocabluary");
+    }, []);
+
     return (
         <>
             <Header>
                 <div className="menu-icons">
-                    <div className="menu-icon" title="Słownik" onClick={() => { console.log("Słownik!!!") }} style={{ cursor: "pointer" }}>
+                    <div className="menu-icon" title="Słownik" onClick={handleVocabluaryClick} style={{ cursor: "pointer" }}>
                         <Text size={28} color="white" />
                     </div>
                     <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
@@ -957,7 +1016,7 @@ export default function InteractivePlayPage() {
                                 {!task.finished ? (<div style={{fontWeight: "bold", fontSize: "20px"}}>
                                     {audioRepeat}/3
                                 </div>) : null}
-                                {task.finished ? (<div className="sentences context">
+                                {task.finished ? (<div className={`sentences context`}>
                                     {isSentences ? (
                                         sentences.map((sentence, i) => (
                                             <span
@@ -973,7 +1032,7 @@ export default function InteractivePlayPage() {
                                             return (
                                             <span
                                                 key={i}
-                                                className={`sentence ${isSelected ? "active" : ""}`}
+                                                className={`sentence word ${isSelected ? "active" : ""}`}
                                                 onClick={() => handleWordClick(i)}
                                             >
                                                 {word}
@@ -1011,10 +1070,11 @@ export default function InteractivePlayPage() {
                                             style={{minWidth: "48px"}}
                                             onClick={handleTranslateclick}
                                         >
-                                            {isOriginal ? "EN" : "PL"}
+                                            {isOriginal ? "PL" : "EN"}
                                         </button>) : null}
                                         {!isSentences ? (<button
                                             className="btnOption"
+                                            onClick={handleAddWord}
                                         >
                                             <Plus size={24} />
                                         </button>) : null}
@@ -1097,6 +1157,11 @@ export default function InteractivePlayPage() {
                                     Podtwierdź
                                 </button>
                             </div>) : null}
+                            {task.finished ? (<div className="message robot">
+                                <div style={{fontWeight: "bold"}}>
+                                    <FormatText content={`Procent zadania: ${task.percent}%`} />
+                                </div>
+                            </div>): null}
                         </div>
                     </div>
                 )}

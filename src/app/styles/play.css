@@ -22,7 +22,6 @@ html, body, #__next {
 }
 
 .message {
-  font-size: 20px;
   padding: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
@@ -56,6 +55,13 @@ textarea:-webkit-autofill {
 textarea:focus {
   outline: none;
   box-shadow: none;
+}
+
+.misterUniLogo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
 }
 
 .message.robot {
@@ -92,7 +98,7 @@ textarea:focus {
 }
 
 .btnOption.disabled {
-  background-color: #a76bd6;
+  background-color: #753eaa;
 }
 
 .btnSubmit {
@@ -123,6 +129,11 @@ textarea:focus {
   border-radius: none;
 }
 
+.word {
+  display: inline-block;
+  white-space: nowrap; 
+}
+
 .sentence {
   display: inline;
   padding: 4px 6px;
@@ -138,11 +149,9 @@ textarea:focus {
 
 .disabled {
   opacity: 0.6;
-  cursor: not-allowed;
   user-select: none;
   transition: none;
   background-color: #555555;
-  color: #aaa;
 }
 
 progress.progress-bar {
@@ -172,5 +181,11 @@ progress.progress-bar::-moz-progress-bar {
   .message,
   .answer-block .message.answer {
     font-size: 18px;
+  }
+
+  .misterUniLogo {
+    position: static;
+    left: auto;
+    transform: none;
   }
 }

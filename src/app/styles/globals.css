@@ -32,7 +32,7 @@ main {
   overflow-y: auto;
   word-wrap: break-word;
   word-break: break-word;
-  font-size: 16px;
+  font-size: 18px;
   height: var(--main-height);
   background-color: #e0e0e0;
 }

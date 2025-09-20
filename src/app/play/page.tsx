@@ -60,6 +60,7 @@ export default function PlayPage() {
             stage: 0,
             text: "",
             solution: "",
+            percent: 0,
             options: [],
             subtopics: [],
             correctOptionIndex: 0,
@@ -212,7 +213,7 @@ export default function PlayPage() {
                 let text = "";
                 let errors: string[] = [];
                 let outputSubtopics: string[] = [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
@@ -262,7 +263,7 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let solution = "";
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return "";
@@ -313,7 +314,7 @@ export default function PlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let correctOptionIndex = 0;
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
@@ -418,7 +419,7 @@ export default function PlayPage() {
                 let errors: string[] = [];
                 let outputSubtopics: string[] = [];
                 const taskSubtopics = subtopics?.map(s => s.name) ?? [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return null;
@@ -597,7 +598,7 @@ export default function PlayPage() {
                 const options = optionsResult.options ?? [];
                 const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
-                if (!options.length) {
+                if (!options.length || options.length != 4) {
                     setLoading(false);
                     showAlert(400, "Nie udało się wygenerować wariantów odpowiedzi");
                     return;
@@ -1343,7 +1344,7 @@ export default function PlayPage() {
                         <div className="chat">
                             <div className="message robot">
                                 <div style={{fontWeight: "bold"}}>Tekst zadania:</div>
-                                <div style={{paddingLeft: "20px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
+                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
                             </div>
                             <div className="message human">
                                 <div style={{fontWeight: "bold"}}>Warianty odpowiedzi:</div>
@@ -1357,12 +1358,14 @@ export default function PlayPage() {
                                                 checked={userOptionIndex === originalIndex}
                                                 onChange={() => setUserOptionIndex(originalIndex)}
                                                 disabled={task.getTask().finished}
+                                                style={{
+                                                    marginTop: "0.75px"
+                                                }}
                                             />
                                             <span><FormatText content={option ?? ""} /></span>
                                         </label>
                                     ))}
                                 </div>
-                                <br />
                                 <div style={{fontWeight: "bold"}}>Rozwiązanie:</div>
                                 {!isMicMode ? (
                                     !task.getTask().finished ? (
@@ -1412,7 +1415,6 @@ export default function PlayPage() {
                                             : 'btnOption disabled'}
                                         title={isPlaying ? "Pauza" : "Start"}
                                         onClick={togglePlayPause}
-                                        style={{ cursor: isMicMode ? "pointer" : "not-allowed" }}
                                     >
                                         <Mic size={28} color="white" />
                                     </button>
@@ -1420,7 +1422,6 @@ export default function PlayPage() {
                                         className={isMicMode ? `btnOption disabled` : `btnOption`}
                                         title={isMicMode ? "Mikrofon (włączony)" : "Wpisz tekst"}
                                         onClick={toggleInputMode}
-                                        style={{ cursor: isMicMode ? "not-allowed" : "pointer" }}
                                     >
                                         <Type size={28} color="white" />
                                     </button>
@@ -1466,15 +1467,17 @@ export default function PlayPage() {
                             <>
                                 <div className="message robot">
                                     <div style={{fontWeight: "bold"}}>Procenty podtematów:</div>
-                                    {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
-                                        <div key={index}>
-                                            <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
-                                        </div>
-                                    ))}
+                                    <div style={{marginTop: "8px"}}>
+                                        {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
+                                            <div key={index}>
+                                                <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="message robot">
                                     <div style={{fontWeight: "bold"}}>Rozwiązanie zadania:</div>
-                                    <div>
+                                    <div style={{marginTop: "8px"}}>
                                         <FormatText content={task?.getTask().solution} />
                                     </div>
                                 </div>

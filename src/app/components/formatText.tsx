@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import renderMathInElement from 'katex/contrib/auto-render';
 import 'katex/dist/katex.min.css';
+import '@/app/styles/components.css';
 
 interface FormatTextProps {
   content: string;
@@ -27,5 +28,5 @@ export default function FormatText({ content }: FormatTextProps) {
     }
   }, [content]);
 
-  return <div ref={ref} style={{ whiteSpace: 'pre-wrap' }} />;
+  return <div ref={ref} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} />;
 }
