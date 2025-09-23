@@ -10,6 +10,7 @@ import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import Spinner from "@/app/components/spinner";
+import { Settings } from "lucide-react";
 
 interface Subject {
   id: number;
@@ -142,7 +143,7 @@ export default function MainPage() {
                         handleSubjectEdit(Number(e.currentTarget.id))
                       }}
                     >
-                      Poziom
+                      <Settings size={24} color="white" />
                     </button>
                   </div>
                 </div>

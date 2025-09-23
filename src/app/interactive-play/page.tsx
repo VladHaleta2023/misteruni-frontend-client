@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Text, Type } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Text, Type, Trash2 } from 'lucide-react';
 import "@/app/styles/play.css";
 import "@/app/styles/message.css";
 import Spinner from "@/app/components/spinner";
@@ -14,6 +14,7 @@ import axios from "axios";
 import FormatText from "../components/formatText";
 import React from "react";
 import { setMainHeight } from "../scripts/mainHeight";
+import Message from "../components/message";
 
 export default function InteractivePlayPage() {
     const router = useRouter();
@@ -61,6 +62,8 @@ export default function InteractivePlayPage() {
     const [durations, setDurations] = useState<number[]>([]);
     const [currentTimeFormatted, setCurrentTimeFormatted] = useState("0:00");
     const [totalTimeFormatted, setTotalTimeFormatted] = useState("0:00");
+
+    const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
 
     function handleApiError(error: unknown) {
         if (axios.isAxiosError(error)) {
@@ -498,6 +501,7 @@ export default function InteractivePlayPage() {
             }
 
             const taskId = newTask.id;
+            localStorage.setItem("taskId", taskId);
             text = newTask.text ?? "";
             translate = newTask.solution ?? "";
 
@@ -883,7 +887,10 @@ export default function InteractivePlayPage() {
         }
     }
 
-    function handleTextOptionclick() {
+    function handleTextOptionСlick() {
+        setSelectedWords([0]);
+        firstClickRef.current = true;
+
         if (isSentences)
             setIsSentences(false);
         else
@@ -933,16 +940,28 @@ export default function InteractivePlayPage() {
             handleApiError(error);
         }
         finally {
+            setSelectedWords([0]);
             setLoading(false);
         }
     }, [subjectId, sectionId, topicId, task, selectedWords, words]);
 
+    const firstClickRef = useRef(true);
+
     const handleWordClick = (index: number) => {
-        setSelectedWords(prev =>
-        prev.includes(index)
+        setSelectedWords(prev => {
+            let newSelected = prev.includes(index)
             ? prev.filter(i => i !== index)
-            : [...prev, index]
-        );
+            : [...prev, index];
+
+            if (firstClickRef.current) {
+                if (index !== 0) {
+                    newSelected = newSelected.filter(i => i !== 0);
+                }
+                firstClickRef.current = false;
+            }
+
+            return newSelected;
+        });
     };
 
     useEffect(() => {
@@ -988,13 +1007,54 @@ export default function InteractivePlayPage() {
     };
 
     const handleVocabluaryClick = useCallback(async () => {
-        router.push("/vocabluary");
-    }, []);
+        if (task.id)
+            router.push("/vocabluary");
+        else
+            showAlert(400, "Brak ID zadania");
+    }, [task.id]);
+
+    const handleDeleteTask = useCallback(async() => {
+        try {
+            const response = await api.delete(`/subjects/${subjectId}/tasks/${task.id}`);
+
+            setLoading(false);
+            if (response.data?.statusCode === 200) {
+                showAlert(response.data.statusCode, response.data.message);
+            } else {
+                showAlert(response.data.statusCode, response.data.message);
+            }
+        }
+        catch (error) {
+            setLoading(false);
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                showAlert(error.response.status, error.response.data.message || "Server error");
+                } else {
+                showAlert(500, `Server error: ${error.message}`);
+                }
+            } else if (error instanceof Error) {
+                showAlert(500, `Server error: ${error.message}`);
+            } else {
+                showAlert(500, "Unknown error");
+            }
+        }
+        finally {
+            setLoading(false);
+            setTextLoading("");
+            setMsgDeleteVisible(false);
+        }
+    }, [subjectId, task.id]);
 
     return (
         <>
             <Header>
                 <div className="menu-icons">
+                    <div className="menu-icon" title="Słownik" onClick={(e) => {
+                        e.stopPropagation();
+                        setMsgDeleteVisible(true);
+                    }} style={{ cursor: "pointer" }}>
+                        <Trash2 size={28} color="white" />
+                    </div>
                     <div className="menu-icon" title="Słownik" onClick={handleVocabluaryClick} style={{ cursor: "pointer" }}>
                         <Text size={28} color="white" />
                     </div>
@@ -1005,6 +1065,29 @@ export default function InteractivePlayPage() {
             </Header>
 
             <main>
+                <Message
+                    message={"Czy na pewno chcesz usunąć zadanie?"}
+                    textConfirm="Tak"
+                    textCancel="Nie"
+                    onConfirm={() => {
+                        setMsgDeleteVisible(false);
+                        setTextLoading("Trwa usuwanie zadania");
+                        setLoading(true);
+                        if (task.id) {
+                            handleDeleteTask().then(() => {
+                                setTimeout(() => {
+                                    handleBackClick();
+                                }, 2000);
+                            });
+                        }
+                        else
+                            showAlert(400, "Błąd usuwania zadania");
+                    }}
+                    onClose={() => {
+                        setMsgDeleteVisible(false);
+                    }}
+                    visible={msgDeleteVisible}
+                />
                 {(loading) ? (
                     <div className="spinner-wrapper">
                         <Spinner visible={true} text={textLoading ?? ""} />
@@ -1061,7 +1144,7 @@ export default function InteractivePlayPage() {
                                     >
                                         {task.finished ? (<button
                                             className={isSentences ? `btnOption disabled` : `btnOption`}
-                                            onClick={handleTextOptionclick}
+                                            onClick={handleTextOptionСlick}
                                         >
                                             <Type size={24} />
                                         </button>) : null}

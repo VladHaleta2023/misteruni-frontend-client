@@ -6,15 +6,13 @@ import { ArrowLeft } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import "@/app/styles/table.css";
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import api from "@/app/utils/api";
 import FormatText from "@/app/components/formatText";
-import { Text, X } from "lucide-react";
-import Message from "@/app/components/message";
+import { Text } from "lucide-react";
 
 type Status = 'blocked' | 'started' | 'progress' | 'completed';
 
@@ -29,6 +27,7 @@ interface ITask {
   text: string;
   percent: number;
   status: Status;
+  vocabluary: boolean;
   finished: boolean;
   topic: {
     id: number,
@@ -100,12 +99,6 @@ export default function TasksPage() {
   const [elementReponse, setElementResponse] = useState<ElementResponse | null>(null);
 
   const [loading, setLoading] = useState(true);
-
-  const [taskId, setTaskId] = useState(0);
-
-  const [textLoading, setTextLoading] = useState("");
-
-  const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
 
   useEffect(() => {
       if (typeof window !== "undefined") {
@@ -213,38 +206,6 @@ export default function TasksPage() {
       }
   }, []);
 
-  const handleDeleteTask = useCallback(async() => {
-      try {
-          const response = await api.delete(`/subjects/${subjectId}/tasks/${taskId}`);
-
-          setLoading(false);
-          if (response.data?.statusCode === 200) {
-              showAlert(response.data.statusCode, response.data.message);
-          } else {
-              showAlert(response.data.statusCode, response.data.message);
-          }
-      }
-      catch (error) {
-          setLoading(false);
-          if (axios.isAxiosError(error)) {
-              if (error.response) {
-              showAlert(error.response.status, error.response.data.message || "Server error");
-              } else {
-              showAlert(500, `Server error: ${error.message}`);
-              }
-          } else if (error instanceof Error) {
-              showAlert(500, `Server error: ${error.message}`);
-          } else {
-              showAlert(500, "Unknown error");
-          }
-      }
-      finally {
-        setLoading(false);
-        setTextLoading("");
-        setMsgDeleteVisible(false);
-      }
-  }, [subjectId, taskId]);
-
   useEffect(() => {
     setMainHeight();
     window.addEventListener("resize", setMainHeight);
@@ -314,28 +275,16 @@ export default function TasksPage() {
       <main style={{ padding: "0px" }}>
         {loading ? (
           <div className="spinner-wrapper">
-              <Spinner text={textLoading} />
+              <Spinner noText />
           </div>
       ) : (
         <>
-            <Message
-                message={"Czy na pewno chcesz usunąć zadanie?"}
-                textConfirm="Tak"
-                textCancel="Nie"
-                onConfirm={() => {
-                  setTextLoading("Trwa usuwanie zadania");
-                  setLoading(true);
-                  handleDeleteTask().then(() => {
-                    setTimeout(() => {
-                    window.location.reload();
-                    }, 2000);
-                  });
-                }}
-                onClose={() => {
-                    setMsgDeleteVisible(false);
-                }}
-                visible={msgDeleteVisible}
-            />
+            {elementReponse?.getElements().length === 0 ? (
+                <span style={{
+                    color: "#514e4e",
+                    margin: "auto"
+                }}>Nie ma zadań...</span>
+            ) : (<>
             {elementReponse?.getElements().map((element, index) => (
                 <div key={index} className="table">
                     <div
@@ -417,7 +366,7 @@ export default function TasksPage() {
                         </div>
                         <div>
                             {task.section.type == "InteractiveQuestion" ? (<button
-                                className="btnOption"
+                                className={`btnOption ${!task.vocabluary ? "vocabluary" : ""}`}
                                 style={{
                                     minWidth: "48px",
                                     marginBottom: "4px"
@@ -434,23 +383,13 @@ export default function TasksPage() {
                             >
                                 <Text size={28} color="white" />
                             </button>) : null}
-                            <button
-                                className="btnOption"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setTaskId(task.id);
-                                    setMsgDeleteVisible(true);
-                                }}
-                                style={{minWidth: "48px"}}
-                            >
-                                <X size={28} color="white" />
-                            </button>
                         </div>
                     </div>
                 </div>))}
             </div>))}
             <br />
-            </>
+            </>)}
+        </>
       )}
       </main>
     </>

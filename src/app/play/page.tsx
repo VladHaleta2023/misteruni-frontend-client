@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Mic, Type, X, Check } from 'lucide-react';
+import { ArrowLeft, Mic, Type, X, Check, Trash2 } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -49,6 +49,7 @@ export default function PlayPage() {
     const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
     const [msgVisible, setMsgVisible] = useState<boolean>(false);
     const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
+    const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
     const [selectedSentencesWasEmpty, setSelectedSentencesWasEmpty] = useState<boolean>(false);
 
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
@@ -568,6 +569,9 @@ export default function PlayPage() {
             }
 
             const taskId = newTask.id;
+
+            localStorage.setItem("taskId", taskId);
+
             text = newTask.text ?? "";
             taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
 
@@ -1108,11 +1112,13 @@ export default function PlayPage() {
             outputSubtopics.map(item => [item.name, item.percent])
         );
 
+        const bonus = task.getTask().userOptionIndex === task.getTask().correctOptionIndex ? 25 : 0;
+
         return subtopics.map(item => {
             const subtractValue = outputMap.get(item.name) || 0;
             return {
                 name: item.name,
-                percent: 100 - subtractValue
+                percent: (100 - subtractValue) * 0.75 + bonus
             };
         });
     }
@@ -1246,10 +1252,48 @@ export default function PlayPage() {
         }
     }, [shuffledOptions, userOptionIndex]);
 
+    const handleDeleteTask = useCallback(async() => {
+        try {
+            const response = await api.delete(`/subjects/${subjectId}/tasks/${task?.getTask().id}`);
+
+            setLoading(false);
+            if (response.data?.statusCode === 200) {
+                showAlert(response.data.statusCode, response.data.message);
+            } else {
+                showAlert(response.data.statusCode, response.data.message);
+            }
+        }
+        catch (error) {
+            setLoading(false);
+            if (axios.isAxiosError(error)) {
+                if (error.response) {
+                showAlert(error.response.status, error.response.data.message || "Server error");
+                } else {
+                showAlert(500, `Server error: ${error.message}`);
+                }
+            } else if (error instanceof Error) {
+                showAlert(500, `Server error: ${error.message}`);
+            } else {
+                showAlert(500, "Unknown error");
+            }
+        }
+        finally {
+            setLoading(false);
+            setTextLoading("");
+            setMsgDeleteVisible(false);
+        }
+    }, [subjectId, task?.getTask().id]);
+
     return (
         <>
             <Header>
                 <div className="menu-icons">
+                    <div className="menu-icon" title="Słownik" onClick={(e) => {
+                        e.stopPropagation();
+                        setMsgDeleteTaskVisible(true);
+                    }} style={{ cursor: "pointer" }}>
+                        <Trash2 size={28} color="white" />
+                    </div>
                     <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
                         <ArrowLeft size={28} color="white" />
                     </div>
@@ -1257,6 +1301,29 @@ export default function PlayPage() {
             </Header>
 
             <main>
+                <Message
+                    message={"Czy na pewno chcesz usunąć zadanie?"}
+                    textConfirm="Tak"
+                    textCancel="Nie"
+                    onConfirm={() => {
+                        setMsgDeleteTaskVisible(false);
+                        setTextLoading("Trwa usuwanie zadania");
+                        setLoading(true);
+                        if (task?.getTask().id) {
+                            handleDeleteTask().then(() => {
+                                setTimeout(() => {
+                                    handleBackClick();
+                                }, 2000);
+                            });
+                        }
+                        else
+                            showAlert(400, "Błąd usuwania zadania");
+                    }}
+                    onClose={() => {
+                        setMsgDeleteTaskVisible(false);
+                    }}
+                    visible={msgDeleteTaskVisible}
+                />
                 <Message
                     message={
                         isMicMode ?
