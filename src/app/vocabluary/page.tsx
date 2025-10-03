@@ -290,7 +290,7 @@ export default function TasksPage() {
     async (outputWords: string[], outputText: string,  signal?: AbortSignal) => {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");
 
-      if (outputWords.length === 0 || !outputText) {
+      if (!outputText) {
         setLoading(false);
         showAlert(400, "Nie udało się zaktualizować słów lub wyrazów zadania");
         return;

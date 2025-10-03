@@ -100,10 +100,21 @@ export default function TasksPage() {
 
   const [loading, setLoading] = useState(true);
 
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
   useEffect(() => {
       if (typeof window !== "undefined") {
-          const storedSubjectId = localStorage.getItem("subjectId");
-          setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+        const storedSubjectId = localStorage.getItem("subjectId");
+        setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+        const storedWeekOffset = localStorage.getItem("weekOffset");
+        const parsedWeekOffset = Number(storedWeekOffset);
+
+        if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
+            setWeekOffset(0);
+            localStorage.setItem("weekOffset", "0");
+        } else {
+            setWeekOffset(parsedWeekOffset);
+        }
       }
   }, []);
 
@@ -115,7 +126,7 @@ export default function TasksPage() {
       }
 
       try {
-          const response = await api.get(`/subjects/${subjectId}/tasks`);
+          const response = await api.get(`/subjects/${subjectId}/tasks?weekOffset=${weekOffset}`);
           setLoading(false);
 
           if (response.data?.statusCode === 200) {
@@ -138,7 +149,7 @@ export default function TasksPage() {
               showAlert(500, "Unknown error");
           }
       }
-  }, [subjectId]);
+  }, [subjectId, weekOffset]);
 
   useEffect(() => {
       if (subjectId === null) return;
@@ -160,7 +171,7 @@ export default function TasksPage() {
       return () => {
           window.removeEventListener("resize", setMainHeight);
       };
-  }, [fetchTasksBySubjectId, subjectId]);
+  }, [fetchTasksBySubjectId, subjectId, weekOffset]);
 
   const handleTaskClick = useCallback(async (
       subjectId: number,

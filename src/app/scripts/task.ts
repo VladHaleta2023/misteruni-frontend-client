@@ -7,6 +7,8 @@ export interface ITask {
     id: number;
     stage: number;
     text: string;
+    note: string;
+    explanation: string;
     solution: string;
     options: string[];
     subTasks: ITask[];

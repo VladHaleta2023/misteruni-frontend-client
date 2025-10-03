@@ -35,6 +35,8 @@ export default function InteractivePlayPage() {
             id: 0,
             stage: 0,
             text: "",
+            note: "",
+            explanation: "",
             percent: 0,
             solution: "",
             options: [],

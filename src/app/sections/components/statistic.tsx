@@ -16,6 +16,7 @@ interface Subtopic {
   id: number;
   name: string;
   percent: number;
+  delta: number;
   blocked: boolean;
   status: Status;
 }
@@ -25,6 +26,7 @@ interface Topic {
   name: string;
   percent: number;
   blocked: boolean;
+  delta: number;
   status: Status;
   subtopics?: Subtopic[];
 }
@@ -34,8 +36,10 @@ interface Section {
   name: string;
   type: string;
   percent: number;
+  delta: number;
   blocked: boolean;
   status: Status;
+  process: Status;
   topics?: Topic[];
 }
 
@@ -48,6 +52,16 @@ export default function Statistics() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  const [statistics, setStatistics] = useState({
+    solvedTasksCountCompleted: 0,
+    solvedTasksCount: 0,
+    closedSubtopicsCount: 0,
+    closedTopicsCount: 0,
+    weekLabel: "bieżący",
+    prediction: null
+  });
 
   const [total, setTotal] = useState<[number, number, number, number]>([0, 0, 0, 0]);
 
@@ -59,6 +73,15 @@ export default function Statistics() {
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
+      const storedWeekOffset = localStorage.getItem("weekOffset");
+      const parsedWeekOffset = Number(storedWeekOffset);
+
+      if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
+        setWeekOffset(0);
+        localStorage.setItem("weekOffset", "0");
+      } else {
+        setWeekOffset(parsedWeekOffset);
+      }
     }
   }, []);
 
@@ -97,12 +120,13 @@ export default function Statistics() {
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections`);
+      const response = await api.get(`/subjects/${subjectId}/sections?weekOffset=${weekOffset}`);
       setLoading(false);
 
       if (response.data?.statusCode === 200) {
         const fetchedSections: Section[] = response.data.sections;
         setSections(fetchedSections);
+        setStatistics(response.data.statistics);
         setTotal([
           Math.round(Number(response.data.total.completed)),
           Math.round(Number(response.data.total.progress)),
@@ -126,7 +150,30 @@ export default function Statistics() {
         showAlert(500, "Unknown error");
       }
     }
-  }, [subjectId]);
+  }, [subjectId, weekOffset]);
+
+  const increaseWeekOffset = () => {
+    setWeekOffset(prev => {
+      if (prev === 0) {
+        return prev;
+      }
+      const newValue = prev + 1;
+      localStorage.setItem("weekOffset", String(newValue));
+      return newValue;
+    });
+
+    if (weekOffset === 0) {
+      showAlert(400, "Nie można przejść dalej – to jest bieżący tydzień");
+    }
+  };
+
+  const decreaseWeekOffset = () => {
+    setWeekOffset(prev => {
+      const newValue = prev - 1;
+      localStorage.setItem("weekOffset", String(newValue));
+      return newValue;
+    });
+  };
 
   useEffect(() => {
     setMainHeight();
@@ -142,7 +189,7 @@ export default function Statistics() {
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchSections, subjectId]);
+  }, [fetchSections, subjectId, weekOffset]);
 
   const handleTopicsExpand = (sectionId: number) => {
     setExpandedSections((prev) => ({
@@ -183,64 +230,6 @@ export default function Statistics() {
     }
   };
 
-  /*
-  async function sectionBlocked(sectionId: number) {
-    setLoading(true);
-
-    try {
-      const response = await api.post(/subjects/${subjectId}/sections/${sectionId}/blocked);
-      
-      showAlert(response.data.statusCode, response.data.message);
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, Server error: ${error.message});
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, Server error: ${error.message});
-      } else {
-        showAlert(500, "Unknown error");
-      }
-    }
-  }
-
-  async function topicBlocked(sectionId: number, topicId: number) {
-    setLoading(true);
-
-    try {
-      const response = await api.post(/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/blocked);
-      
-      showAlert(response.data.statusCode, response.data.message);
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, Server error: ${error.message});
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, Server error: ${error.message});
-      } else {
-        showAlert(500, "Unknown error");
-      }
-    }
-  }
-  */
-
   return (
     <>
       {loading ? (
@@ -249,11 +238,13 @@ export default function Statistics() {
         </div>
       ) : (
         <>
-          <CirclePieChart percents={total} />
+          <CirclePieChart percents={total} statistics={statistics} onPrev={decreaseWeekOffset} onNext={increaseWeekOffset} />
           <div className="table" style={{
             marginTop: "12px"
           }}>
-            {sections.flatMap((section) => [
+            {sections
+              .filter(section => !(weekOffset !== 0 && section.delta === 0))
+              .flatMap((section) => [
               <div
                 className={`element element-section`}
                 style={{ justifyContent: "space-between" }}
@@ -283,13 +274,23 @@ export default function Statistics() {
 
                 <div className="element-options">
                   <div
-                    className={`element-percent ${section.status}`}
-                  >{Math.round(section.percent)}%</div>
+                    className={
+                      weekOffset === 0
+                        ? `element-percent ${section.status} ${section.process}`
+                        : section.delta >= 0
+                        ? "element-percent completed"
+                        : "element-percent error"
+                    }
+                  >
+                    {section.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(section.percent) : Math.round(section.delta)}%
+                  </div>
                 </div>
               </div>,
 
               ...(expandedSections[section.id] && Array.isArray(section.topics)
-                ? section.topics.flatMap((topic) => [
+                ? section.topics
+                    .filter(topic => !(weekOffset !== 0 && topic.delta === 0))
+                    .flatMap((topic) => [
                     <div
                       className={`element element-topic`}
                       onClick={(e) => {
@@ -303,8 +304,18 @@ export default function Statistics() {
                         <FormatText content={topic.name ?? ""} />
                       </div>
                       <div className="element-options">
-                        <div className={`element-percent ${topic.status}`}>{Math.round(topic.percent)}%</div>
-                        <button
+                        <div
+                          className={
+                            weekOffset === 0
+                              ? `element-percent ${topic.status}`
+                              : topic.delta >= 0
+                              ? "element-percent completed"
+                              : "element-percent error"
+                          }
+                        >
+                          {topic.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(topic.percent) : Math.round(topic.delta)}%
+                        </div>
+                        {weekOffset === 0 ? (<button
                           className="btnElement"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -312,7 +323,7 @@ export default function Statistics() {
                           }}
                         >
                           <Play size={32} color="black" />
-                        </button>
+                        </button>): null}
                       </div>
                     </div>
                   ])

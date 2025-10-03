@@ -45,6 +45,17 @@ export default function Statistics() {
   
   const [total, setTotal] = useState<[number, number, number, number]>([0, 0, 0, 0]);
 
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  const [statistics, setStatistics] = useState({
+    solvedTasksCountCompleted: 0,
+    solvedTasksCount: 0,
+    closedSubtopicsCount: null,
+    closedTopicsCount: null,
+    weekLabel: "bieżący",
+    prediction: null
+  });
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
@@ -53,6 +64,15 @@ export default function Statistics() {
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
+      const storedWeekOffset = localStorage.getItem("weekOffset");
+      const parsedWeekOffset = Number(storedWeekOffset);
+
+      if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
+        setWeekOffset(0);
+        localStorage.setItem("weekOffset", "0");
+      } else {
+        setWeekOffset(parsedWeekOffset);
+      }
     }
   }, []);
 
@@ -76,12 +96,13 @@ export default function Statistics() {
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics`);
+      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics?weekOffset=${weekOffset}`);
       setLoading(false);
 
       if (response.data?.statusCode === 200) {
         const fetchedSubtopics: Section[] = response.data.subtopics;
         setSubtopics(fetchedSubtopics);
+        setStatistics(response.data.statistics);
         setTotal([
           Math.round(Number(response.data.total.completed)),
           Math.round(Number(response.data.total.progress)),
@@ -105,7 +126,7 @@ export default function Statistics() {
         showAlert(500, "Unknown error");
       }
     }
-  }, [subjectId, sectionId, topicId]);
+  }, [subjectId, sectionId, topicId, weekOffset]);
 
   useEffect(() => {
     setMainHeight();
@@ -121,7 +142,7 @@ export default function Statistics() {
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchSubtopics, subjectId]);
+  }, [fetchSubtopics, subjectId, weekOffset]);
 
   return (
     <>
@@ -131,7 +152,7 @@ export default function Statistics() {
         </div>
       ) : (
         <>
-          <CirclePieChart percents={total} />
+          <CirclePieChart percents={total} statistics={statistics} />
           <div className="table" style={{
             marginTop: "12px"
           }}>

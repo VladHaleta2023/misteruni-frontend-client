@@ -94,6 +94,7 @@ export default function MainPage() {
   }, [fetchSubjects]);
 
   const handleSubjectClick = (subjectId: number) => {
+    localStorage.setItem("weekOffset", "0");
     localStorage.setItem("subjectId", subjectId.toString());
     router.push('/sections');
   };

@@ -37,21 +37,21 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          rel="preload"
+          rel="preconnect"
           href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_Main-Regular.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
         />
         <link
-          rel="preload"
+          rel="preconnect"
           href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_Math-Italic.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
         />
         <link
-          rel="preload"
+          rel="preconnect"
           href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/fonts/KaTeX_AMS-Regular.woff2"
           as="font"
           type="font/woff2"

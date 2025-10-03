@@ -1,23 +1,41 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte', 'Zablokowane'];
 const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb', '#4a4a4a'];
 
 interface CirclePieChartProps {
   percents: [number, number, number, number];
+  statistics?: {
+    solvedTasksCount: number | null;
+    solvedTasksCountCompleted: number | null;
+    closedSubtopicsCount: number | null;
+    closedTopicsCount: number | null;
+    weekLabel: string | null;
+    prediction: string | null;
+  };
   names?: [string?, string?, string?, string?];
   width?: string;
   maxWidth?: string;
+  fontSize?: string;
+  onPrev?: () => void;
+  onNext?: () => void;
+  showStatistic?: boolean;
 }
 
 export default function CirclePieChart({
   percents,
+  statistics,
   names,
   width = '45vw',
-  maxWidth = '240px',
+  maxWidth = '280px',
+  fontSize = '16px',
+  onPrev,
+  onNext,
+  showStatistic = true,
 }: CirclePieChartProps) {
   const data = percents.map((percent, i) => ({
     name: names && names[i] ? names[i] : DEFAULT_NAMES[i],
@@ -26,6 +44,7 @@ export default function CirclePieChart({
 
   const [containerWidth, setContainerWidth] = useState(width);
   const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
+  const [containerFontSize, setContainerFontSize] = useState(fontSize);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -33,20 +52,18 @@ export default function CirclePieChart({
       const w = window.innerWidth;
       setIsMobile(w < 768);
 
-      if (w < 480) {
-        setContainerWidth('70vw');
-        setContainerMaxWidth('180px');
-      } else if (w < 768) {
+      if (w < 768) {
+        setContainerFontSize('14px');
         setContainerWidth('60vw');
         setContainerMaxWidth('220px');
       } else {
+        setContainerFontSize(fontSize);
         setContainerWidth(width);
         setContainerMaxWidth(maxWidth);
       }
     }
 
     updateSize();
-
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, [width, maxWidth]);
@@ -56,62 +73,140 @@ export default function CirclePieChart({
       <div
         className={`container ${isMobile ? 'mobile' : 'desktop'}`}
         style={{
-          width: '90vw',
-          maxWidth: '800px',
+          width: containerWidth,
+          maxWidth: containerMaxWidth,
           margin: '0 auto',
           userSelect: 'none',
           alignItems: 'center',
           justifyContent: 'center',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          position: 'relative',
         }}
       >
         <div
           style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
             width: containerWidth,
             maxWidth: containerMaxWidth,
-            aspectRatio: '1 / 1',
-            flexShrink: 0,
-            outline: 'none',
           }}
-          tabIndex={-1}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart tabIndex={-1} style={{ outline: 'none' }}>
-              <Pie
-                data={data}
-                dataKey="percent"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius="70%"
-                outerRadius="95%"
-                startAngle={90}
-                endAngle={-270}
-                paddingAngle={0}
-                stroke="none"
-                isAnimationActive={false}
-                tabIndex={-1}
-              >
-                {data.slice(0, -1).map((_, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                    tabIndex={-1}
-                  />
-                ))}
-              </Pie>
-              <Label
-                value={`+15`}
-                position="center"
+          {showStatistic && onPrev && (
+            <button
+              onClick={onPrev}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'absolute',
+                left: '-40px',
+                zIndex: 2,
+              }}
+            >
+              <ArrowLeft size={24} color="#333" />
+            </button>
+          )}
+
+          <div
+            style={{
+              width: '100%',
+              aspectRatio: '1 / 1',
+              flexShrink: 0,
+              outline: 'none',
+              position: 'relative',
+            }}
+            tabIndex={-1}
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={data}
+                  dataKey="percent"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="70%"
+                  outerRadius="95%"
+                  startAngle={90}
+                  endAngle={-270}
+                  paddingAngle={0}
+                  stroke="none"
+                  isAnimationActive={false}
+                >
+                  {data.slice(0, -1).map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+
+            {showStatistic && statistics && (
+              <div
                 style={{
-                  fontSize: 'clamp(18px, 3vw, 26px)',
-                  fontWeight: '600',
-                  fill: '#333',
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  textAlign: 'center',
+                  pointerEvents: 'none',
                 }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+              >
+                {statistics.weekLabel && (
+                  <div
+                    style={{
+                      fontSize: containerFontSize,
+                      color: '#333',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    {statistics.weekLabel}
+                  </div>
+                )}
+                {statistics.solvedTasksCount != null && statistics.solvedTasksCountCompleted != null && (
+                  <div
+                    style={{
+                      fontSize: containerFontSize,
+                      fontWeight: 600,
+                      color: '#333',
+                      marginBottom: '6px',
+                    }}
+                  >
+                    +{statistics.solvedTasksCount} ({statistics.solvedTasksCountCompleted})
+                  </div>
+                )}
+                {statistics.prediction != null ? (
+                  <div
+                    style={{
+                      fontSize: containerFontSize,
+                      fontWeight: 600,
+                      color: '#333',
+                    }}
+                  >
+                    {statistics.prediction}
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {showStatistic && onNext && (
+            <button
+              onClick={onNext}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                position: 'absolute',
+                right: '-40px',
+                zIndex: 2,
+              }}
+            >
+              <ArrowRight size={24} color="#333" />
+            </button>
+          )}
         </div>
 
         <div
@@ -120,8 +215,9 @@ export default function CirclePieChart({
             display: 'flex',
             flexDirection: 'column',
             minWidth: '100px',
-            fontSize: 'clamp(14px, 1.67vw, 16px)',
+            fontSize: containerFontSize,
             color: '#333',
+            marginTop: '10px',
           }}
         >
           {data.slice(0, -1).map((item, index) => (
@@ -131,6 +227,7 @@ export default function CirclePieChart({
                 display: 'flex',
                 alignItems: 'center',
                 cursor: 'default',
+                marginBottom: '4px',
               }}
             >
               <div
@@ -150,12 +247,6 @@ export default function CirclePieChart({
       </div>
 
       <style jsx>{`
-        .container {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0px;
-        }
         .container.desktop {
           flex-direction: row;
           flex-wrap: nowrap;
@@ -167,25 +258,11 @@ export default function CirclePieChart({
       `}</style>
 
       <style jsx global>{`
-        .recharts-pie-sector:focus,
-        .recharts-pie-sector:active,
-        .recharts-pie-sector:hover,
-        path:focus,
-        path:active,
-        path:hover,
-        svg:focus,
-        svg:active,
-        svg:hover {
-          outline: none !important;
-          box-shadow: none !important;
-          border: none !important;
-        }
-
         svg {
           user-select: none;
-          -webkit-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
+        }
+        path {
+          outline: none !important;
         }
       `}</style>
     </>

@@ -103,14 +103,26 @@ export default function TasksPage() {
 
   const [loading, setLoading] = useState(true);
 
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
   useEffect(() => {
       if (typeof window !== "undefined") {
-          const storedSubjectId = localStorage.getItem("subjectId");
-          setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
-          const storedSectionId = localStorage.getItem("sectionId");
-          setSectionId(storedSectionId ? Number(storedSectionId) : null);
-          const storedTopicId = localStorage.getItem("topicId");
-          setTopicId(storedTopicId ? Number(storedTopicId) : null);
+        const storedSubjectId = localStorage.getItem("subjectId");
+        setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+        const storedSectionId = localStorage.getItem("sectionId");
+        setSectionId(storedSectionId ? Number(storedSectionId) : null);
+        const storedTopicId = localStorage.getItem("topicId");
+        setTopicId(storedTopicId ? Number(storedTopicId) : null);
+
+        const storedWeekOffset = localStorage.getItem("weekOffset");
+        const parsedWeekOffset = Number(storedWeekOffset);
+
+        if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
+            setWeekOffset(0);
+            localStorage.setItem("weekOffset", "0");
+        } else {
+            setWeekOffset(parsedWeekOffset);
+        }
       }
   }, []);
 
@@ -134,7 +146,7 @@ export default function TasksPage() {
       }
 
       try {
-          const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks`);
+          const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks?weekOffset=${weekOffset}`);
           setLoading(false);
 
           if (response.data?.statusCode === 200) {
@@ -157,7 +169,7 @@ export default function TasksPage() {
               showAlert(500, "Unknown error");
           }
       }
-  }, [subjectId, sectionId, topicId]);
+  }, [subjectId, sectionId, topicId, weekOffset]);
 
   useEffect(() => {
       if (!subjectId || !sectionId || !topicId) return;
@@ -179,7 +191,7 @@ export default function TasksPage() {
       return () => {
           window.removeEventListener("resize", setMainHeight);
       };
-  }, [fetchTasksByTopicId, subjectId, sectionId, topicId]);
+  }, [fetchTasksByTopicId, subjectId, sectionId, topicId, weekOffset]);
 
   const handleTaskClick = useCallback(async (
       subjectId: number,

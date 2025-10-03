@@ -25,6 +25,7 @@ export default function SectionsPage() {
     localStorage.removeItem("subjectId");
     localStorage.removeItem("sectionId");
     localStorage.removeItem("topicId");
+    localStorage.removeItem("weekOffset");
     router.push("/");
   }
 

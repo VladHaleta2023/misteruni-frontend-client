@@ -60,6 +60,8 @@ export default function PlayPage() {
             id: 0,
             stage: 0,
             text: "",
+            explanation: "",
+            note: "",
             solution: "",
             percent: 0,
             options: [],
@@ -212,6 +214,7 @@ export default function PlayPage() {
                 let changed = "true";
                 let attempt = 0;
                 let text = "";
+                let note = "";
                 let errors: string[] = [];
                 let outputSubtopics: string[] = [];
                 const MAX_ATTEMPTS = 2;
@@ -221,16 +224,17 @@ export default function PlayPage() {
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
-                        { changed, errors, attempt, text, outputSubtopics },
+                        { changed, errors, attempt, text, note, outputSubtopics },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+                    if (activeSignal?.aborted) return { text: "", note: "", outputSubtopics: [] };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
                         errors = response.data.errors;
                         text = response.data.text;
+                        note = response.data.note;
                         outputSubtopics = response.data.outputSubtopics;
                         attempt = response.data.attempt;
                         console.log(`Generowanie treści zadania: Próba ${attempt}`);
@@ -240,11 +244,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return { text, outputSubtopics };
+                return { text, note, outputSubtopics };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { text: "", outputSubtopics: [] };
+                if ((error as DOMException)?.name === "AbortError") return { text: "", note: "", outputSubtopics: [] };
                 handleApiError(error);
-                return { text: "", outputSubtopics: [] };
+                return { text: "", note: "", outputSubtopics: [] };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -360,6 +364,7 @@ export default function PlayPage() {
         topicId: number,
         stage: number,
         text: string,
+        note: string,
         solution: string,
         options: string[],
         taskSubtopics: string[],
@@ -374,6 +379,7 @@ export default function PlayPage() {
                     id,
                     stage,
                     text,
+                    note,
                     solution,
                     options,
                     correctOptionIndex,
@@ -407,7 +413,10 @@ export default function PlayPage() {
             userSolution: string,
             userOptionIndex: number,
             signal?: AbortSignal
-        ) => {
+        ): Promise<{
+            outputSubtopics: string[];
+            explanation: string;
+        }> => {
             setTextLoading("Obliczanie procentów podtematów");
 
             const controller = !signal ? new AbortController() : null;
@@ -419,24 +428,26 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let outputSubtopics: string[] = [];
+                let explanation: string = "";
                 const taskSubtopics = subtopics?.map(s => s.name) ?? [];
                 const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return null;
+                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOptionIndex, userSolution, userOptionIndex, subtopics: taskSubtopics, outputSubtopics },
+                        { changed, errors, attempt, text, solution, options, correctOptionIndex, userSolution, userOptionIndex, subtopics: taskSubtopics, outputSubtopics, explanation },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return null;
+                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
                         errors = response.data.errors;
                         outputSubtopics = response.data.outputSubtopics;
+                        explanation = response.data.explanation;
                         attempt = response.data.attempt;
                         console.log(`Obliczanie procentów podtematów: Próba ${attempt}`);
                     } else {
@@ -445,11 +456,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return outputSubtopics;
+                return { outputSubtopics, explanation };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return [];
+                if ((error as DOMException)?.name === "AbortError") return { outputSubtopics: [], explanation: ""};
                 handleApiError(error);
-                return null;
+                return { outputSubtopics: [], explanation: "" }
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -494,13 +505,15 @@ export default function PlayPage() {
         topicId: number,
         id: number,
         subtopics: Subtopic[],
+        explanation: string,
         signal?: AbortSignal
     ) => {
         try {
             const response = await api.post(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${id}/subtopicsProgress-transaction`,
                 {
-                    subtopics
+                    subtopics,
+                    explanation
                 },
                 { signal }
             );
@@ -544,6 +557,7 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
+            let note: string = "";
             let text: string = "";
             let taskSubtopics: string[] = [];
 
@@ -551,8 +565,9 @@ export default function PlayPage() {
                 const taskResult = await handleTextGenerate(subjectId, sectionId, topicId, signal);
                 text = taskResult?.text ?? "";
                 taskSubtopics = taskResult?.outputSubtopics ?? [];
+                note = taskResult?.note ?? "";
 
-                if (!text) {
+                if (!text || !note) {
                     setLoading(false);
                     showAlert(400, "Nie udało się wygenerować treści zadania");
                     return;
@@ -560,7 +575,7 @@ export default function PlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", [], taskSubtopics, 0, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], taskSubtopics, 0, signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -586,7 +601,7 @@ export default function PlayPage() {
 
                 stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], taskSubtopics, 0, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], taskSubtopics, 0, signal, taskId);
             }
 
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -610,7 +625,7 @@ export default function PlayPage() {
 
                 stage = 3;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, taskSubtopics, correctOptionIndex, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, taskSubtopics, correctOptionIndex, signal, taskId);
             }
         } catch (error) {
             setLoading(false);
@@ -722,26 +737,28 @@ export default function PlayPage() {
                         signal
                     );
 
-                    if (signal.aborted) return;
-
-                    if (!data) return;
+                    if (signal.aborted || !data) return;
 
                     const outputSubtopics: Subtopic[] = subtractPercents(
                         task.subtopics ?? [],
-                        data.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
+                        data.outputSubtopics.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
                     );
+
+                    const explanation = data.explanation ?? "";
 
                     await handleSaveSubtopicsProgressTransaction(
                         subjectId ?? 0,
                         sectionId ?? 0,
                         topicId ?? 0,
                         task.id ?? 0,
-                        outputSubtopics
+                        outputSubtopics,
+                        explanation
                     );
 
                     if (signal.aborted) return;
 
                     updateTask({
+                        explanation,
                         subtopics: outputSubtopics ?? [],
                         answered: true,
                         finished: true,
@@ -1199,8 +1216,10 @@ export default function PlayPage() {
 
                 const outputSubtopics: Subtopic[] = subtractPercents(
                     newTask.subtopics ?? [],
-                    data.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
+                    data.outputSubtopics.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
                 );
+
+                const explanation = data.explanation ?? "";
 
                 await handleSaveSubtopicsProgressTransaction(
                     subjectId ?? 0,
@@ -1208,6 +1227,7 @@ export default function PlayPage() {
                     topicId ?? 0,
                     newTask.id ?? 0,
                     outputSubtopics,
+                    explanation,
                     signal
                 );
 
@@ -1216,6 +1236,7 @@ export default function PlayPage() {
                 updateTask({
                     finished: true,
                     answered: true,
+                    explanation,
                     subtopics: outputSubtopics
                 });
 
@@ -1410,6 +1431,10 @@ export default function PlayPage() {
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
                             <div className="message robot">
+                                <div style={{fontWeight: "bold"}}>Notatka zadania:</div>
+                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().note ?? ""} /></div>
+                            </div>
+                            <div className="message robot">
                                 <div style={{fontWeight: "bold"}}>Tekst zadania:</div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
                             </div>
@@ -1547,6 +1572,10 @@ export default function PlayPage() {
                                     <div style={{marginTop: "8px"}}>
                                         <FormatText content={task?.getTask().solution} />
                                     </div>
+                                </div>
+                                <div className="message robot">
+                                    <div style={{fontWeight: "bold"}}>Wyjaśnienie zadania:</div>
+                                    <div style={{marginTop: "8px"}}><FormatText content={task?.getTask().explanation ?? ""} /></div>
                                 </div>
                             </>
                             )}

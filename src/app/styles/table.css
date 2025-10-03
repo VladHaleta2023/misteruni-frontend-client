@@ -101,6 +101,22 @@
   color: #000000;
 }
 
+.started.completed {
+  background: linear-gradient(to right, transparent 50%, #a7cba1 50%);
+}
+
+.started.progress {
+  background: linear-gradient(to right, transparent 50%, #d7d470 50%);
+}
+
+.completed.progress {
+  background: linear-gradient(to right, #a7cba1 50%, #d7d470 50%);
+}
+
+.started.completed {
+  background: linear-gradient(to right, transparent 50%, #a7cba1 50%);
+}
+
 .element-subject-options {
   display: flex;
   flex-direction: column;
@@ -165,6 +181,10 @@
 
 .element-subject:hover {
   background-color: #ece3fb;
+}
+
+.element-title {
+  font-weight: bold;
 }
 
 .element-title-container {
