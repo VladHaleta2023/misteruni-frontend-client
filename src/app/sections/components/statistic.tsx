@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
 
 type Status = 'blocked' | 'started' | 'progress' | 'completed';
+type DeltaStatus = 'completed' | 'error' | 'completed error';
 
 interface Subtopic {
   id: number;
@@ -27,6 +28,7 @@ interface Topic {
   percent: number;
   blocked: boolean;
   delta: number;
+  deltaStatus: DeltaStatus;
   status: Status;
   subtopics?: Subtopic[];
 }
@@ -37,6 +39,7 @@ interface Section {
   type: string;
   percent: number;
   delta: number;
+  deltaStatus: DeltaStatus;
   blocked: boolean;
   status: Status;
   process: Status;
@@ -277,9 +280,7 @@ export default function Statistics() {
                     className={
                       weekOffset === 0
                         ? `element-percent ${section.status} ${section.process}`
-                        : section.delta >= 0
-                        ? "element-percent completed"
-                        : "element-percent error"
+                        : `element-percent ${section.deltaStatus}`
                     }
                   >
                     {section.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(section.percent) : Math.round(section.delta)}%
@@ -308,9 +309,7 @@ export default function Statistics() {
                           className={
                             weekOffset === 0
                               ? `element-percent ${topic.status}`
-                              : topic.delta >= 0
-                              ? "element-percent completed"
-                              : "element-percent error"
+                              : `element-percent ${topic.deltaStatus}`
                           }
                         >
                           {topic.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(topic.percent) : Math.round(topic.delta)}%

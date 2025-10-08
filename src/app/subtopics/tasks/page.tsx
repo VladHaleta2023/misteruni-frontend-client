@@ -29,6 +29,7 @@ interface ITask {
     percent: number;
     status: Status;
     vocabluary: boolean;
+    wordsCount: number;
     finished: boolean;
     topic: {
         id: number,
@@ -397,7 +398,7 @@ export default function TasksPage() {
                           {task.finished ? Math.round(task.percent) : 0}%
                       </div>
                       <div>
-                        {task.section.type == "InteractiveQuestion" ? (<button
+                        {task.section.type == "InteractiveQuestion" && task.wordsCount != 0 ? (<button
                             className={`btnOption ${!task.vocabluary ? "vocabluary" : ""}`}
                             style={{
                               minWidth: "48px",

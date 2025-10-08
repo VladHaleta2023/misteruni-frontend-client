@@ -101,20 +101,20 @@
   color: #000000;
 }
 
-.started.completed {
-  background: linear-gradient(to right, transparent 50%, #a7cba1 50%);
-}
-
-.started.progress {
-  background: linear-gradient(to right, transparent 50%, #d7d470 50%);
-}
-
 .completed.progress {
   background: linear-gradient(to right, #a7cba1 50%, #d7d470 50%);
 }
 
-.started.completed {
-  background: linear-gradient(to right, transparent 50%, #a7cba1 50%);
+.completed.started {
+  background: linear-gradient(to right, #a7cba1 50%, transparent 50%);
+}
+
+.completed.error {
+  background: linear-gradient(to right, #a7cba1 50%, rgba(230, 190, 190, 0.5) 50%);
+}
+
+.progress.started {
+  background: linear-gradient(to right, #d7d470 50%, transparent 50%);
 }
 
 .element-subject-options {

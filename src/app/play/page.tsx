@@ -65,6 +65,7 @@ export default function PlayPage() {
             solution: "",
             percent: 0,
             options: [],
+            explanations: [],
             subtopics: [],
             correctOptionIndex: 0,
             answered: false,
@@ -318,15 +319,16 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let options: string[] = [];
+                let explanations: string[] = [];
                 let correctOptionIndex = 0;
                 const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOptionIndex },
+                        { changed, errors, attempt, text, solution, options, explanations, correctOptionIndex },
                         { signal: activeSignal }
                     );
 
@@ -338,6 +340,7 @@ export default function PlayPage() {
                         text = response.data.text;
                         solution = response.data.solution;
                         options = response.data.options;
+                        explanations = response.data.explanations;
                         correctOptionIndex = response.data.correctOptionIndex;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
@@ -347,11 +350,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return { options, correctOptionIndex };
+                return { options, explanations, correctOptionIndex };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], correctOptionIndex: 0 };
+                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
                 handleApiError(error);
-                return { options: [], correctOptionIndex: 0 };
+                return { options: [], explanations: [], correctOptionIndex: 0 };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -367,6 +370,7 @@ export default function PlayPage() {
         note: string,
         solution: string,
         options: string[],
+        explanations: string[],
         taskSubtopics: string[],
         correctOptionIndex: number,
         signal?: AbortSignal,
@@ -382,6 +386,7 @@ export default function PlayPage() {
                     note,
                     solution,
                     options,
+                    explanations,
                     correctOptionIndex,
                     taskSubtopics
                 },
@@ -575,7 +580,7 @@ export default function PlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], taskSubtopics, 0, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], [], taskSubtopics, 0, signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -601,7 +606,7 @@ export default function PlayPage() {
 
                 stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], taskSubtopics, 0, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], [], taskSubtopics, 0, signal, taskId);
             }
 
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -615,6 +620,7 @@ export default function PlayPage() {
             if (stage < 3) {
                 const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, text, solution, signal);
                 const options = optionsResult.options ?? [];
+                const explanations = optionsResult.explanations ?? [];
                 const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                 if (!options.length || options.length != 4) {
@@ -625,7 +631,7 @@ export default function PlayPage() {
 
                 stage = 3;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, taskSubtopics, correctOptionIndex, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, explanations, taskSubtopics, correctOptionIndex, signal, taskId);
             }
         } catch (error) {
             setLoading(false);
@@ -1442,20 +1448,31 @@ export default function PlayPage() {
                                 <div style={{fontWeight: "bold"}}>Warianty odpowiedzi:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {shuffledOptions.map(({ option, originalIndex }) => (
-                                        <label key={originalIndex} className="radio-option" style={{marginBottom: "12px"}}>
-                                            <input
-                                                type="radio"
-                                                name="userOption"
-                                                value={originalIndex}
-                                                checked={userOptionIndex === originalIndex}
-                                                onChange={() => setUserOptionIndex(originalIndex)}
-                                                disabled={task.getTask().finished}
-                                                style={{
-                                                    marginTop: "0.75px"
-                                                }}
-                                            />
-                                            <span><FormatText content={option ?? ""} /></span>
-                                        </label>
+                                        <div key={originalIndex}>
+                                            <label className={`radio-option ${task.getTask().finished ? "finished" : ""} ${originalIndex === task.getTask().correctOptionIndex ? "correct" : ""}`} style={{marginBottom: "12px"}}>
+                                                <input
+                                                    type="radio"
+                                                    name="userOption"
+                                                    value={originalIndex}
+                                                    checked={userOptionIndex === originalIndex}
+                                                    onChange={() => setUserOptionIndex(originalIndex)}
+                                                    disabled={task.getTask().finished}
+                                                    style={{
+                                                        marginTop: "0.75px"
+                                                    }}
+                                                />
+                                                <span><FormatText content={option ?? ""} /></span>
+                                            </label>
+
+                                            {task.getTask().finished ? (
+                                                <>
+                                                <div style={{fontWeight: "bold"}}>Wyjaśnienie:</div>
+                                                <div>
+                                                    <span><FormatText content={task.getTask().explanations[originalIndex] ?? ""} /></span>
+                                                </div>
+                                                <br />
+                                            </>) : null}
+                                        </div>
                                     ))}
                                 </div>
                                 <div style={{fontWeight: "bold"}}>Rozwiązanie:</div>

@@ -145,6 +145,15 @@
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+.radio-option.finished input[type="radio"] {
+  background-color: #c0c0c0;
+}
+
+.radio-option.finished.correct input[type="radio"] {
+  background-color: #1b5e20 !important;
+  border: 2px solid #1b5e20 !important;
+}
+
 .radio-option input[type="radio"]:hover {
   border-color: #7e2ba9;
 }

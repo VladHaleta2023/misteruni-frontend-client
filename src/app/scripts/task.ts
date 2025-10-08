@@ -11,6 +11,7 @@ export interface ITask {
     explanation: string;
     solution: string;
     options: string[];
+    explanations: string[];
     subTasks: ITask[];
     audioFiles: string[];
     subtopics: ISubtopic[];
