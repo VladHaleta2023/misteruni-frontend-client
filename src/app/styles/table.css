@@ -15,7 +15,6 @@
   display: flex;
   border-bottom: 2px solid #bfbfbf;
   transition: background-color 0.3s ease;
-  user-select: none;
   cursor: pointer;
 }
 
@@ -29,7 +28,6 @@
   word-break: break-word;
   white-space: normal;
   line-height: 1.4;
-  user-select: none;
   border-radius: 16px;
   background-color: rgba(230, 190, 190, 0.5);
   color: black;

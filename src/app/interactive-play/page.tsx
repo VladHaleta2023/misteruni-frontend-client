@@ -1239,13 +1239,13 @@ export default function InteractivePlayPage() {
                                                 </label>
 
                                                 {subTask.finished ? (
-                                                    <>
+                                                    <div style={{ marginLeft: "32px" }}>
                                                         <div style={{fontWeight: "bold"}}>Wyjaśnienie:</div>
                                                         <div>
                                                             <span><FormatText content={subTask.explanations[originalIndex] ?? ""} /></span>
                                                         </div>
                                                         <br />
-                                                    </>) : null}
+                                                    </div>) : null}
                                             </div>
                                         ))}
                                         </div>

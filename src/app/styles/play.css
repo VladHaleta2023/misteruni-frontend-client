@@ -28,7 +28,6 @@ html, body, #__next {
   word-break: break-word;
   white-space: normal;
   line-height: 1.4;
-  user-select: none;
   border-radius: 16px;
   margin-bottom: 18px;
   width: 90%;
@@ -139,7 +138,6 @@ textarea:focus {
   padding: 4px 6px;
   background-color: transparent;
   border-radius: 8px;
-  user-select: none;
   cursor: pointer;
 }
 
@@ -149,7 +147,6 @@ textarea:focus {
 
 .disabled {
   opacity: 0.6;
-  user-select: none;
   transition: none;
   background-color: #555555;
 }
