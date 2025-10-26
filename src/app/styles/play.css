@@ -68,6 +68,7 @@ textarea::placeholder {
   margin-top: 8px;
   user-select: text;
   resize: none;
+  overflow: hidden;
 }
 
 textarea {

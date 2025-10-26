@@ -3,6 +3,7 @@
 :root {
   --main-width: calc(100vw - var(--dropdown-width));
   --main-height: auto;
+  --header-height: 64px;
 }
 
 * {
@@ -34,5 +35,7 @@ main {
   word-break: break-word;
   font-size: 18px;
   height: var(--main-height);
+  min-height: 100dvh;
+  padding-top: var(--header-height);
   background-color: #e0e0e0;
 }

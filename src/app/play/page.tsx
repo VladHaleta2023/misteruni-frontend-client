@@ -1312,10 +1312,10 @@ export default function PlayPage() {
                     <div className="menu-icon" title="Słownik" onClick={(e) => {
                         e.stopPropagation();
                         setMsgDeleteTaskVisible(true);
-                    }} style={{ cursor: "pointer" }}>
+                    }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+                    <div className="menu-icon" title="Wróć" onClick={handleBackClick}>
                         <ArrowLeft size={28} color="white" />
                     </div>
                 </div>
