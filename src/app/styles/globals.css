@@ -35,6 +35,7 @@ main {
   font-size: 18px;
   height: var(--main-height);
   min-height: 100dvh;
-  padding-top: calc(var(--header-height)); 
+  padding-top: var(--header-height);
+  scroll-padding-top: var(--header-height); 
   background-color: #e0e0e0;
 }

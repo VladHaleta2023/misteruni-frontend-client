@@ -784,15 +784,11 @@ export default function PlayPage() {
         };
     }, [subjectId, sectionId, topicId]);
 
-    const adjustTextareaRows = (value: string) => {
+    const adjustTextareaRows = () => {
         if (textareaRef.current) {
             const textarea = textareaRef.current;
-            textarea.value = value;
-            textarea.rows = 1;
-            const fontSize = 20;
-            const lineHeight = fontSize * 1.4;
-            const lines = Math.ceil(textarea.scrollHeight / lineHeight);
-            textarea.rows = lines;
+            textarea.style.height = "auto";
+            textarea.style.height = textarea.scrollHeight + "px";
         }
     };
 
@@ -818,7 +814,7 @@ export default function PlayPage() {
 
         if (savedAnswer) {
             setTextValue(savedAnswer);
-            adjustTextareaRows(savedAnswer);
+            adjustTextareaRows();
             splitIntoSentences(savedAnswer)
                 .then(sentences => setSentences(sentences))
                 .catch(() => setSentences([]));
@@ -874,7 +870,7 @@ export default function PlayPage() {
         const newValue = e.target.value;
         setTextValue(newValue);
         localStorage.setItem("answerText", newValue);
-        adjustTextareaRows(newValue);
+        adjustTextareaRows();
     };
 
     const handleBackClick = () => {
@@ -894,7 +890,7 @@ export default function PlayPage() {
         if (!isMicMode) {
             textareaRef.current?.focus({ preventScroll: true });
             setTextValue(savedAnswer);
-            adjustTextareaRows(savedAnswer);
+            adjustTextareaRows();
         }
         else {
             splitIntoSentences(savedAnswer)
@@ -1359,7 +1355,7 @@ export default function PlayPage() {
                         setSelectedSentences([]);
 
                         if (!isMicMode)
-                            adjustTextareaRows("");
+                            adjustTextareaRows();
                     }}
                     onClose={() => {
                         setMsgDeleteVisible(false);
