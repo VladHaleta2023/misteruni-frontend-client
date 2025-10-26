@@ -75,6 +75,8 @@ textarea::placeholder {
 textarea {
   outline: none;
   box-shadow: none;
+  overflow: hidden;
+  resize: none;
 }
 
 textarea:-webkit-autofill {

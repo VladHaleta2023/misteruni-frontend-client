@@ -787,8 +787,14 @@ export default function PlayPage() {
     const adjustTextareaRows = () => {
         if (textareaRef.current) {
             const textarea = textareaRef.current;
+            const main = document.querySelector("main");
+            const scrollTop = main?.scrollTop ?? window.scrollY;
+
             textarea.style.height = "auto";
             textarea.style.height = textarea.scrollHeight + "px";
+
+            if (main) main.scrollTop = scrollTop;
+            else window.scrollTo(0, scrollTop);
         }
     };
 
