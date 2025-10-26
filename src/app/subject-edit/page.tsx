@@ -143,8 +143,7 @@ export default function MainPage() {
                         placeholder="Proszę napisać trudność..."
                     />
                 </div>
-                <br />
-                <div className="options-container">
+                <div className="options-container" style={{ marginTop: "12px" }}>
                     <label htmlFor="threshold" className="label">Próg:</label>
                     <input
                         type="text"
@@ -156,9 +155,9 @@ export default function MainPage() {
                         placeholder="Proszę napisać próg..."
                     />
                 </div>
-                <br />
                 <div style={{
                     display: "flex",
+                    marginTop: "24px"
                 }}>
                     <button
                         className="button"

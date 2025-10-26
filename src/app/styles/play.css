@@ -11,6 +11,11 @@ html, body, #__next {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .text-audio {
