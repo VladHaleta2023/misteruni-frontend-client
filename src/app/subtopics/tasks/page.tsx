@@ -322,6 +322,7 @@ export default function TasksPage() {
                   <div
                       className="element element-section"
                       style={{
+                          borderBottom: "2px solid #908f8f",
                           justifyContent: "center"
                       }}
                   >

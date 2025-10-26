@@ -131,11 +131,26 @@ export default function Statistics() {
         setSections(fetchedSections);
         setStatistics(response.data.statistics);
         setTotal([
-          Math.round(Number(response.data.total.completed)),
-          Math.round(Number(response.data.total.progress)),
-          Math.round(Number(response.data.total.started)),
-          Math.round(Number(response.data.total.blocked))
+          Number(response.data.total.completed),
+          Number(response.data.total.progress),
+          Number(response.data.total.started),
+          Number(response.data.total.blocked)
         ]);
+
+        if (weekOffset !== 0) {
+          const expanded: { [key: number]: boolean } = {};
+          fetchedSections.forEach((section) => {
+            expanded[section.id] = true;
+          });
+          setExpandedSections(expanded);
+        }
+        else {
+          const collapsed: { [key: number]: boolean } = {};
+          fetchedSections.forEach((section) => {
+            collapsed[section.id] = false;
+          });
+          setExpandedSections(collapsed);
+        }
       } else {
         showAlert(response.data.statusCode, response.data.message);
       }
@@ -276,15 +291,17 @@ export default function Statistics() {
                 </div>
 
                 <div className="element-options">
-                  <div
-                    className={
-                      weekOffset === 0
-                        ? `element-percent ${section.status} ${section.process}`
-                        : `element-percent ${section.deltaStatus}`
-                    }
-                  >
-                    {section.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(section.percent) : Math.round(section.delta)}%
-                  </div>
+                  {weekOffset === 0 ? (
+                    <div
+                      className={
+                        weekOffset === 0
+                          ? `element-percent ${section.status} ${section.process}`
+                          : `element-percent ${section.deltaStatus}`
+                      }
+                    >
+                      {section.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? section.percent : Math.round(section.delta)}%
+                    </div>
+                  ) : null}
                 </div>
               </div>,
 
@@ -312,7 +329,7 @@ export default function Statistics() {
                               : `element-percent ${topic.deltaStatus}`
                           }
                         >
-                          {topic.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? Math.round(topic.percent) : Math.round(topic.delta)}%
+                          {topic.delta >= 0 && weekOffset !== 0 ? "+" : ""}{weekOffset === 0 ? topic.percent : Math.round(topic.delta)}%
                         </div>
                         {weekOffset === 0 ? (<button
                           className="btnElement"

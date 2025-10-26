@@ -19,7 +19,7 @@ type Word = {
   finished: boolean;
 }
 
-export default function TasksPage() {
+export default function VocabluaryPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
@@ -37,21 +37,33 @@ export default function TasksPage() {
   const [textLoading, setTextLoading] = useState("");
 
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
-  const [textValues, setTextValues] = useState<string[]>([]);
+  const [textValues, setTextValues] = useState<[number, string][]>([]);
 
   const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
 
   const [outputText, setOutputText] = useState<string>("");
 
-  const handleInput = (index: number, value: string) => {
-    const newValues = [...textValues];
-    newValues[index] = value;
-    setTextValues(newValues);
+  const [text, setText] = useState<string>("");
+
+  const handleInput = (index: number, id: number, value: string) => {
+    setValueById(id, value);
 
     const textarea = textareaRefs.current[index];
     if (textarea) {
       adjustTextareaRows(textarea);
     }
+  };
+
+  const getValueById = (id: number) => {
+    const found = textValues.find(([wordId]) => wordId === id);
+    return found ? found[1] : "";
+  };
+
+  const setValueById = (id: number, value: string) => {
+    setTextValues(prev => {
+      const updated = prev.filter(([wordId]) => wordId !== id);
+      return [...updated, [id, value]];
+    });
   };
 
   const adjustTextareaRows = (textarea: HTMLTextAreaElement) => {
@@ -76,30 +88,6 @@ export default function TasksPage() {
   }, []);
 
   const fetchWords = useCallback(async () => {
-    if (!subjectId) {
-      setLoading(false);
-      showAlert(400, "Przedmiot nie został znaleziony");
-      return;
-    }
-
-    if (!sectionId) {
-      setLoading(false);
-      showAlert(400, "Rozdział nie został znaleziony");
-      return;
-    }
-
-    if (!topicId) {
-      setLoading(false);
-      showAlert(400, "Temat nie został znaleziony");
-      return;
-    }
-
-    if (!taskId) {
-      setLoading(false);
-      showAlert(400, "Zadanie nie zostało znalezione");
-      return;
-    }
-
     try {
       const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words`);
       setLoading(false);
@@ -107,22 +95,22 @@ export default function TasksPage() {
       if (response.data?.statusCode === 200) {
         const fetchedWords: Word[] = response.data.words;
         setWords(fetchedWords);
+        setText(response.data.task.text ?? "");
+
+        setTextValues(prev => {
+          return fetchedWords.map(word => {
+            const existing = prev.find(([id]) => id === word.id);
+            return [word.id, existing?.[1] || ""];
+          });
+        });
+
+        textareaRefs.current = new Array(fetchedWords.length).fill(null);
       } else {
         showAlert(response.data.statusCode, response.data.message);
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
-        showAlert(500, "Unknown error");
-      }
+      handleApiError(error);
     }
   }, [subjectId, sectionId, topicId, taskId]);
 
@@ -156,35 +144,28 @@ export default function TasksPage() {
     router.back();
   }
 
-  const handleDeleteWord = useCallback(async() => {
+  const handleDeleteWord = useCallback(async () => {
     try {
-        const response = await api.delete(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words/${wordId}`);
+      const response = await api.delete(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words/${wordId}`);
 
-        setLoading(false);
-        if (response.data?.statusCode === 200) {
-            showAlert(response.data.statusCode, response.data.message);
-        } else {
-            showAlert(response.data.statusCode, response.data.message);
+      setLoading(false);
+      if (response.data?.statusCode === 200) {
+        if (wordId !== null) {
+          setTextValues(prev => prev.filter(([id]) => id !== wordId));
         }
-    }
-    catch (error) {
-        setLoading(false);
-        if (axios.isAxiosError(error)) {
-            if (error.response) {
-            showAlert(error.response.status, error.response.data.message || "Server error");
-            } else {
-            showAlert(500, `Server error: ${error.message}`);
-            }
-        } else if (error instanceof Error) {
-            showAlert(500, `Server error: ${error.message}`);
-        } else {
-            showAlert(500, "Unknown error");
-        }
-    }
-    finally {
+
+        showAlert(response.data.statusCode, response.data.message);
+      } else {
+        showAlert(response.data.statusCode, response.data.message);
+      }
+    } catch (error) {
+      setLoading(false);
+      handleApiError(error);
+    } finally {
       setLoading(false);
       setTextLoading("");
       setMsgDeleteVisible(false);
+      await fetchWords();
     }
   }, [subjectId, sectionId, topicId, taskId, wordId]);
 
@@ -331,7 +312,7 @@ export default function TasksPage() {
     }
 
     const emptyIndex = words.findIndex(
-      (word, i) => !word.finished && (!textValues[i] || textValues[i].trim() === "")
+      word => !word.finished && !getValueById(word.id).trim()
     );
 
     if (emptyIndex !== -1) {
@@ -339,14 +320,12 @@ export default function TasksPage() {
       return;
     }
 
-    const filledPairs: [string, string][] = [];
-
-    words.forEach((word, i) => {
-      const value = textValues[i];
-      if (value && value.trim() !== "") {
-        filledPairs.push([word.text, value]);
-      }
-    });
+    const filledPairs: [string, string][] = words
+      .map(word => {
+        const value = getValueById(word.id);
+        return value.trim() ? [word.text, value.trim()] : null;
+      })
+      .filter(Boolean) as [string, string][];
 
     if (!subjectId || !sectionId || !topicId || !taskId) return;
 
@@ -377,7 +356,6 @@ export default function TasksPage() {
       await handleUpdateWords(outputWords, outputText, signal);
 
       setWordsVerified(true);
-
       setOutputText(outputText);
 
       await fetchWords();
@@ -385,7 +363,6 @@ export default function TasksPage() {
       if ((error as DOMException)?.name === "AbortError") return;
       handleApiError(error);
     } finally {
-      setTextValues([]);
       setLoading(false);
     }
   }, [words, textValues, subjectId, sectionId, topicId, taskId]);
@@ -436,92 +413,97 @@ export default function TasksPage() {
             visible={msgDeleteVisible}
           />
           <div style={{
-            padding: "0px 12px"
+            padding: "12px"
           }}>
-            <div className="table" style={{
-              border: "2px solid rgb(191, 191, 191)",
-              marginTop: "12px"
-            }}>
-              <div className="element element-section" style={{
-                fontSize: "16px"
-              }}>
-                <div className="element-word" style={{
-                  borderRight: "2px solid #bfbfbf",
-                  fontWeight: "bold"
-                }}>
-                  Angielski
-                </div>
-                <div className="element-word" style={{
-                  fontWeight: "bold"
-                }}>Polski</div>
-              </div>
-              {words.map((word, index) => {
-                return (
-                  <div className={`element ${
-                      word.finished
-                        ? "success"
-                        : wordsVerified
-                        ? "error"
-                        : "word-default"
-                    }`} key={word.id}>
-                    <div
-                      className="element-word"
-                      style={{
-                        borderRight: "2px solid #bfbfbf"
-                      }}
-                    >
-                      <div style={{
-                        marginRight: "8px"
-                      }}>{word.text}</div>
-                      <Trash2 size={20} style={{
-                        minWidth: "20px",
-                        marginLeft: "auto"
-                      }} color="#AAAAAA" onClick={(e) => {
-                          e.stopPropagation();
-                          setWordId(word.id);
-                          setMsgDeleteVisible(true);
-                      }} />
-                    </div>
-                    <div className="element-word">
-                      <textarea
-                        ref={(el) => {
-                          textareaRefs.current[index] = el;
-                        }}
-                        placeholder="Wpisz tłumaczenie..."
-                        onInput={(e) =>
-                          handleInput(index, (e.target as HTMLTextAreaElement).value)
-                        }
-                        className="answer-block"
-                        style={{ margin: "0px" }}
-                        value={textValues[index] || ""}
-                        rows={1}
-                        name={`userSolution-${word.id}`}
-                        id={`userSolution-${word.id}`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="text-audio">
+              <div style={{ fontWeight: "bold", marginBottom: "4px" }}>Opowiadanie:</div>
+              {text}
             </div>
-            <div style={{
-              marginTop: "12px"
-            }}>
-              {wordsVerified && outputText ? (
-                <>
-                  <div className="wordsDescription">
-                    {outputText}
+            <div>
+              <div className="table" style={{
+                border: "2px solid rgb(191, 191, 191)"
+              }}>
+                <div className="element element-section" style={{
+                  fontSize: "16px"
+                }}>
+                  <div className="element-word" style={{
+                    borderRight: "2px solid #bfbfbf",
+                    fontWeight: "bold"
+                  }}>
+                    Angielski
                   </div>
-                </>
-              ) : null}
-              {!wordsVerified ? (<button
-                onClick={handleVerifyWords}
-                className="btnSubmit"
-                style={{
-                  margin: "0px auto"
-                }}
-              >
-                Sprawdź
-              </button>) : null}
+                  <div className="element-word" style={{
+                    fontWeight: "bold"
+                  }}>Polski</div>
+                </div>
+                {words.map((word, index) => {
+                  return (
+                    <div className={`element ${
+                        word.finished
+                          ? "success"
+                          : wordsVerified
+                          ? "error"
+                          : "word-default"
+                      }`} key={word.id}>
+                      <div
+                        className="element-word"
+                        style={{
+                          borderRight: "2px solid #bfbfbf"
+                        }}
+                      >
+                        <div style={{
+                          marginRight: "8px"
+                        }}>{word.text}</div>
+                        <Trash2 size={20} style={{
+                          minWidth: "20px",
+                          marginLeft: "auto"
+                        }} color="#000000" onClick={(e) => {
+                            e.stopPropagation();
+                            setWordId(word.id);
+                            setMsgDeleteVisible(true);
+                        }} />
+                      </div>
+                      <div className="element-word">
+                        <textarea
+                          ref={(el) => {
+                            textareaRefs.current[index] = el;
+                          }}
+                          placeholder="Wpisz tłumaczenie..."
+                          onInput={(e) =>
+                            handleInput(index, word.id, (e.target as HTMLTextAreaElement).value)
+                          }
+                          className="answer-block"
+                          style={{ margin: "0px" }}
+                          value={getValueById(word.id)}
+                          rows={1}
+                          name={`userSolution-${word.id}`}
+                          id={`userSolution-${word.id}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{
+                marginTop: "12px"
+              }}>
+                {wordsVerified && outputText ? (
+                  <>
+                    <div className="wordsDescription">
+                      {outputText}
+                    </div>
+                  </>
+                ) : null}
+                <button
+                  onClick={handleVerifyWords}
+                  className="btnSubmit"
+                  style={{
+                    margin: "0px auto"
+                  }}
+                >
+                  Sprawdź
+                </button>
+              </div>
             </div>
           </div>
           </>)}

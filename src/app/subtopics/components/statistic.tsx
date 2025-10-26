@@ -104,10 +104,10 @@ export default function Statistics() {
         setSubtopics(fetchedSubtopics);
         setStatistics(response.data.statistics);
         setTotal([
-          Math.round(Number(response.data.total.completed)),
-          Math.round(Number(response.data.total.progress)),
-          Math.round(Number(response.data.total.started)),
-          Math.round(Number(response.data.total.blocked))
+          Number(response.data.total.completed),
+          Number(response.data.total.progress),
+          Number(response.data.total.started),
+          Number(response.data.total.blocked)
         ]);
       } else {
         showAlert(response.data.statusCode, response.data.message);
@@ -169,7 +169,7 @@ export default function Statistics() {
                 <div className="element-options">
                   <div
                     className={`element-percent ${subtopic.status}`}
-                  >{Math.round(subtopic.percent)}%</div>
+                  >{subtopic.percent}%</div>
                 </div>
               </div>
             ])}

@@ -6,6 +6,7 @@ import Header from "@/app/components/header";
 import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Text, Type, Trash2 } from 'lucide-react';
 import "@/app/styles/play.css";
 import "@/app/styles/message.css";
+import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import { ITask } from "../scripts/task";
@@ -38,6 +39,7 @@ export default function InteractivePlayPage() {
             note: "",
             explanation: "",
             percent: 0,
+            status: "started",
             solution: "",
             options: [],
             explanations: [],
@@ -771,6 +773,9 @@ export default function InteractivePlayPage() {
             firstLoadRef.current = false;
             return;
         }
+
+        if (!loading)
+            containerRef.current.scrollTo({ top: 0, behavior: 'auto' });
     }, [loading]);
 
     const handleBackClick = () => {
@@ -884,6 +889,8 @@ export default function InteractivePlayPage() {
             setTask(newTask);
             setSentences(await splitIntoSentences(newTask.text));
             setWords(extractWords(newTask.text));
+
+            containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
 
             setLoading(false);
         }
@@ -1058,6 +1065,8 @@ export default function InteractivePlayPage() {
         }
     }, [subjectId, task.id]);
 
+    console.log(task.status);
+
     return (
         <>
             <Header>
@@ -1108,34 +1117,42 @@ export default function InteractivePlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
+                            {task.finished ? (<div className={`message human ${task.status}`}>
+                                <div style={{fontWeight: "bold"}}>
+                                    <FormatText content={`Ocena: ${task.percent}%`} />
+                                </div>
+                            </div>): null}
                             <div className="message robot">
                                 {!task.finished ? (<div style={{fontWeight: "bold", fontSize: "20px"}}>
                                     {audioRepeat}/3
                                 </div>) : null}
                                 {task.finished ? (<div className={`sentences context`}>
-                                    {isSentences ? (
-                                        sentences.map((sentence, i) => (
-                                            <span
-                                            key={i}
-                                            className={`sentence ${i === currentIndex ? "active" : ""}`}
-                                            >
-                                            {sentence}
-                                            </span>
-                                        ))
-                                        ) : (
-                                        words.map((word, i) => {
-                                            const isSelected = selectedWords.includes(i);
-                                            return (
-                                            <span
+                                    <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Opowiadanie:</div>
+                                    <div className="text-audio">
+                                        {isSentences ? (
+                                            sentences.map((sentence, i) => (
+                                                <span
                                                 key={i}
-                                                className={`sentence word ${isSelected ? "active" : ""}`}
-                                                onClick={() => handleWordClick(i)}
-                                            >
-                                                {word}
-                                            </span>
-                                            );
-                                        })
-                                    )}
+                                                className={`sentence ${i === currentIndex ? "active" : ""}`}
+                                                >
+                                                {sentence}
+                                                </span>
+                                            ))
+                                            ) : (
+                                            words.map((word, i) => {
+                                                const isSelected = selectedWords.includes(i);
+                                                return (
+                                                <span
+                                                    key={i}
+                                                    className={`sentence word ${isSelected ? "active" : ""}`}
+                                                    onClick={() => handleWordClick(i)}
+                                                >
+                                                    {word}
+                                                </span>
+                                                );
+                                            })
+                                        )}
+                                    </div>
                                 </div>) : null}
                                 <div className="options">
                                     {task.finished && isSentences ? (<button className="btnOption" onClick={handlePrev}>
@@ -1206,6 +1223,7 @@ export default function InteractivePlayPage() {
                                 </div>
                             </div>
                             <br />
+                            <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Pytania sprawdzające:</div>
                             {task.subTasks.map((subTask, subTaskIndex) => (
                                 <div key={subTask.id} style={{display: "flex", flexDirection: "column"}}>
                                     <div className="message robot">
@@ -1240,7 +1258,7 @@ export default function InteractivePlayPage() {
 
                                                 {subTask.finished ? (
                                                     <div style={{ marginLeft: "32px" }}>
-                                                        <div style={{fontWeight: "bold"}}>Wyjaśnienie:</div>
+                                                        <div style={{fontWeight: "bold"}}>Explanation:</div>
                                                         <div>
                                                             <span><FormatText content={subTask.explanations[originalIndex] ?? ""} /></span>
                                                         </div>
@@ -1263,11 +1281,6 @@ export default function InteractivePlayPage() {
                                     Podtwierdź
                                 </button>
                             </div>) : null}
-                            {task.finished ? (<div className="message robot">
-                                <div style={{fontWeight: "bold"}}>
-                                    <FormatText content={`Procent zadania: ${task.percent}%`} />
-                                </div>
-                            </div>): null}
                         </div>
                     </div>
                 )}

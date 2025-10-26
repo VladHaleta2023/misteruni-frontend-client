@@ -3,11 +3,14 @@ export interface ISubtopic {
     percent: number;
 }
 
+export type Status = 'blocked' | 'started' | 'progress' | 'completed';
+
 export interface ITask {
     id: number;
     stage: number;
     text: string;
     note: string;
+    status: Status;
     explanation: string;
     solution: string;
     options: string[];

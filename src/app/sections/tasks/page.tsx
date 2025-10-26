@@ -301,6 +301,9 @@ export default function TasksPage() {
                 <div key={index} className="table">
                     <div
                         className="element element-section"
+                        style={{
+                            borderBottom: "2px solid #908f8f"
+                        }}
                     >
                         <div className="element-name" style={{ justifyContent: "center" }}>
                             {`${element.date.day}-${element.date.month}-${element.date.year}`}

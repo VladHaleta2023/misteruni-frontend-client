@@ -13,9 +13,8 @@ import RadioMessage from "@/app/components/radioMessage";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
 import axios from "axios";
+import "@/app/styles/table.css";
 import { ITask, Task } from "../scripts/task";
-
-// subTask Add
 
 enum InsertPosition {
     None = 'None',
@@ -64,6 +63,7 @@ export default function PlayPage() {
             note: "",
             solution: "",
             percent: 0,
+            status: "started",
             options: [],
             explanations: [],
             subtopics: [],
@@ -76,15 +76,6 @@ export default function PlayPage() {
             subTasks: []
         })
     );
-
-    const updateTask = (fields: Partial<ITask>) => {
-        setTask(prev => {
-            if (!prev) return prev;
-            const newTask = new Task(prev.getTask());
-            newTask.updateTask(fields);
-            return newTask;
-        });
-    };
 
     const fullUpdateTask = (task: ITask) => {
         setTask(new Task(task));
@@ -102,6 +93,12 @@ export default function PlayPage() {
             }
         });
     };
+
+    const scrollToTop = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTop = 0;
+        }
+    }
 
     const fetchPendingTask = useCallback(async (
         subjectId: number,
@@ -763,16 +760,10 @@ export default function PlayPage() {
 
                     if (signal.aborted) return;
 
-                    updateTask({
-                        explanation,
-                        subtopics: outputSubtopics ?? [],
-                        answered: true,
-                        finished: true,
-                    });
+                    task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 }
-                else {
-                    fullUpdateTask(task);
-                }
+                
+                fullUpdateTask(task);
 
                 setLoading(false);
             } catch (error) {
@@ -845,8 +836,12 @@ export default function PlayPage() {
             return;
         }
 
-        if (transcribeLoading || !loading) {
+        if (loading) return;
+
+        if (transcribeLoading) {
             scrollToBottom();
+        } else {
+            scrollToTop();
         }
     }, [sentences, transcribes, loading, transcribeLoading]);
 
@@ -891,7 +886,6 @@ export default function PlayPage() {
 
     const toggleInputMode = () => {
         setIsMicMode(prev => !prev);
-        scrollToBottom();
     };
 
     useEffect(() => {
@@ -909,6 +903,10 @@ export default function PlayPage() {
             setSelectedSentences([0]);
         }
     }, [isMicMode]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [sentences, textValue]);
 
     const handleSentenceSelect = (id: number) => {
         setSelectedSentences(prev => {
@@ -1135,7 +1133,9 @@ export default function PlayPage() {
             outputSubtopics.map(item => [item.name, item.percent])
         );
 
-        const bonus = task.getTask().userOptionIndex === task.getTask().correctOptionIndex ? 25 : 0;
+        console.log(userOptionIndex);
+
+        const bonus = userOptionIndex === task.getTask().correctOptionIndex ? 25 : 0;
 
         return subtopics.map(item => {
             const subtractValue = outputMap.get(item.name) || 0;
@@ -1156,8 +1156,6 @@ export default function PlayPage() {
             return;
         }
 
-        scrollToBottom();
-
         if (controllerRef.current) {
             controllerRef.current.abort();
         }
@@ -1176,12 +1174,6 @@ export default function PlayPage() {
                 setSelectedSentences([]);
                 setTranscribes([]);
 
-                updateTask({
-                    answered: true,
-                    userSolution: textValue,
-                    userOptionIndex: userOptionIndex ?? 0
-                });
-
                 await handleTaskUserSolutionSave(
                     subjectId ?? 0,
                     sectionId ?? 0,
@@ -1194,7 +1186,7 @@ export default function PlayPage() {
 
                 if (signal.aborted) return;
 
-                const newTask: ITask = await fetchPendingTask(
+                let newTask: ITask = await fetchPendingTask(
                     subjectId ?? 0,
                     sectionId ?? 0,
                     topicId ?? 0,
@@ -1239,13 +1231,15 @@ export default function PlayPage() {
 
                 if (signal.aborted) return;
 
-                updateTask({
-                    finished: true,
-                    answered: true,
-                    explanation,
-                    subtopics: outputSubtopics
-                });
+                newTask = await fetchTaskById(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    newTask.id,
+                    signal
+                );
 
+                fullUpdateTask(newTask);
             }
             catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
@@ -1436,8 +1430,18 @@ export default function PlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
+                            {task.getTask().finished ? (<div className={`message human ${task.getTask().status}`}>
+                                <div style={{fontWeight: "bold"}}>Ocena:</div>
+                                <div style={{paddingLeft: "20px", marginTop: "8px"}}>
+                                    {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
+                                        <div key={index}>
+                                            <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>) : null}
                             <div className="message robot">
-                                <div style={{fontWeight: "bold"}}>Notatka zadania:</div>
+                                <div style={{fontWeight: "bold"}}>Notatka:</div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().note ?? ""} /></div>
                             </div>
                             <div className="message robot">
@@ -1475,7 +1479,9 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{fontWeight: "bold"}}>Rozwiązanie:</div>
+                                <div style={{fontWeight: "bold"}}>
+                                    {task.getTask().finished ? "Moje rozwiązanie:" : "Rozwiązanie:"}
+                                </div>
                                 {!isMicMode ? (
                                     !task.getTask().finished ? (
                                     <textarea
@@ -1575,24 +1581,14 @@ export default function PlayPage() {
                             {task?.getTask().finished && (
                             <>
                                 <div className="message robot">
-                                    <div style={{fontWeight: "bold"}}>Procenty podtematów:</div>
-                                    <div style={{marginTop: "8px"}}>
-                                        {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
-                                            <div key={index}>
-                                                <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="message robot">
-                                    <div style={{fontWeight: "bold"}}>Rozwiązanie zadania:</div>
-                                    <div style={{marginTop: "8px"}}>
+                                    <div style={{fontWeight: "bold"}}>Prawidłowe rozwiązanie:</div>
+                                    <div style={{paddingLeft: "20px", marginTop: "8px"}}>
                                         <FormatText content={task?.getTask().solution} />
                                     </div>
                                 </div>
                                 <div className="message robot">
-                                    <div style={{fontWeight: "bold"}}>Wyjaśnienie zadania:</div>
-                                    <div style={{marginTop: "8px"}}><FormatText content={task?.getTask().explanation ?? ""} /></div>
+                                    <div style={{fontWeight: "bold"}}>Wyjaśnienie rozwiązania:</div>
+                                    <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().explanation ?? ""} /></div>
                                 </div>
                             </>
                             )}

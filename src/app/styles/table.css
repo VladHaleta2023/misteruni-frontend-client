@@ -11,7 +11,7 @@
 }
 
 .table > .element {
-  font-size: clamp(16px, 1.67vw, 18px);
+  font-size: clamp(14px, 1.67vw, 16px);
   display: flex;
   border-bottom: 2px solid #bfbfbf;
   transition: background-color 0.3s ease;
@@ -23,13 +23,10 @@
   width: 100%;
   padding: 16px;
   margin: 0 auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   word-wrap: break-word;
   word-break: break-word;
   white-space: normal;
   line-height: 1.4;
-  border-radius: 16px;
-  background-color: rgba(230, 190, 190, 0.5);
   color: black;
   margin-bottom: 12px;
 }
@@ -56,7 +53,7 @@
 }
 
 .not-finished {
-  background-color: #e8dcdc;
+  background-color: #d8c4c4;
 }
 
 .element-percent {
@@ -64,18 +61,26 @@
   border: 1px solid grey;
 }
 
+.message.human.started,
+.message.robot.started {
+  background-color: #c0c0c0;
+  color: #000000;
+}
+
 .started {
   background-color: transparent;
   color: #000000;
 }
 
+.message.human.completed,
+.message.robot.completed,
 .completed {
-  background-color: #a7cba1;
+  background-color: #8aa887;
   color: #000000;
 }
 
 .success {
-  background-color: #cce0c7 !important;
+  background-color: #8c9f7e !important;
   color: #000000;
 }
 
@@ -85,7 +90,7 @@
 }
 
 .error {
-  background-color: rgba(230, 190, 190, 0.5) !important;
+  background-color: #d98d8d !important;
   color: #000000;
 }
 
@@ -94,25 +99,27 @@
   color: #000000;
 }
 
+.message.human.progress,
+.message.robot.progress,
 .progress {
-  background-color: #d7d470;
+  background-color: #cbbf7f;
   color: #000000;
 }
 
 .completed.progress {
-  background: linear-gradient(to right, #a7cba1 50%, #d7d470 50%);
+  background: linear-gradient(to right, #8aa887 50%, #cbbf7f 50%);
 }
 
 .completed.started {
-  background: linear-gradient(to right, #a7cba1 50%, transparent 50%);
+  background: linear-gradient(to right, #8aa887 50%, transparent 50%);
 }
 
 .completed.error {
-  background: linear-gradient(to right, #a7cba1 50%, rgba(230, 190, 190, 0.5) 50%);
+  background: linear-gradient(to right, #8aa887 50%, #d98d8d 50%);
 }
 
 .progress.started {
-  background: linear-gradient(to right, #d7d470 50%, transparent 50%);
+  background: linear-gradient(to right, #cbbf7f 50%, transparent 50%);
 }
 
 .element-subject-options {
@@ -128,9 +135,17 @@
   font-size: 20px;
 }
 
+.text-audio {
+  max-width: 800px;
+  width: 100%;
+  margin: 12px auto;
+  margin-top: 0px;
+  padding: 16px;
+}
+
 .element-icon {
   display: block;
-  width: 40%;
+  width: 25%;
   height: auto;
   object-fit: contain;
   margin-right: 16px;
@@ -172,13 +187,13 @@
 }
 
 .element-subject {
-  background-color: #f9f9f9;
+  background-color: #cccccc;
   align-items: flex-start;
   padding: 12px;
 }
 
 .element-subject:hover {
-  background-color: #ece3fb;
+  background-color: #b9b0cc;
 }
 
 .element-title {
@@ -199,8 +214,7 @@
 
 .btnSubjectOptionsEdit {
   align-self: flex-end;
-  margin-top: 12px;
-  padding: 10px 12px !important;
+  padding: 6px 8px !important;
 }
 
 .element-title-container > div {
@@ -216,14 +230,11 @@
   flex-shrink: 0;
 }
 
-/*
-.btnElement > .play {
-  fill: currentColor;
-  stroke: none;
-}
-*/
-
 @media (max-width: 768px) {
+  .element-icon {
+    width: 40%;
+  }
+
   .element-subject-options {
     font-size: 18px;
   }

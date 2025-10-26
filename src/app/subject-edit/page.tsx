@@ -93,11 +93,8 @@ export default function MainPage() {
       setLoading(false);
       showAlert(response.data.statusCode, response.data.message);
 
-      setTimeout(() => {
-        if (response.data?.statusCode === 200) {
-            router.push("/");
-        }
-      }, 3000);
+      if (response.data?.statusCode === 200)
+          router.push("/");
     }
     catch (error) {
       setLoading(false);

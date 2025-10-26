@@ -220,7 +220,7 @@ export default function CirclePieChart({
             marginTop: '10px',
           }}
         >
-          {data.slice(0, -1).map((item, index) => (
+          {data.slice(0, -2).map((item, index) => (
             <div
               key={index}
               style={{
