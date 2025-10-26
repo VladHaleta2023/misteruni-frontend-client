@@ -1431,7 +1431,7 @@ export default function PlayPage() {
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
                             {task.getTask().finished ? (<div className={`message human ${task.getTask().status}`}>
-                                <div style={{fontWeight: "bold"}}>Ocena:</div>
+                                <div className="text-title" style={{fontWeight: "bold", }}>Ocena:</div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}>
                                     {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
                                         <div key={index}>
@@ -1441,15 +1441,15 @@ export default function PlayPage() {
                                 </div>
                             </div>) : null}
                             <div className="message robot">
-                                <div style={{fontWeight: "bold"}}>Notatka:</div>
+                                <div className="text-title">Notatka:</div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().note ?? ""} /></div>
                             </div>
                             <div className="message robot">
-                                <div style={{fontWeight: "bold"}}>Tekst zadania:</div>
+                                <div className="text-title">Tekst zadania:</div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
                             </div>
                             <div className="message human">
-                                <div style={{fontWeight: "bold"}}>Warianty odpowiedzi:</div>
+                                <div className="text-title">Warianty odpowiedzi:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {shuffledOptions.map(({ option, originalIndex }) => (
                                         <div key={originalIndex}>
@@ -1470,7 +1470,7 @@ export default function PlayPage() {
 
                                             {task.getTask().finished ? (
                                                 <div style={{ marginLeft: "32px" }}>
-                                                <div style={{fontWeight: "bold"}}>Wyjaśnienie:</div>
+                                                <div className="text-title">Wyjaśnienie:</div>
                                                 <div>
                                                     <span><FormatText content={task.getTask().explanations[originalIndex] ?? ""} /></span>
                                                 </div>
@@ -1479,7 +1479,7 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <div style={{fontWeight: "bold"}}>
+                                <div className="text-title">
                                     {task.getTask().finished ? "Moje rozwiązanie:" : "Rozwiązanie:"}
                                 </div>
                                 {!isMicMode ? (
@@ -1500,23 +1500,27 @@ export default function PlayPage() {
                                     )
                                 ) : (
                                     !task.getTask().finished ? (
-                                    <div className="sentences" style={{marginTop: "8px"}}>
-                                        {sentences.map((sentence, i) => {
-                                            const isSelected = selectedSentences.includes(i);
-                                            const handleClick = () => {
-                                                if (isSelected) handleSentenceDeselect(i);
-                                                else handleSentenceSelect(i);
-                                            };
-                                            return (
-                                                <span
-                                                    key={i}
-                                                    className={`sentence ${isSelected ? 'active' : ''}`}
-                                                    onClick={handleClick}
+                                    <div className="sentences" style={{ marginTop: "8px" }}>
+                                    {sentences.length > 0 ? (
+                                        sentences.map((sentence, i) => {
+                                        const isSelected = selectedSentences.includes(i);
+                                        const handleClick = () => {
+                                            if (isSelected) handleSentenceDeselect(i);
+                                            else handleSentenceSelect(i);
+                                        };
+                                        return (
+                                            <span
+                                                key={i}
+                                                className={`sentence ${isSelected ? 'active' : ''}`}
+                                                onClick={handleClick}
                                                 >
-                                                    {sentence}
-                                                </span>
-                                            );
-                                        })}
+                                                {sentence}
+                                            </span>
+                                        );
+                                        })
+                                    ) : (
+                                        <textarea placeholder="Powiedz rozwiązanie" rows={1} readOnly />
+                                    )}
                                     </div>) : (
                                         <div className="answer-block readonly">
                                             {task.getTask().userSolution || ""}
@@ -1547,6 +1551,16 @@ export default function PlayPage() {
                                     }}>
                                         <button
                                             className="btnOption"
+                                            title={"Wysłać Odpowiedź"}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                handleSubmitTaskClick();
+                                            }}
+                                        >
+                                            <Check size={28} color="white" />
+                                        </button>
+                                        <button
+                                            className="btnOption"
                                             title="Usuń"
                                             style={{
                                                 cursor: "pointer"
@@ -1565,29 +1579,19 @@ export default function PlayPage() {
                                         >
                                             <X size={28} color="white" />
                                         </button>
-                                        <button
-                                            className="btnOption"
-                                            title={"Wysłać Odpowiedź"}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                handleSubmitTaskClick();
-                                            }}
-                                        >
-                                            <Check size={28} color="white" />
-                                        </button>
                                     </div>
                                 </div>) : null}
                             </div>
                             {task?.getTask().finished && (
                             <>
                                 <div className="message robot">
-                                    <div style={{fontWeight: "bold"}}>Prawidłowe rozwiązanie:</div>
+                                    <div className="text-title">Prawidłowe rozwiązanie:</div>
                                     <div style={{paddingLeft: "20px", marginTop: "8px"}}>
                                         <FormatText content={task?.getTask().solution} />
                                     </div>
                                 </div>
                                 <div className="message robot">
-                                    <div style={{fontWeight: "bold"}}>Wyjaśnienie rozwiązania:</div>
+                                    <div className="text-title">Wyjaśnienie rozwiązania:</div>
                                     <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().explanation ?? ""} /></div>
                                 </div>
                             </>

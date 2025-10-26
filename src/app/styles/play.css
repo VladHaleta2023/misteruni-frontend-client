@@ -28,6 +28,11 @@ html, body, #__next {
   scroll-behavior: smooth;
 }
 
+.text-title {
+  font-weight: bold;
+  font-size: 19px;
+}
+
 .message {
   padding: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
