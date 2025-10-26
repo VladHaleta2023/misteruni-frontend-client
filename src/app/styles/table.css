@@ -11,7 +11,7 @@
 }
 
 .table > .element {
-  font-size: clamp(14px, 1.67vw, 16px);
+  font-size: clamp(16px, 1.67vw, 18px);
   display: flex;
   border-bottom: 2px solid #bfbfbf;
   transition: background-color 0.3s ease;
