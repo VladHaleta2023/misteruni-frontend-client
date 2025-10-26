@@ -1357,6 +1357,9 @@ export default function PlayPage() {
                         handleDeleteText();
                         setMsgDeleteVisible(false);
                         setSelectedSentences([]);
+
+                        if (!isMicMode)
+                            adjustTextareaRows("");
                     }}
                     onClose={() => {
                         setMsgDeleteVisible(false);
@@ -1519,7 +1522,7 @@ export default function PlayPage() {
                                         );
                                         })
                                     ) : (
-                                        <textarea placeholder="Powiedz rozwiązanie" rows={1} readOnly />
+                                        <textarea readOnly rows={1} placeholder="Naciśnij mikrofon i powiedz..." style={{ width: "100%" }}></textarea>
                                     )}
                                     </div>) : (
                                         <div className="answer-block readonly">
@@ -1527,7 +1530,8 @@ export default function PlayPage() {
                                         </div>
                                     )
                                 )}
-                                {!task.getTask().finished ? (<div className="options">
+                                {!task.getTask().finished ? (
+                                <div className="options">
                                     <button
                                         className={isMicMode
                                             ? `btnOption ${isPlaying ? 'darkgreen' : ''}`
@@ -1544,12 +1548,35 @@ export default function PlayPage() {
                                     >
                                         <Type size={28} color="white" />
                                     </button>
+                                    <button
+                                        className="btnOption"
+                                        title="Usuń"
+                                        style={{
+                                            cursor: "pointer"
+                                        }}
+                                        onClick={() => {
+                                            if (sentences.length === 0 && textValue === "") return;
+
+                                            if (isMicMode) {
+                                                if (sentences.length !== 0 && selectedSentences.length === 0) {
+                                                    setSelectedSentencesWasEmpty(true);
+                                                    const allIndexes = sentences.map((_, index) => index);
+                                                    setSelectedSentences(allIndexes);
+                                                }
+                                            }
+
+                                            setMsgDeleteVisible(true);
+                                        }}
+                                    >
+                                        <X size={28} color="white" />
+                                    </button>
                                     <div style={{
                                         display: "flex",
                                         gap: "6px",
                                         marginLeft: "auto"
                                     }}>
                                         <button
+                                            style={{ width: "64px" }}
                                             className="btnOption"
                                             title={"Wysłać Odpowiedź"}
                                             onClick={(e) => {
@@ -1559,28 +1586,9 @@ export default function PlayPage() {
                                         >
                                             <Check size={28} color="white" />
                                         </button>
-                                        <button
-                                            className="btnOption"
-                                            title="Usuń"
-                                            style={{
-                                                cursor: "pointer"
-                                            }}
-                                            onClick={() => {
-                                                if (isMicMode) {
-                                                    if (sentences.length !== 0 && selectedSentences.length === 0) {
-                                                        setSelectedSentencesWasEmpty(true);
-                                                        const allIndexes = sentences.map((_, index) => index);
-                                                        setSelectedSentences(allIndexes);
-                                                    }
-                                                }
-
-                                                setMsgDeleteVisible(true);
-                                            }}
-                                        >
-                                            <X size={28} color="white" />
-                                        </button>
                                     </div>
-                                </div>) : null}
+                                </div>
+                            ) : null}
                             </div>
                             {task?.getTask().finished && (
                             <>

@@ -33,6 +33,19 @@ html, body, #__next {
   font-size: 19px;
 }
 
+.placeholder-text {
+  color: #666;
+  opacity: 0.9;
+  user-select: none;
+  pointer-events: none;
+  font-family: inherit;
+}
+
+textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+  opacity: 1;
+}
+
 .message {
   padding: 18px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -89,7 +102,7 @@ textarea:focus {
   align-items: center;
   width: 100%;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 24px;
 }
 
 .btnOption {

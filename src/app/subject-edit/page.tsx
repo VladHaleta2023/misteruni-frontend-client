@@ -10,6 +10,7 @@ import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import Spinner from "@/app/components/spinner";
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from "lucide-react";
 
 export default function MainPage() {
   const [subjectId, setSubjectId] = useState<number>(-1);
@@ -76,7 +77,7 @@ export default function MainPage() {
     }
   }, [subjectId, fetchSubject]);
 
-  function handleSubjectEditCancel() {
+  function handleBackClick() {
     router.push("/");
   }
 
@@ -115,7 +116,14 @@ export default function MainPage() {
 
   return (
     <>
-      <Header />
+      <Header>
+          <div className="menu-icons">
+
+              <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+                  <ArrowLeft size={28} color="white" />
+              </div>
+          </div>
+      </Header>
       <main>
         {loading ? (
           <div className="spinner-wrapper">
@@ -158,13 +166,6 @@ export default function MainPage() {
                         onClick={handleSubjectEditSubmit}
                     >
                         Aktualizować
-                    </button>
-                    <button
-                        className="button cancel"
-                        style={{ padding: "10px 24px" }}
-                        onClick={handleSubjectEditCancel}
-                    >
-                        Anuluj
                     </button>
                 </div>
             </div>

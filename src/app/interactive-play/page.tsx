@@ -1118,16 +1118,16 @@ export default function InteractivePlayPage() {
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
                             {task.finished ? (<div className={`message human ${task.status}`}>
-                                <div style={{fontWeight: "bold"}}>
+                                <div className="text-title">
                                     <FormatText content={`Ocena: ${task.percent}%`} />
                                 </div>
                             </div>): null}
                             <div className="message robot">
-                                {!task.finished ? (<div style={{fontWeight: "bold", fontSize: "20px"}}>
+                                {!task.finished ? (<div className="text-title">
                                     {audioRepeat}/3
                                 </div>) : null}
                                 {task.finished ? (<div className={`sentences context`}>
-                                    <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Opowiadanie:</div>
+                                    <div  className="text-title" style={{ marginBottom: "12px" }}>Opowiadanie:</div>
                                     <div className="text-audio">
                                         {isSentences ? (
                                             sentences.map((sentence, i) => (
@@ -1258,7 +1258,7 @@ export default function InteractivePlayPage() {
 
                                                 {subTask.finished ? (
                                                     <div style={{ marginLeft: "32px" }}>
-                                                        <div style={{fontWeight: "bold"}}>Explanation:</div>
+                                                        <div className="text-title">Explanation:</div>
                                                         <div>
                                                             <span><FormatText content={subTask.explanations[originalIndex] ?? ""} /></span>
                                                         </div>
