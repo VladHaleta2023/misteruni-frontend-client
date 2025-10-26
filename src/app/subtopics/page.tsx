@@ -52,7 +52,7 @@ export default function SubtopicsPage() {
         </div>
       </Header>
 
-      <main style={{ padding: "0px" }}>
+      <main>
         <Statistics />
       </main>
     </>

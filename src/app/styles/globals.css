@@ -29,13 +29,12 @@ body, html {
 main {
   display: flex;
   flex-direction: column;
-  padding: 16px;
   overflow-y: auto;
   word-wrap: break-word;
   word-break: break-word;
   font-size: 18px;
   height: var(--main-height);
   min-height: 100dvh;
-  padding-top: var(--header-height);
+  padding-top: calc(var(--header-height)); 
   background-color: #e0e0e0;
 }

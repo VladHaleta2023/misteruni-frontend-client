@@ -8,6 +8,7 @@ html, body, #__next {
   width: 100%;
   overflow-y: auto;
   margin: 0 auto;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

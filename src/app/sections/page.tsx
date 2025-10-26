@@ -58,7 +58,7 @@ export default function SectionsPage() {
         </div>
       </Header>
 
-      <main style={{ padding: "0px" }}>
+      <main>
         <Statistics />
       </main>
     </>

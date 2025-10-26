@@ -114,7 +114,7 @@ export default function MainPage() {
           </div>
         ) : (
           <>
-            <div className="table">
+            <div className="table" id="subject">
               {subjects.map((subject) => (
                 <div
                   key={subject.id}

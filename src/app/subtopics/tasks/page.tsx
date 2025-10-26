@@ -304,7 +304,7 @@ export default function TasksPage() {
         </div>
       </Header>
 
-      <main style={{ padding: "0px" }}>
+      <main>
         {loading ? (
           <div className="spinner-wrapper">
               <Spinner noText />

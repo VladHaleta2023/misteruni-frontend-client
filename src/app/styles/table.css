@@ -10,6 +10,10 @@
   border-top: 2px solid #bfbfbf;
 }
 
+.table#subject {
+  margin-top: 24px;
+}
+
 .table > .element {
   font-size: clamp(16px, 1.67vw, 18px);
   display: flex;
@@ -232,6 +236,10 @@
 }
 
 @media (max-width: 768px) {
+  .table#subject {
+    margin-top: 0px;
+  }
+
   .element-icon {
     width: 40%;
   }

@@ -382,7 +382,7 @@ export default function VocabluaryPage() {
         </div>
       </Header>
 
-      <main style={{ padding: "0px" }}>
+      <main>
         {loading ? (
           <div className="spinner-wrapper">
               <Spinner text={textLoading} />
