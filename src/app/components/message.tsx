@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import "@/app/styles/message.css";
 
 interface SwitchPopUpProps {
@@ -22,9 +23,24 @@ export default function Message({
   message = "Message",
   visible = false,
 }: SwitchPopUpProps) {
+  useEffect(() => {
+    if (visible) {
+      const scrollBarCompensation = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollBarCompensation}px`;
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+    };
+  }, [visible]);
+
   if (!visible) return null;
-  
-  return (
+
+  const popupContent = (
     <div className="popup-overlay">
       <div className="switchPopUp" style={{ maxWidth: bodyMaxWidth }}>
         <div className="text">
@@ -49,4 +65,6 @@ export default function Message({
       </div>
     </div>
   );
+
+  return createPortal(popupContent, document.body);
 }

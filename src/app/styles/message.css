@@ -1,8 +1,8 @@
 .popup-overlay {
   position: fixed;
   inset: 0;
-  width: 100vw;
-  height: var(--app-window-height, 100vh);
+  width: 100%;
+  height: 100dvh; /* dynamic viewport height */
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
