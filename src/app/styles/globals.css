@@ -19,9 +19,8 @@
 }
 
 body, html {
-  height: 100%;
   margin: 0;
-  min-height: 100vh;
+  height: 100vh;
   background-color: #e0e0e0;
 }
 
@@ -32,7 +31,7 @@ main {
   word-wrap: break-word;
   word-break: break-word;
   font-size: 18px;
-  min-height: 100dvh;
+  height: 100dvh;
   padding-top: var(--header-height);
   scroll-padding-top: var(--header-height); 
   background-color: #e0e0e0;
