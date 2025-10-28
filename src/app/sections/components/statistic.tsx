@@ -267,6 +267,10 @@ export default function Statistics() {
                 className={`element element-section`}
                 style={{ justifyContent: "space-between" }}
                 key={`section-${section.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTopicsExpand(section.id);
+                }}
               >
                 <div className="element-options">
                   {Array.isArray(section.topics) && section.topics.length > 0 && (
