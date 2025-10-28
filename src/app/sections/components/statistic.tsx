@@ -181,7 +181,7 @@ export default function Statistics() {
     });
 
     if (weekOffset === 0) {
-      showAlert(400, "Nie można przejść dalej – to jest bieżący tydzień");
+      showAlert(400, "Nie można przejść dalej");
     }
   };
 
