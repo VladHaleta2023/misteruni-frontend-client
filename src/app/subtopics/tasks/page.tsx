@@ -230,7 +230,7 @@ export default function TasksPage() {
       localStorage.setItem("topicId", String(topicId));
       localStorage.setItem("taskId", String(taskId));
 
-      if (sectionType == "InteractiveQuestion") {
+      if (sectionType == "Stories") {
           router.push("/interactive-play");
       }
       else {
@@ -238,7 +238,7 @@ export default function TasksPage() {
       }
   }, []);
 
-  const handleVocabluaryClick = useCallback(async (
+  const handleStoriesClick = useCallback(async (
       subjectId: number,
       sectionId: number,
       topicId: number,
@@ -399,7 +399,7 @@ export default function TasksPage() {
                           {task.finished ? Math.round(task.percent) : 0}%
                       </div>
                       <div>
-                        {task.section.type == "InteractiveQuestion" && task.wordsCount != 0 ? (<button
+                        {task.section.type == "Stories" && task.wordsCount != 0 ? (<button
                             className={`btnOption ${!task.vocabluary ? "vocabluary" : ""}`}
                             style={{
                               minWidth: "48px",
@@ -407,7 +407,7 @@ export default function TasksPage() {
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleVocabluaryClick(
+                                handleStoriesClick(
                                     subjectId ?? 0,
                                     task.section.id,
                                     task.topic.id,

@@ -33,6 +33,8 @@
 
 .switchPopUp .text {
   width: 100%;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .switchPopUp input {

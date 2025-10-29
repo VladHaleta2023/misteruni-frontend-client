@@ -66,7 +66,7 @@ export default function CirclePieChart({
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
-  }, [width, maxWidth]);
+  }, [width, maxWidth, fontSize]);
 
   return (
     <>
@@ -76,13 +76,18 @@ export default function CirclePieChart({
           width: containerWidth,
           maxWidth: containerMaxWidth,
           margin: '0 auto',
-          userSelect: 'none',
           alignItems: 'center',
           justifyContent: 'center',
           display: 'flex',
           flexDirection: 'column',
           position: 'relative',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          touchAction: 'manipulation',
         }}
+        tabIndex={-1}
       >
         <div
           style={{
@@ -105,6 +110,7 @@ export default function CirclePieChart({
                 left: '-40px',
                 zIndex: 2,
               }}
+              tabIndex={-1}
             >
               <ArrowLeft size={24} color="#333" />
             </button>
@@ -115,10 +121,8 @@ export default function CirclePieChart({
               width: '100%',
               aspectRatio: '1 / 1',
               flexShrink: 0,
-              outline: 'none',
               position: 'relative',
             }}
-            tabIndex={-1}
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -165,19 +169,20 @@ export default function CirclePieChart({
                     {statistics.weekLabel}
                   </div>
                 )}
-                {statistics.solvedTasksCount != null && statistics.solvedTasksCountCompleted != null && (
-                  <div
-                    style={{
-                      fontSize: containerFontSize,
-                      fontWeight: 600,
-                      color: '#333',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    +{statistics.solvedTasksCount} ({statistics.solvedTasksCountCompleted})
-                  </div>
-                )}
-                {statistics.prediction != null ? (
+                {statistics.solvedTasksCount != null &&
+                  statistics.solvedTasksCountCompleted != null && (
+                    <div
+                      style={{
+                        fontSize: containerFontSize,
+                        fontWeight: 600,
+                        color: '#333',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      +{statistics.solvedTasksCount} ({statistics.solvedTasksCountCompleted})
+                    </div>
+                  )}
+                {statistics.prediction != null && (
                   <div
                     style={{
                       fontSize: containerFontSize,
@@ -187,7 +192,7 @@ export default function CirclePieChart({
                   >
                     {statistics.prediction}
                   </div>
-                ) : null}
+                )}
               </div>
             )}
           </div>
@@ -203,6 +208,7 @@ export default function CirclePieChart({
                 right: '-40px',
                 zIndex: 2,
               }}
+              tabIndex={-1}
             >
               <ArrowRight size={24} color="#333" />
             </button>
@@ -228,6 +234,8 @@ export default function CirclePieChart({
                 alignItems: 'center',
                 cursor: 'default',
                 marginBottom: '4px',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
               }}
             >
               <div
@@ -237,6 +245,7 @@ export default function CirclePieChart({
                   backgroundColor: COLORS[index % COLORS.length],
                   marginRight: '10px',
                   borderRadius: '2px',
+                  flexShrink: 0,
                 }}
               />
               <span style={{ marginRight: '6px', fontWeight: 500 }}>{item.percent}%</span>
@@ -258,10 +267,20 @@ export default function CirclePieChart({
       `}</style>
 
       <style jsx global>{`
+        * {
+          -webkit-tap-highlight-color: transparent;
+        }
+        *:focus {
+          outline: none !important;
+        }
         svg {
-          user-select: none;
+          user-select: none !important;
+          -webkit-user-select: none !important;
         }
         path {
+          outline: none !important;
+        }
+        button:focus {
           outline: none !important;
         }
       `}</style>

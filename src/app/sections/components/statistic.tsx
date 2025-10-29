@@ -224,7 +224,7 @@ export default function Statistics() {
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
 
-    if (sectionType == "InteractiveQuestion") {
+    if (sectionType == "Stories") {
       router.push("/interactive-play");
     }
     else {
@@ -240,7 +240,7 @@ export default function Statistics() {
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
 
-    if (sectionType == "InteractiveQuestion") {
+    if (sectionType == "Stories") {
       router.push("/subtopics/tasks");
     }
     else {

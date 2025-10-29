@@ -19,7 +19,7 @@ type Word = {
   finished: boolean;
 }
 
-export default function VocabluaryPage() {
+export default function StoriesPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);

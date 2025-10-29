@@ -920,8 +920,6 @@ export default function InteractivePlayPage() {
     const handleAddWord = useCallback(async () => {
         const text = selectedWords.map(index => words[index]).join(" ");
 
-        console.log(text);
-
         if (!text || text == "") {
             showAlert(400, "Nieprawidłowo wybrane słowy");
             return;
@@ -1026,7 +1024,7 @@ export default function InteractivePlayPage() {
         return `${min}:${sec.toString().padStart(2, "0")}`;
     };
 
-    const handleVocabluaryClick = useCallback(async () => {
+    const handleStoriesClick = useCallback(async () => {
         if (task.id)
             router.push("/vocabluary");
         else
@@ -1065,8 +1063,6 @@ export default function InteractivePlayPage() {
         }
     }, [subjectId, task.id]);
 
-    console.log(task.status);
-
     return (
         <>
             <Header>
@@ -1077,7 +1073,7 @@ export default function InteractivePlayPage() {
                     }} style={{ cursor: "pointer" }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Słownik" onClick={handleVocabluaryClick} style={{ cursor: "pointer" }}>
+                    <div className="menu-icon" title="Słownik" onClick={handleStoriesClick} style={{ cursor: "pointer" }}>
                         <Text size={28} color="white" />
                     </div>
                     <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>

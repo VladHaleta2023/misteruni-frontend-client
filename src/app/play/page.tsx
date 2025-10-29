@@ -1135,8 +1135,6 @@ export default function PlayPage() {
             outputSubtopics.map(item => [item.name, item.percent])
         );
 
-        console.log(userOptionIndex);
-
         const bonus = userOptionIndex === task.getTask().correctOptionIndex ? 25 : 0;
 
         return subtopics.map(item => {
