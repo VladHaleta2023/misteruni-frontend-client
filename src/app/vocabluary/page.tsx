@@ -2,7 +2,7 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Check, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "@/app/styles/table.css";
@@ -12,6 +12,7 @@ import Message from "@/app/components/message";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
 import axios from "axios";
+import FormatText from "../components/formatText";
 
 type Word = {
   id: number;
@@ -31,6 +32,7 @@ export default function StoriesPage() {
   const [wordsVerified, setWordsVerified] = useState<boolean>(false);
 
   const [words, setWords] = useState<Word[]>([]);
+  const [wordIds, setWordIds] = useState<number[]>([]);
 
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +42,8 @@ export default function StoriesPage() {
   const [textValues, setTextValues] = useState<[number, string][]>([]);
 
   const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
+
+  const [verificationCompleted, setVerificationCompleted] = useState(false);
 
   const [outputText, setOutputText] = useState<string>("");
 
@@ -78,14 +82,62 @@ export default function StoriesPage() {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+
       const storedSectionId = localStorage.getItem("sectionId");
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
+
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
+
       const storedTaskId = localStorage.getItem("taskId");
-      setTaskId(storedTaskId ? Number(storedTaskId) : null);
+      setTaskId(Number(storedTaskId) ?? null);
+
+      const storedWordIds = localStorage.getItem("wordIds");
+      let wordIdsArray: number[] = [];
+      try {
+        if (storedWordIds) {
+          const parsed = JSON.parse(storedWordIds);
+          if (Array.isArray(parsed)) {
+            wordIdsArray = parsed.map((id) => Number(id));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse wordIds from localStorage:", e);
+      }
+
+      setWordIds(wordIdsArray);
+
+      const storedVerification = localStorage.getItem("verificationCompleted");
+      if (storedVerification === "true") {
+        setVerificationCompleted(true);
+      }
+
+      const storedWordsVerified = localStorage.getItem("wordsVerified");
+      if (storedWordsVerified === "true") {
+        setWordsVerified(true);
+      }
+
+      const outputText = localStorage.getItem("outputText");
+      if (outputText) {
+        setOutputText(outputText);
+      }
     }
   }, []);
+
+  const saveTextValuesToStorage = useCallback((values: [number, string][]) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("textValues", JSON.stringify(values));
+    }
+  }, [taskId, wordIds]);
+
+   const loadTextValuesFromStorage = useCallback((): [number, string][] => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("textValues");
+      if (stored)
+        return JSON.parse(stored) || []; 
+    }
+    return [];
+  }, [taskId, wordIds]);
 
   const fetchWords = useCallback(async () => {
     try {
@@ -97,12 +149,7 @@ export default function StoriesPage() {
         setWords(fetchedWords);
         setText(response.data.task.text ?? "");
 
-        setTextValues(prev => {
-          return fetchedWords.map(word => {
-            const existing = prev.find(([id]) => id === word.id);
-            return [word.id, existing?.[1] || ""];
-          });
-        });
+        setTextValues(loadTextValuesFromStorage());
 
         textareaRefs.current = new Array(fetchedWords.length).fill(null);
       } else {
@@ -112,7 +159,31 @@ export default function StoriesPage() {
       setLoading(false);
       handleApiError(error);
     }
-  }, [subjectId, sectionId, topicId, taskId]);
+  }, [subjectId, sectionId, topicId, taskId, loadTextValuesFromStorage]);
+
+  const findWords = useCallback(async () => {
+    try {
+      const response = await api.post(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/find`, {
+        wordIds
+      });
+
+      setLoading(false);
+
+      if (response.data?.statusCode === 200) {
+        const fetchedWords: Word[] = response.data.words;
+        setWords(fetchedWords);
+
+        setTextValues(loadTextValuesFromStorage());
+
+        textareaRefs.current = new Array(fetchedWords.length).fill(null);
+      } else {
+        showAlert(response.data.statusCode, response.data.message);
+      }
+    } catch (error) {
+      setLoading(false);
+      handleApiError(error);
+    }
+  }, [subjectId, sectionId, topicId, wordIds]);
 
   useEffect(() => {
     setMainHeight();
@@ -120,15 +191,18 @@ export default function StoriesPage() {
 
     if (subjectId !== null) {
       setLoading(true);
+    if (taskId !== null)
       fetchWords();
-    } else {
-      setLoading(false);
+    else
+      findWords();
+  } else {
+    setLoading(false);
     }
 
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchWords, subjectId]);
+  }, [fetchWords, findWords, subjectId, taskId]);
 
   useEffect(() => {
     setMainHeight();
@@ -141,12 +215,15 @@ export default function StoriesPage() {
 
   function handleBackClick() {
     localStorage.removeItem("wordsVerified");
+    localStorage.removeItem("verificationCompleted");
+    localStorage.removeItem("outputText");
+    localStorage.removeItem("textValues");
     router.back();
   }
 
   const handleDeleteWord = useCallback(async () => {
     try {
-      const response = await api.delete(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words/${wordId}`);
+      const response = await api.delete(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/${wordId}`);
 
       setLoading(false);
       if (response.data?.statusCode === 200) {
@@ -167,7 +244,7 @@ export default function StoriesPage() {
       setMsgDeleteVisible(false);
       await fetchWords();
     }
-  }, [subjectId, sectionId, topicId, taskId, wordId]);
+  }, [subjectId, sectionId, topicId, wordId]);
 
   function handleApiError(error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -191,22 +268,6 @@ export default function StoriesPage() {
   const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-      const sId = Number(localStorage.getItem("subjectId"));
-      const secId = Number(localStorage.getItem("sectionId"));
-      const tId = Number(localStorage.getItem("topicId"));
-      const taskIdNum = Number(localStorage.getItem("taskId"));
-
-      if (sId && secId && tId && taskIdNum) {
-          setSubjectId(sId);
-          setSectionId(secId);
-          setTopicId(tId);
-          setTaskId(taskIdNum);
-      } else {
-          showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
-      }
-  }, []);
-
-  useEffect(() => {
     const handleUnload = () => {
         controllersRef.current.forEach((controller: AbortController) => controller.abort());
         controllersRef.current = [];
@@ -225,98 +286,88 @@ export default function StoriesPage() {
       const activeSignal = signal ?? controller?.signal;
 
       try {
-          let changed = "true";
-          let attempt = 0;
-          let outputText = "";
-          let outputWords: string[] = [];
-          let errors: string[] = [];
-          const MAX_ATTEMPTS = 2;
+        let changed = "true";
+        let attempt = 0;
+        let outputText = "";
+        let outputWords: string[] = [];
+        let errors: string[] = [];
+        const MAX_ATTEMPTS = 2;
 
-          while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-              if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+        while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+          if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
 
-              const response = await api.post(
-                  `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words-generate`,
-                  { changed, errors, attempt, outputText, outputWords, words },
-                  { signal: activeSignal }
-              );
+          const url = taskId
+            ? `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words-generate`
+            : `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words-generate-selected`;
 
-              if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
+          const response = await api.post(
+            url,
+            { changed, errors, attempt, outputText, outputWords, words },
+            { signal: activeSignal }
+          );
 
-              if (response.data?.statusCode === 201) {
-                  changed = response.data.changed;
-                  errors = response.data.errors;
-                  outputText = response.data.outputText;
-                  outputWords = response.data.outputWords;
-                  attempt = response.data.attempt;
-                  console.log(`Weryfikacja słów lub wyrazów zadania: Próba ${attempt}`);
-              } else {
-                  showAlert(400, "Nie udało się zweryfikować słów lub wyrazów zadania");
-                  break;
-              }
+          if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
+
+          if (response.data?.statusCode === 201) {
+            changed = response.data.changed;
+            errors = response.data.errors;
+            outputText = response.data.outputText;
+            outputWords = response.data.outputWords;
+            attempt = response.data.attempt;
+            console.log(`Weryfikacja słów lub wyrazów zadania: Próba ${attempt}`);
+          } else {
+            showAlert(400, "Nie udało się zweryfikować słów lub wyrazów zadania");
+            break;
           }
-
-          return { outputText, outputWords };
-        } catch (error: unknown) {
-          if ((error as DOMException)?.name === "AbortError") return { outputText: "", outputWords: [] };
-          handleApiError(error);
-          return { outputText: "", outputWords: [] };
-        } finally {
-          if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
         }
-    }, [subjectId, sectionId, topicId, taskId, controllersRef]
+
+        return { outputText, outputWords };
+      } catch (error: unknown) {
+        if ((error as DOMException)?.name === "AbortError") return { outputText: "", outputWords: [] };
+        handleApiError(error);
+        return { outputText: "", outputWords: [] };
+      } finally {
+        if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+      }
+    },
+    [subjectId, sectionId, topicId, taskId, controllersRef]
   );
 
   const handleUpdateWords = useCallback(
-    async (outputWords: string[], outputText: string,  signal?: AbortSignal) => {
+    async (outputWords: string[], signal?: AbortSignal) => {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");
 
-      if (!outputText) {
-        setLoading(false);
-        showAlert(400, "Nie udało się zaktualizować słów lub wyrazów zadania");
-        return;
-      }
-
       try {
-          const response = await api.put(
-          `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words`,
-              {
-                  outputText,
-                  outputWords
-              },
-              { signal }
-          );
+        const url = taskId
+          ? `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words`
+          : `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/update-selected`;
 
-          if (response.data?.statusCode === 200) {
-            setLoading(false);
-            showAlert(200, "Weryfikacja słów lub wyrazów zapisane pomyślnie");
-          } else {
-            setLoading(false);
-            showAlert(400, "Nie udało się zapisać weryfikacji słów lub wyrazów");
-          }
-      }
-      catch (error: unknown) {
+        const response = await api.put(
+          url,
+          { outputWords, wordIds },
+          { signal }
+        );
+
+        if (response.data?.statusCode === 200) {
+          setLoading(false);
+          showAlert(200, "Weryfikacja słów lub wyrazów zapisane pomyślnie");
+        } else {
+          setLoading(false);
+          showAlert(400, "Nie udało się zapisać weryfikacji słów lub wyrazów");
+        }
+      } catch (error: unknown) {
         setLoading(false);
         handleApiError(error);
-      }
-      finally {
+      } finally {
         setLoading(false);
       }
-    }, [subjectId, sectionId, topicId, taskId]
+    },
+    [subjectId, sectionId, topicId, taskId, wordIds]
   );
 
   const handleVerifyWords = useCallback(async () => {
     if (words.length === 0) {
-      showAlert(400, "Proszę dodać słowo lub wyraz do sprawdzenia");
-      return;
-    }
-
-    const emptyIndex = words.findIndex(
-      word => !word.finished && !getValueById(word.id).trim()
-    );
-
-    if (emptyIndex !== -1) {
-      showAlert(400, "Proszę wypełnić wszystkie pola dla słów nieukończonych!");
+      showAlert(400, "Proszę napisać tłumaczenie słowa lub wyrazu do sprawdzenia");
       return;
     }
 
@@ -327,7 +378,7 @@ export default function StoriesPage() {
       })
       .filter(Boolean) as [string, string][];
 
-    if (!subjectId || !sectionId || !topicId || !taskId) return;
+    if (!subjectId || !sectionId || !topicId) return;
 
     if (filledPairs.length === 0) {
       showAlert(400, "Nie ma słów lub wyrazów do weryfikacji");
@@ -335,6 +386,7 @@ export default function StoriesPage() {
     }
 
     setLoading(true);
+    setVerificationCompleted(false);
 
     if (controllerRef.current) controllerRef.current.abort();
 
@@ -353,19 +405,53 @@ export default function StoriesPage() {
 
       const { outputText, outputWords } = result;
 
-      await handleUpdateWords(outputWords, outputText, signal);
+      setOutputText(outputText);
+      localStorage.setItem('outputText', outputText);
+
+      await handleUpdateWords(outputWords, signal);
 
       setWordsVerified(true);
       setOutputText(outputText);
+      setVerificationCompleted(true);
 
-      await fetchWords();
+      localStorage.setItem("wordsVerified", "true");
+      localStorage.setItem("verificationCompleted", "true");
+
+      saveTextValuesToStorage(textValues);
+
+      if (taskId) {
+        await fetchWords();
+      } else {
+        await findWords();
+      }
     } catch (error: unknown) {
       if ((error as DOMException)?.name === "AbortError") return;
       handleApiError(error);
     } finally {
       setLoading(false);
     }
-  }, [words, textValues, subjectId, sectionId, topicId, taskId]);
+  }, [words, textValues, subjectId, sectionId, topicId, fetchWords, findWords]);
+
+  useEffect(() => {
+      const sId = Number(localStorage.getItem("subjectId"));
+      const secId = Number(localStorage.getItem("sectionId"));
+      const tId = Number(localStorage.getItem("topicId"));
+      const taskNum = Number(localStorage.getItem("taskId"));
+
+      if (sId && secId && tId) {
+        setSubjectId(sId);
+        setSectionId(secId);
+        setTopicId(tId);
+      }
+      else {
+        showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
+      }
+
+      if (taskNum)
+        setTaskId(taskNum)
+      else
+        setTaskId(null);
+  }, []);
 
   return (
     <>
@@ -415,40 +501,22 @@ export default function StoriesPage() {
           <div style={{
             padding: "12px"
           }}>
-            <div className="text-audio">
+            {taskId !== null && (<div className="text-audio">
               <div style={{ fontWeight: "bold", marginBottom: "4px" }}>Opowiadanie:</div>
               {text}
-            </div>
+            </div>)}
             <div>
               <div className="table" style={{
-                border: "2px solid rgb(191, 191, 191)"
+                border: "1px solid rgb(191, 191, 191)"
               }}>
-                <div className="element element-section" style={{
-                  fontSize: "16px"
-                }}>
-                  <div className="element-word" style={{
-                    borderRight: "2px solid #bfbfbf",
-                    fontWeight: "bold"
-                  }}>
-                    Angielski
-                  </div>
-                  <div className="element-word" style={{
-                    fontWeight: "bold"
-                  }}>Polski</div>
-                </div>
                 {words.map((word, index) => {
                   return (
-                    <div className={`element ${
-                        word.finished
-                          ? "success"
-                          : wordsVerified
-                          ? "error"
-                          : "word-default"
-                      }`} key={word.id}>
+                    <div className={`element`} key={word.id}>
                       <div
                         className="element-word"
                         style={{
-                          borderRight: "2px solid #bfbfbf"
+                          borderRight: "2px solid #bfbfbf",
+                          width: "50%"
                         }}
                       >
                         <div style={{
@@ -456,14 +524,15 @@ export default function StoriesPage() {
                         }}>{word.text}</div>
                         <Trash2 size={20} style={{
                           minWidth: "20px",
-                          marginLeft: "auto"
+                          marginLeft: "auto",
+                          marginTop: "2px"
                         }} color="#000000" onClick={(e) => {
                             e.stopPropagation();
                             setWordId(word.id);
                             setMsgDeleteVisible(true);
                         }} />
                       </div>
-                      <div className="element-word">
+                      <div className="element-word" style={{ width: "50%" }}>
                         <textarea
                           ref={(el) => {
                             textareaRefs.current[index] = el;
@@ -473,12 +542,23 @@ export default function StoriesPage() {
                             handleInput(index, word.id, (e.target as HTMLTextAreaElement).value)
                           }
                           className="answer-block"
-                          style={{ margin: "0px" }}
+                          style={{
+                            margin: "0px"
+                          }}
                           value={getValueById(word.id)}
                           rows={1}
                           name={`userSolution-${word.id}`}
                           id={`userSolution-${word.id}`}
                         />
+                      </div>
+                      <div className="element-word" style={{ width: "38px" }}>
+                        {verificationCompleted && getValueById(word.id).trim() !== "" ? (
+                          word.finished ? (
+                            <Check size={28} strokeWidth={3} style={{ color: "#556b4f" }} />
+                          ) : (
+                            <X size={28} strokeWidth={3} style={{ color: "#804141" }} />
+                          )
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -490,19 +570,21 @@ export default function StoriesPage() {
                 {wordsVerified && outputText ? (
                   <>
                     <div className="wordsDescription">
-                      {outputText}
+                      <FormatText content={outputText} />
                     </div>
                   </>
                 ) : null}
-                <button
-                  onClick={handleVerifyWords}
-                  className="btnSubmit"
-                  style={{
-                    margin: "0px auto"
-                  }}
-                >
-                  Sprawdź
-                </button>
+                {!verificationCompleted && (
+                  <button
+                    onClick={handleVerifyWords}
+                    className="btnSubmit"
+                    style={{
+                      margin: "0px auto"
+                    }}
+                  >
+                    Sprawdź
+                  </button>
+                )}
               </div>
             </div>
           </div>

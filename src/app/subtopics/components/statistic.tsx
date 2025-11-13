@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
@@ -8,13 +8,12 @@ import api from "@/app/utils/api";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
 
-type Status = 'blocked' | 'started' | 'progress' | 'completed';
+type Status = 'started' | 'progress' | 'completed';
 
 interface Subtopic {
   id: number;
   name: string;
   percent: number;
-  blocked: boolean;
   status: Status;
 }
 
@@ -22,7 +21,6 @@ interface Topic {
   id: number;
   name: string;
   percent: number;
-  blocked: boolean;
   status: Status;
   subtopics?: Subtopic[];
 }
@@ -31,9 +29,17 @@ interface Section {
   id: number;
   name: string;
   percent: number;
-  blocked: boolean;
   status: Status;
   topics?: Topic[];
+}
+
+interface StatisticsData {
+  solvedTasksCountCompleted: number;
+  solvedTasksCount: number;
+  closedSubtopicsCount: number | null;
+  closedTopicsCount: number | null;
+  weekLabel: string;
+  prediction: string;
 }
 
 export default function Statistics() {
@@ -43,20 +49,18 @@ export default function Statistics() {
   const [subtopics, setSubtopics] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   
-  const [total, setTotal] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [chartData, setChartData] = useState<{
+    total: [number, number, number];
+    statistics: StatisticsData;
+    hasData: boolean;
+  } | null>(null);
 
-  const [weekOffset, setWeekOffset] = useState<number>(0);
-
-  const [statistics, setStatistics] = useState({
-    solvedTasksCountCompleted: 0,
-    solvedTasksCount: 0,
-    closedSubtopicsCount: null,
-    closedTopicsCount: null,
-    weekLabel: "bieżący",
-    prediction: null
-  });
+  const fetchInProgressRef = useRef(false);
 
   useEffect(() => {
+    localStorage.removeItem("Mode");
+    localStorage.removeItem("ModeTaskId");
+    
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
@@ -64,52 +68,58 @@ export default function Statistics() {
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
-      const storedWeekOffset = localStorage.getItem("weekOffset");
-      const parsedWeekOffset = Number(storedWeekOffset);
-
-      if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
-        setWeekOffset(0);
-        localStorage.setItem("weekOffset", "0");
-      } else {
-        setWeekOffset(parsedWeekOffset);
-      }
     }
   }, []);
 
   const fetchSubtopics = useCallback(async () => {
+    if (fetchInProgressRef.current) return;
+    fetchInProgressRef.current = true;
+    
     if (!subjectId) {
       setLoading(false);
+      fetchInProgressRef.current = false;
       showAlert(400, "Przedmiot nie został znaleziony");
       return;
     }
 
     if (!sectionId) {
       setLoading(false);
+      fetchInProgressRef.current = false;
       showAlert(400, "Rozdział nie został znaleziony");
       return;
     }
 
     if (!topicId) {
       setLoading(false);
+      fetchInProgressRef.current = false;
       showAlert(400, "Temat nie został znaleziony");
       return;
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics?weekOffset=${weekOffset}`);
-      setLoading(false);
+      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics`);
 
       if (response.data?.statusCode === 200) {
         const fetchedSubtopics: Section[] = response.data.subtopics;
         setSubtopics(fetchedSubtopics);
-        setStatistics(response.data.statistics);
-        setTotal([
+        
+        const newTotal: [number, number, number] = [
           Number(response.data.total.completed),
           Number(response.data.total.progress),
-          Number(response.data.total.started),
-          Number(response.data.total.blocked)
-        ]);
+          Number(response.data.total.started)
+        ];
+        
+        const hasChartData = newTotal.some(percent => percent > 0);
+        
+        setChartData({
+          total: newTotal,
+          statistics: response.data.statistics,
+          hasData: hasChartData
+        });
+
+        setLoading(false);
       } else {
+        setLoading(false);
         showAlert(response.data.statusCode, response.data.message);
       }
     } catch (error) {
@@ -125,24 +135,38 @@ export default function Statistics() {
       } else {
         showAlert(500, "Unknown error");
       }
+    } finally {
+      fetchInProgressRef.current = false;
     }
-  }, [subjectId, sectionId, topicId, weekOffset]);
+  }, [subjectId, sectionId, topicId]);
+
+  useEffect(() => {
+    if (subjectId !== null && sectionId !== null && topicId !== null) {
+      setLoading(true);
+      fetchSubtopics();
+    }
+  }, [subjectId, sectionId, topicId]);
 
   useEffect(() => {
     setMainHeight();
     window.addEventListener("resize", setMainHeight);
 
-    if (subjectId !== null) {
-      setLoading(true);
-      fetchSubtopics();
-    } else {
-      setLoading(false);
-    }
-
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchSubtopics, subjectId, weekOffset]);
+  }, []);
+
+  const ChartComponent = useCallback(() => {
+    if (!chartData || !chartData.hasData) return null;
+    
+    return (
+      <CirclePieChart 
+        percents={chartData.total} 
+        statistics={chartData.statistics} 
+        key={`chart-${chartData.total.join('-')}`}
+      />
+    );
+  }, [chartData]);
 
   return (
     <>
@@ -151,11 +175,9 @@ export default function Statistics() {
           <Spinner noText />
         </div>
       ) : (
-        <>
-          <CirclePieChart percents={total} statistics={statistics} />
-          <div className="table" style={{
-            marginTop: "12px"
-          }}>
+        <div style={{ minHeight: '200px' }}>
+          <ChartComponent />
+          <div className="table" style={{ marginTop: "12px" }}>
             {subtopics.flatMap((subtopic) => [
               <div
                 className={`element element-subtopic`}
@@ -174,8 +196,7 @@ export default function Statistics() {
               </div>
             ])}
           </div>
-          <br />
-        </>
+        </div>
       )}
     </>
   );

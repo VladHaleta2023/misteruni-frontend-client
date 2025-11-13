@@ -1,5 +1,4 @@
 .table {
-  max-width: 800px;
   width: 100%;
   padding: 0;
   margin: 0 auto;
@@ -8,10 +7,6 @@
   flex-direction: column;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-top: 2px solid #bfbfbf;
-}
-
-.table#subject {
-  margin-top: 24px;
 }
 
 .table > .element {
@@ -24,7 +19,6 @@
 }
 
 .wordsDescription {
-  max-width: 800px;
   width: 100%;
   padding: 16px;
   margin: 0 auto;
@@ -42,9 +36,23 @@
 }
 
 .element-topic {
-  padding-left: 32px !important;
   background-color: #e7e7e7;
   color: #000000;
+}
+
+.topic-note {
+  padding-left: 20px; 
+  margin-top: 8px;
+  width: 100%;
+  font-size: clamp(16px, 1.67vw, 18px);
+}
+
+.text-topic-note {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .element-subtopic {
@@ -59,6 +67,16 @@
 
 .not-finished {
   background-color: #d8c4c4;
+}
+
+.element-frequency {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 40px;
+  max-width: 40px;
+  margin: 8px;
 }
 
 .element-percent {
@@ -94,13 +112,13 @@
   color: #000000;
 }
 
-.error {
-  background-color: #d98d8d !important;
+.vocabluary-progress {
+  background-color: #B9AE68 !important;
   color: #000000;
 }
 
-.blocked {
-  background-color: #f5f5f5;
+.error {
+  background-color: #d98d8d !important;
   color: #000000;
 }
 
@@ -111,20 +129,8 @@
   color: #000000;
 }
 
-.completed.progress {
-  background: linear-gradient(to right, #8aa887 50%, #cbbf7f 50%);
-}
-
-.completed.started {
-  background: linear-gradient(to right, #8aa887 50%, transparent 50%);
-}
-
 .completed.error {
   background: linear-gradient(to right, #8aa887 50%, #d98d8d 50%);
-}
-
-.progress.started {
-  background: linear-gradient(to right, #cbbf7f 50%, transparent 50%);
 }
 
 .element-subject-options {
@@ -141,7 +147,6 @@
 }
 
 .text-audio {
-  max-width: 800px;
   width: 100%;
   margin: 12px auto;
   margin-top: 0px;
@@ -173,7 +178,6 @@
   white-space: normal;
   word-break: break-word;
   padding: 8px;
-  width: 50%;
 }
 
 .element-options {
@@ -187,8 +191,30 @@
   gap: 6px;
 }
 
+.element-word:first-child {
+  flex: 2 1 auto;
+}
+
 .element:last-child {
   border-bottom: none;
+}
+
+.stats-column {
+  flex: 0 0 auto;
+  width: fit-content;
+  text-align: center;
+  min-width: 40px;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.checkBox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
 }
 
 .element-subject {
@@ -252,7 +278,7 @@
     font-size: 16px;
   }
 
-  .element-topic {
-    padding-left: 24px !important;
+  .text-topic-note {
+    font-size: 18px;
   }
 }

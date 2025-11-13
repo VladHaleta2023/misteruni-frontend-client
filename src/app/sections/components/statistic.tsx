@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Minus, Play } from "lucide-react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
@@ -6,11 +6,10 @@ import CirclePieChart from "@/app/components/circlePieChart";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import api from "@/app/utils/api";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
 
-type Status = 'blocked' | 'started' | 'progress' | 'completed';
+type Status = 'started' | 'progress' | 'completed';
 type DeltaStatus = 'completed' | 'error' | 'completed error';
 
 interface Subtopic {
@@ -18,7 +17,6 @@ interface Subtopic {
   name: string;
   percent: number;
   delta: number;
-  blocked: boolean;
   status: Status;
 }
 
@@ -26,8 +24,8 @@ interface Topic {
   id: number;
   name: string;
   percent: number;
-  blocked: boolean;
   delta: number;
+  frequency: number;
   deltaStatus: DeltaStatus;
   status: Status;
   subtopics?: Subtopic[];
@@ -40,10 +38,23 @@ interface Section {
   percent: number;
   delta: number;
   deltaStatus: DeltaStatus;
-  blocked: boolean;
   status: Status;
-  process: Status;
   topics?: Topic[];
+}
+
+interface StatisticsData {
+  solvedTasksCountCompleted: number;
+  solvedTasksCount: number;
+  closedSubtopicsCount: number;
+  closedTopicsCount: number;
+  weekLabel: string;
+  prediction: string;
+}
+
+interface ChartData {
+  total: [number, number, number];
+  statistics: StatisticsData;
+  hasData: boolean;
 }
 
 export default function Statistics() {
@@ -57,18 +68,14 @@ export default function Statistics() {
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
-  const [statistics, setStatistics] = useState({
-    solvedTasksCountCompleted: 0,
-    solvedTasksCount: 0,
-    closedSubtopicsCount: 0,
-    closedTopicsCount: 0,
-    weekLabel: "bieżący",
-    prediction: null
-  });
+  const fetchInProgressRef = useRef(false);
 
-  const [total, setTotal] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
 
   useEffect(() => {
+    localStorage.removeItem("Mode");
+    localStorage.removeItem("ModeTaskId");
+
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
@@ -89,7 +96,7 @@ export default function Statistics() {
   }, []);
 
   useEffect(() => {
-    if (sections.length === 0) return;
+    if (sections.length === 0 || loading) return;
     if (typeof window === "undefined") return;
 
     if (
@@ -113,45 +120,42 @@ export default function Statistics() {
         localStorage.removeItem("topicId");
       }
     }
-  }, [sections, sectionId, topicId]);
+  }, [sections, sectionId, topicId, loading]);
 
   const fetchSections = useCallback(async () => {
+    if (fetchInProgressRef.current) return;
+    fetchInProgressRef.current = true;
+    
     if (!subjectId) {
       setLoading(false);
+      fetchInProgressRef.current = false;
       showAlert(400, "Przedmiot nie został znaleziony");
       return;
     }
 
     try {
       const response = await api.get(`/subjects/${subjectId}/sections?weekOffset=${weekOffset}`);
-      setLoading(false);
 
       if (response.data?.statusCode === 200) {
         const fetchedSections: Section[] = response.data.sections;
+        
         setSections(fetchedSections);
-        setStatistics(response.data.statistics);
-        setTotal([
+        
+        const newTotal: [number, number, number] = [
           Number(response.data.total.completed),
           Number(response.data.total.progress),
-          Number(response.data.total.started),
-          Number(response.data.total.blocked)
-        ]);
+          Number(response.data.total.started)
+        ];
+        
+        setChartData({
+          total: newTotal,
+          statistics: response.data.statistics,
+          hasData: newTotal.some(percent => percent > 0)
+        });
 
-        if (weekOffset !== 0) {
-          const expanded: { [key: number]: boolean } = {};
-          fetchedSections.forEach((section) => {
-            expanded[section.id] = true;
-          });
-          setExpandedSections(expanded);
-        }
-        else {
-          const collapsed: { [key: number]: boolean } = {};
-          fetchedSections.forEach((section) => {
-            collapsed[section.id] = false;
-          });
-          setExpandedSections(collapsed);
-        }
+        setLoading(false);
       } else {
+        setLoading(false);
         showAlert(response.data.statusCode, response.data.message);
       }
     } catch (error) {
@@ -167,6 +171,8 @@ export default function Statistics() {
       } else {
         showAlert(500, "Unknown error");
       }
+    } finally {
+      fetchInProgressRef.current = false;
     }
   }, [subjectId, weekOffset]);
 
@@ -194,31 +200,54 @@ export default function Statistics() {
   };
 
   useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
+    let mounted = true;
+
+    const initialize = async () => {
+      if (subjectId !== null && mounted) {
+        setLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await fetchSections();
+      } else if (mounted) {
+        setLoading(false);
+      }
+    };
 
     if (subjectId !== null) {
-      setLoading(true);
-      fetchSections();
-    } else {
-      setLoading(false);
+      initialize();
     }
 
     return () => {
-      window.removeEventListener("resize", setMainHeight);
+      mounted = false;
     };
-  }, [fetchSections, subjectId, weekOffset]);
+  }, [subjectId]);
 
-  const handleTopicsExpand = (sectionId: number) => {
+  useEffect(() => {
+    if (subjectId !== null && !loading) {
+      setLoading(true);
+      fetchSections();
+    }
+  }, [weekOffset]);
+
+  useEffect(() => {
+    if (sections.length === 0) return;
+    
+    const newExpandedState: { [key: number]: boolean } = {};
+    
+    sections.forEach((section) => {
+      newExpandedState[section.id] = weekOffset !== 0;
+    });
+    
+    setExpandedSections(newExpandedState);
+  }, [weekOffset, sections]);
+
+  const handleTopicsExpand = useCallback((sectionId: number) => {
     setExpandedSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
-  };
+  }, []);
 
   const handleTopicPlayClick = (sectionId: number, topic: Topic, sectionType: string) => {
-    if (topic.blocked) return;
-
     setTopicId(topic.id);
     setSectionId(sectionId);
     localStorage.setItem("sectionId", String(sectionId));
@@ -233,20 +262,28 @@ export default function Statistics() {
   };
 
   const handleTopicClick = (sectionId: number, topic: Topic, sectionType: string) => {
-    if (topic.blocked) return;
-
     setTopicId(topic.id);
     setSectionId(sectionId);
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
+    localStorage.setItem("sectionType", String(sectionType));
 
-    if (sectionType == "Stories") {
-      router.push("/subtopics/tasks");
-    }
-    else {
-      router.push("/subtopics");
-    }
+    router.push("/tasks");
   };
+
+  const ChartComponent = useCallback(() => {
+    if (!chartData || !chartData.hasData) return null;
+    
+    return (
+      <CirclePieChart 
+        percents={chartData.total} 
+        statistics={chartData.statistics} 
+        onPrev={decreaseWeekOffset} 
+        onNext={increaseWeekOffset}
+        key={`chart-${chartData.total.join('-')}-${weekOffset}`}
+      />
+    );
+  }, [chartData, weekOffset]);
 
   return (
     <>
@@ -256,7 +293,7 @@ export default function Statistics() {
         </div>
       ) : (
         <>
-          <CirclePieChart percents={total} statistics={statistics} onPrev={decreaseWeekOffset} onNext={increaseWeekOffset} />
+          <ChartComponent />
           <div className="table" style={{
             marginTop: "12px"
           }}>
@@ -272,7 +309,7 @@ export default function Statistics() {
                   handleTopicsExpand(section.id);
                 }}
               >
-                <div className="element-options">
+                <div className="element-options" style={{ width: "40px", maxWidth: "40px", justifyContent: "center" }}>
                   {Array.isArray(section.topics) && section.topics.length > 0 && (
                     <button
                       className="btnElement"
@@ -282,15 +319,15 @@ export default function Statistics() {
                       }}
                     >
                       {expandedSections[section.id] ? (
-                        <Minus size={24} className={section.blocked ? "icon-blocked" : "icon-unblocked"} />
+                        <Minus size={24} />
                       ) : (
-                        <Plus size={24} className={section.blocked ? "icon-blocked" : "icon-unblocked"} />
+                        <Plus size={24} />
                       )}
                     </button>
                   )}
                 </div>
 
-                <div className="element-name">
+                <div className="element-name" style={{ marginLeft: "0px" }}>
                   <FormatText content={section.name ?? ""} />
                 </div>
 
@@ -299,7 +336,7 @@ export default function Statistics() {
                     <div
                       className={
                         weekOffset === 0
-                          ? `element-percent ${section.status} ${section.process}`
+                          ? `element-percent ${section.status}`
                           : `element-percent ${section.deltaStatus}`
                       }
                     >
@@ -322,7 +359,10 @@ export default function Statistics() {
                       style={{ justifyContent: "space-between" }}
                       key={`topic-${section.id}-${topic.id}`}
                     >
-                      <div className="element-name">
+                      <div className="element-frequency" style={{ color: "#888888" }}>
+                        {section.type !== "Stories" ? topic.frequency : ""}
+                      </div>
+                      <div className="element-name" style={{ marginLeft: "0px" }}>
                         <FormatText content={topic.name ?? ""} />
                       </div>
                       <div className="element-options">
@@ -350,7 +390,6 @@ export default function Statistics() {
                 : []),
             ])}
           </div>
-          <br />
         </>
       )}
     </>

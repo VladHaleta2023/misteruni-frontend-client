@@ -19,20 +19,40 @@
 }
 
 body, html {
+  height: 100%;
   margin: 0;
-  height: 100vh;
-  background-color: #e0e0e0;
+  background-color: #ededed;
+  overflow: hidden;
+
+  display: flex;
+  justify-content: center;
 }
 
 main {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
   word-wrap: break-word;
   word-break: break-word;
   font-size: 18px;
-  height: 100dvh;
+  min-height: 100vh;
+  height: 100vh;
   padding-top: var(--header-height);
   scroll-padding-top: var(--header-height); 
-  background-color: #e0e0e0;
+  background-color: #f5f5f5;
+  overflow-y: auto;
+}
+
+.internal-div {
+  max-width: 800px;
+  width: 100vw;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 768px) {
+  main {
+    min-height: 100dvh;
+    height: 100dvh;
+    border: none;
+  }
 }

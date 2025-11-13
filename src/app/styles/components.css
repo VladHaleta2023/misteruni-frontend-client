@@ -1,5 +1,4 @@
 .form-container {
-  max-width: 800px;
   width: 100%;
   padding: 16px;
   margin: 0 auto;
@@ -23,11 +22,8 @@
   border: 1px solid #ccc;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: #1e1e1e;
-  overflow-y: auto;
+  overflow-wrap: break-word;
   outline: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   resize: none;
 }
 
@@ -52,14 +48,9 @@
   transition: all .3s ease;
   color: #fff;
   background-color: #6a1b9a;
-  user-select: none;
   display: inline-block;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, .1);
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
 }
 
 .button:hover {
@@ -79,7 +70,22 @@
 }
 
 .katex {
+  font: normal 1.21em KaTeX_Main, Times New Roman, serif;
+  line-height: 1.2;
   display: inline-block;
   max-width: 100%;
+  white-space: nowrap;
+}
+
+.katex-display {
+  margin: 1em 0;
+  text-align: center;
   overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.katex-display > .katex {
+  white-space: normal;
+  display: inline-block;
+  text-align: left;
 }

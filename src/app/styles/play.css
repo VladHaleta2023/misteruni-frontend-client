@@ -4,12 +4,13 @@ html, body, #__next {
 }
 
 .play-container {
-  max-width: 800px;
+  /*max-width: 800px;*/
   width: 100%;
-  overflow-y: auto;
   margin: 0 auto;
   padding: 16px;
+  min-height: 0;
   display: flex;
+  flex: 1;
   flex-direction: column;
   box-sizing: border-box;
   user-select: text;
@@ -88,13 +89,6 @@ textarea:-webkit-autofill {
 textarea:focus {
   outline: none;
   box-shadow: none;
-}
-
-.misterUniLogo {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 24px;
 }
 
 .message.robot {
@@ -214,9 +208,8 @@ progress.progress-bar::-moz-progress-bar {
     font-size: 18px;
   }
 
-  .misterUniLogo {
-    position: static;
-    left: auto;
-    transform: none;
+  .play-container {
+    padding: 12px;
+    -webkit-overflow-scrolling: touch;
   }
 }

@@ -65,7 +65,9 @@ export default function RootLayout({
           height: "100vh"
         }}
       >
-        {children}
+        <div className="internal-div">
+          {children}
+        </div>
         <ToastProvider />
       </body>
     </html>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Mic, Type, X, Check, Trash2 } from 'lucide-react';
+import { ArrowLeft, Mic, Type, X, Check, Trash2, Minus, Plus, Play } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -23,6 +23,11 @@ enum InsertPosition {
     Po = 'Po',
 }
 
+enum OptionsGenerate {
+    New = 'Wygeneruj nowe',
+    This = 'Wygeneruj podobne'
+}
+
 interface Subtopic {
     name: string;
     percent: number;
@@ -33,6 +38,7 @@ export default function PlayPage() {
     const [transcribeLoading, setTranscribeLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [insertPosition, setInsertPosition] = useState<InsertPosition>(InsertPosition.None);
+    const [optionsGenerate, setOptionsGenerate] = useState<OptionsGenerate>(OptionsGenerate.New);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -47,9 +53,14 @@ export default function PlayPage() {
 
     const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
     const [msgVisible, setMsgVisible] = useState<boolean>(false);
+    const [msgOptionsGenerateVisible, setMsgOptionsGenerateVisible] = useState<boolean>(false);
     const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
+    const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
     const [selectedSentencesWasEmpty, setSelectedSentencesWasEmpty] = useState<boolean>(false);
+
+    const [noteExpanded, setNoteExpanded] = useState(false);
+    const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
 
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
@@ -61,6 +72,7 @@ export default function PlayPage() {
             text: "",
             explanation: "",
             note: "",
+            topicNote: "",
             solution: "",
             percent: 0,
             status: "started",
@@ -147,6 +159,54 @@ export default function PlayPage() {
         }
     }, []);
 
+    const fetchTopicById = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        signal?: AbortSignal) => {
+        
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        const controller = new AbortController();
+        if (!signal) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller.signal;
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}`,
+                { signal: activeSignal }
+            );
+
+            if (activeSignal.aborted) return null;
+
+            if (response.data?.statusCode === 200) {
+                const completed = response.data.topic.completed ?? false;
+                return completed;
+            }
+
+            return null;
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return null;
+            handleApiError(error);
+            return null;
+        } finally {
+            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+        }
+    }, []);
+
     const fetchTaskById = useCallback(async (
         subjectId: number,
         sectionId: number,
@@ -214,15 +274,34 @@ export default function PlayPage() {
                 let text = "";
                 let note = "";
                 let errors: string[] = [];
+
+                let mode: string = "auto";
+                const storedMode = localStorage.getItem("Mode");
+
+                if (storedMode)
+                    mode = String(storedMode);
+
+                let taskId: number | null = null;
+
+                if (mode === "strict") {
+                    const storedTaskId = localStorage.getItem("ModeTaskId");
+
+                    if (storedTaskId !== null && !isNaN(Number(storedTaskId))) {
+                        taskId = Number(storedTaskId);
+                    } else {
+                        taskId = null;
+                    }
+                }
+
                 let outputSubtopics: string[] = [];
                 const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+                    if (activeSignal?.aborted) return { text: "", note: "", outputSubtopics: [] };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
-                        { changed, errors, attempt, text, note, outputSubtopics },
+                        { changed, errors, attempt, text, note, outputSubtopics, mode, taskId },
                         { signal: activeSignal }
                     );
 
@@ -244,7 +323,7 @@ export default function PlayPage() {
 
                 return { text, note, outputSubtopics };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { text: "", note: "", outputSubtopics: [] };
+                if ((error as DOMException)?.name === "AbortError") return { text: "", note: "", topicNote: "", outputSubtopics: [] };
                 handleApiError(error);
                 return { text: "", note: "", outputSubtopics: [] };
             } finally {
@@ -683,12 +762,9 @@ export default function PlayPage() {
 
                 const stage = task?.stage ?? 0;
 
-                const taskId: number = Number(localStorage.getItem("taskId"));
+                if (localStorage.getItem("taskId")) {
+                    const taskId: number = Number(localStorage.getItem("taskId"));
 
-                if (task && task.id)
-                    localStorage.setItem("taskId", task.id);
-
-                if (!task && taskId) {
                     task = await fetchTaskById(
                         subjectId,
                         sectionId,
@@ -703,9 +779,14 @@ export default function PlayPage() {
 
                     fullUpdateTask(task);
 
-                    setLoading(false);
-                    return;
+                    if (task.finished) {
+                        setLoading(false);
+                        return;
+                    }
                 }
+
+                if (task && task.id)
+                    localStorage.setItem("taskId", task.id);
 
                 if (!task || stage < 3) {
                     await loadTask(subjectId, sectionId, topicId, stage, signal);
@@ -782,7 +863,7 @@ export default function PlayPage() {
             controller.abort();
             controllerRef.current = null;
         };
-    }, [subjectId, sectionId, topicId]);
+    }, [subjectId, sectionId, topicId, fetchTopicById]);
 
     const adjustTextareaRows = () => {
         if (textareaRef.current) {
@@ -800,6 +881,7 @@ export default function PlayPage() {
 
     useEffect(() => {
         setInsertPosition(InsertPosition.None);
+        setOptionsGenerate(OptionsGenerate.New);
         setMsgVisible(false);
 
         setMainHeight();
@@ -1006,7 +1088,7 @@ export default function PlayPage() {
                     setTranscribes(prev => [...prev, ...newTranscribes]);
                     setTextValue(newTextValue);
                     setSentences(newSentences);
-                    setSelectedSentences(newSentences.map((_, i) => i)); // выделяем все вставленные
+                    setSelectedSentences(newSentences.map((_, i) => i));
                     localStorage.setItem("answerText", newTextValue);
                 }
                 else if (insertPosition === InsertPosition.Przed) {
@@ -1099,6 +1181,10 @@ export default function PlayPage() {
 
     const handlePositionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInsertPosition(e.target.value as InsertPosition);
+    };
+
+    const handleOptionGenerateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setOptionsGenerate(e.target.value as OptionsGenerate);
     };
 
     const handleDeleteText = () => {
@@ -1268,10 +1354,10 @@ export default function PlayPage() {
     }, [task?.getTask().options]); 
 
     useEffect(() => {
-        if (shuffledOptions.length > 0 && userOptionIndex === null) {
+        if (shuffledOptions.length > 0 && task.getTask().answered === false && task.getTask().finished === false) {
             setUserOptionIndex(shuffledOptions[0].originalIndex);
         }
-    }, [shuffledOptions, userOptionIndex]);
+    }, [shuffledOptions]);
 
     const handleDeleteTask = useCallback(async() => {
         try {
@@ -1309,14 +1395,32 @@ export default function PlayPage() {
         <>
             <Header>
                 <div className="menu-icons">
+                    <div className="menu-icon" title="Wróć" onClick={handleBackClick}>
+                        <ArrowLeft size={28} color="white" />
+                    </div>
                     <div className="menu-icon" title="Słownik" onClick={(e) => {
                         e.stopPropagation();
                         setMsgDeleteTaskVisible(true);
                     }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Wróć" onClick={handleBackClick}>
-                        <ArrowLeft size={28} color="white" />
+                    <div className="menu-icon" title="Play" style={{ marginLeft: 'auto' }}
+                    onClick={async (e) => {
+                        e.stopPropagation();
+
+                        if (!subjectId || !sectionId || !topicId) return;
+
+                        localStorage.removeItem("Mode");
+                        localStorage.removeItem("ModeTaskId");
+
+                        const completed = await fetchTopicById(subjectId, sectionId, topicId);
+
+                        if (completed)
+                            setMsgPlayVisible(true);
+                        else
+                            setMsgOptionsGenerateVisible(true);
+                    }}>
+                        <Play size={28} color="white" />
                     </div>
                 </div>
             </Header>
@@ -1328,7 +1432,9 @@ export default function PlayPage() {
                     textCancel="Nie"
                     onConfirm={() => {
                         setMsgDeleteTaskVisible(false);
-                        setTextLoading("Trwa usuwanie zadania");
+
+                        if (!loading)
+                            setTextLoading("Trwa usuwanie zadania");
                         setLoading(true);
                         if (task?.getTask().id) {
                             handleDeleteTask().then(() => {
@@ -1344,6 +1450,19 @@ export default function PlayPage() {
                         setMsgDeleteTaskVisible(false);
                     }}
                     visible={msgDeleteTaskVisible}
+                />
+                <Message
+                    message={"Czy na pewno chcesz utworzyć nowe zadanie, ponieważ temat został już zamknięty?"}
+                    textConfirm="Tak"
+                    textCancel="Nie"
+                    onConfirm={() => {
+                        setMsgPlayVisible(false);
+                        setMsgOptionsGenerateVisible(true);
+                    }}
+                    onClose={() => {
+                        setMsgPlayVisible(false);
+                    }}
+                    visible={msgPlayVisible}
                 />
                 <Message
                     message={
@@ -1370,6 +1489,57 @@ export default function PlayPage() {
                     }}
                     visible={msgDeleteVisible}
                 />
+                <RadioMessage 
+                    message={`Czy chcesz wygenerować nowe zadanie czy wygenerować podobne?`}
+                    textConfirm="Zatwierdź"
+                    textCancel="Anuluj"
+                    onConfirm={() => {
+                        setMsgOptionsGenerateVisible(false);
+
+                        if (optionsGenerate === OptionsGenerate.New)
+                            localStorage.setItem("Mode", "auto");
+                        else
+                            localStorage.setItem("Mode", "strict");
+
+                        const storedId = localStorage.getItem("taskId");
+                        localStorage.setItem("ModeTaskId", String(storedId));
+
+                        localStorage.removeItem("taskId");
+                        localStorage.removeItem("answerText");
+                        window.location.reload();
+                    }}
+                    onClose={() => {
+                        setMsgOptionsGenerateVisible(false);
+                        setOptionsGenerate(OptionsGenerate.New);
+                    }}
+                    visible={msgOptionsGenerateVisible}
+                    btnsWidth="140px"
+                >
+                <div className="radio-group">
+                    <label className="radio-option">
+                        <input
+                            type="radio"
+                            name="optionsGenerate"
+                            value={OptionsGenerate.New}
+                            checked={optionsGenerate === OptionsGenerate.New}
+                            onChange={handleOptionGenerateChange}
+                        />
+                        <span>{OptionsGenerate.New}</span>
+                    </label>
+
+                    <label className="radio-option">
+                        <input
+                            type="radio"
+                            name="optionsGenerate"
+                            value={OptionsGenerate.This}
+                            checked={optionsGenerate === OptionsGenerate.This}
+                            onChange={handleOptionGenerateChange}
+                        />
+                        <span>{OptionsGenerate.This}</span>
+                    </label>
+                    </div>
+                </RadioMessage>
+
                 <RadioMessage 
                     message={`Gdzie chcesz wstawić nowy fragment audio?`}
                     textConfirm="Zatwierdź"
@@ -1433,19 +1603,65 @@ export default function PlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            {task.getTask().finished ? (<div className={`message human ${task.getTask().status}`}>
-                                <div className="text-title" style={{fontWeight: "bold", }}>Ocena:</div>
-                                <div style={{paddingLeft: "20px", marginTop: "8px"}}>
+                            <div className={`message human ${task.getTask().status}`}>
+                                <div className="text-title" style={{ fontWeight: "bold" }}>
+                                    {task.getTask().finished ? "Ocena:" : "Podtematy:"}
+                                </div>
+                                <div style={{ marginTop: "8px" }}>
                                     {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
-                                        <div key={index}>
-                                            <FormatText content={`${subtopic.name}: <strong>${subtopic.percent}%</strong>`} />
-                                        </div>
+                                    <div key={index}>
+                                        <FormatText
+                                            content={
+                                                task.getTask().finished
+                                                ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
+                                                : `${index + 1}. ${subtopic.name}`
+                                            }
+                                        />
+                                    </div>
                                     ))}
                                 </div>
-                            </div>) : null}
+                            </div>
                             <div className="message robot">
-                                <div className="text-title">Notatka:</div>
-                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().note ?? ""} /></div>
+                                <div className="text-title" style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    cursor: "pointer"
+                                }}
+                                    onClick={() => setTopicNoteExpanded((prev) => !prev)}>
+                                    <div className="btnElement" style={{
+                                        marginRight: "4px",
+                                        fontWeight: "bold"
+                                    }}>
+                                        {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                    </div>
+                                    Notatka tematu:
+                                </div>
+                                {topicNoteExpanded && (
+                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                        <FormatText content={task?.getTask().topicNote ?? ""} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="message robot">
+                                <div className="text-title" style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    cursor: "pointer"
+                                }}
+                                    onClick={() => setNoteExpanded((prev) => !prev)}>
+                                    <div className="btnElement" style={{
+                                        marginRight: "4px",
+                                        fontWeight: "bold"
+                                    }}>
+                                        {noteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                    </div>
+                                    Notatka zadania:
+                                </div>
+                                {noteExpanded && (
+                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                        <FormatText content={task?.getTask().note ?? ""} />
+                                    </div>
+                                )}
                             </div>
                             <div className="message robot">
                                 <div className="text-title">Tekst zadania:</div>

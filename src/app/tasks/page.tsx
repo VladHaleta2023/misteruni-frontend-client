@@ -2,20 +2,21 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ListCheck, Minus, Play, Plus } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import "@/app/styles/table.css";
 import "@/app/styles/play.css";
+import "@/app/styles/components.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import api from "@/app/utils/api";
 import FormatText from "@/app/components/formatText";
 import { Text } from "lucide-react";
+import Message from "@/app/components/message";
 
-type Status = 'blocked' | 'started' | 'progress' | 'completed';
+type Status = 'started' | 'progress' | 'completed';
 
 interface IDate {
     day: string;
@@ -31,6 +32,7 @@ interface ITask {
     vocabluary: boolean;
     wordsCount: number;
     finished: boolean;
+    note: string;
     topic: {
         id: number,
         name: string
@@ -99,21 +101,35 @@ export default function TasksPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
+  const [sectionType, setSectionType] = useState<string | null>(null);
+  const [topicName, setTopicName] = useState<string>("");
+
+  const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
 
   const [elementReponse, setElementResponse] = useState<ElementResponse | null>(null);
+
+  const [topicNote, setTopicNote] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
 
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
+  const [expandedNotes, setExpandedNotes] = useState<{[key: number]: boolean}>({});
+  const [expandedTopicNote, setExpandedTopicNote] = useState(false);
+
   useEffect(() => {
-      if (typeof window !== "undefined") {
+    localStorage.removeItem("Mode");
+    localStorage.removeItem("ModeTaskId");
+
+    if (typeof window !== "undefined") {
         const storedSubjectId = localStorage.getItem("subjectId");
         setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
         const storedSectionId = localStorage.getItem("sectionId");
         setSectionId(storedSectionId ? Number(storedSectionId) : null);
         const storedTopicId = localStorage.getItem("topicId");
         setTopicId(storedTopicId ? Number(storedTopicId) : null);
+        const storedSectionType = localStorage.getItem("sectionType");
+        setSectionType(storedSectionType ? String(storedSectionType) : null);
 
         const storedWeekOffset = localStorage.getItem("weekOffset");
         const parsedWeekOffset = Number(storedWeekOffset);
@@ -124,7 +140,7 @@ export default function TasksPage() {
         } else {
             setWeekOffset(parsedWeekOffset);
         }
-      }
+    }
   }, []);
 
   const fetchTasksByTopicId = useCallback(async () => {
@@ -152,6 +168,8 @@ export default function TasksPage() {
 
           if (response.data?.statusCode === 200) {
               setElementResponse(new ElementResponse(response.data.elements));
+              setTopicNote(response.data.topic.note);
+              setTopicName(response.data.topic.name);
           } else {
               showAlert(response.data.statusCode, response.data.message);
           }
@@ -285,22 +303,140 @@ export default function TasksPage() {
     };
   }, []);
 
+  function handleApiError(error: unknown) {
+    if (axios.isAxiosError(error)) {
+        if (error.code === "ERR_CANCELED") return;
+
+        if (error.response) {
+            showAlert(error.response.status, error.response.data?.message || "Server error");
+        } else {
+            showAlert(500, `Server error: ${error.message}`);
+        }
+    } else if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+    } else if (error instanceof Error) {
+        showAlert(500, `Server error: ${error.message}`);
+    } else {
+        showAlert(500, "Unknown error");
+    }
+  }
+
+  const fetchTopicById = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number) => {
+        
+        if (!subjectId) {
+            showAlert(400, "Przedmiot nie został znaleziony");
+            return null;
+        }
+
+        if (!sectionId) {
+            showAlert(400, "Rozdział nie został znaleziony");
+            return null;
+        }
+
+        if (!topicId) {
+            showAlert(400, "Temat nie został znaleziony");
+            return null;
+        }
+
+        try {
+            const response = await api.get(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}`
+            );
+
+            if (response.data?.statusCode === 200) {
+                const completed = response.data.topic.completed ?? false;
+                return completed;
+            }
+
+            return null;
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return null;
+            handleApiError(error);
+            return null;
+        }
+    }, []);
+
   function handleBackClick() {
     router.back();
   }
+
+  function handleSubtopicsClick() {
+    router.push("/subtopics");
+  }
+
+  function handleTopicVocabluaryClick() {
+    router.push("/topic-vocabluary");
+  }
+
+  const handleNoteExpand = useCallback((taskId: number) => {
+      setExpandedNotes(prev => ({
+          ...prev,
+          [taskId]: !prev[taskId]
+      }));
+  }, []);
+
+  const handleTopicNoteExpand = useCallback(() => {
+    setExpandedTopicNote(prev => !prev);
+  }, []);
 
   return (
     <>
       <Header>
         <div className="menu-icons">
-          <div
-            className="menu-icon"
-            title="Wrócić"
-            onClick={handleBackClick}
-            style={{ cursor: "pointer" }}
-          >
-            <ArrowLeft size={28} color="white" />
-          </div>
+            <div
+                className="menu-icon"
+                title="Wrócić"
+                onClick={handleBackClick}
+                style={{ cursor: "pointer" }}
+            >
+                <ArrowLeft size={28} color="white" />
+            </div>
+            {sectionType !== "Stories" && weekOffset === 0 ? (<div
+                className="menu-icon"
+                title={"Przełącz do zadań"}
+                onClick={handleSubtopicsClick}
+                style={{ cursor: "pointer" }}
+            >
+                <ListCheck size={28} color="white" />
+            </div>) : null}
+            <div style={{ marginLeft: 'auto', display: "flex", gap: "6px" }}>
+                {sectionType === "Stories" && weekOffset === 0 ? (<div
+                    className="menu-icon"
+                    title={"Przełącz do listy słów"}
+                    onClick={async (e) => {
+                        e.stopPropagation();
+                        handleTopicVocabluaryClick();
+                    }}
+                    style={{ cursor: "pointer" }}
+                >
+                    <ListCheck size={28} color="white" />
+                </div>) : null}
+                <div className="menu-icon" title="Play"
+                    onClick={async (e) => {
+                        e.stopPropagation();
+
+                        if (!subjectId || !sectionId || !topicId) return;
+
+                        const completed = await fetchTopicById(subjectId, sectionId, topicId);
+
+                        if (completed) {
+                            setMsgPlayVisible(true);
+                            return;
+                        }
+
+                        if (sectionType == "Stories") {
+                            router.push("/interactive-play");
+                        }
+                        else {
+                            router.push("/play");
+                        }
+                    }}>
+                        <Play size={28} color="white" />
+                </div>
+            </div>
         </div>
       </Header>
 
@@ -311,14 +447,67 @@ export default function TasksPage() {
           </div>
         ) : (
         <>
-            {elementReponse?.getElements().length === 0 ? (
-                <span style={{
-                    color: "#514e4e",
-                    margin: "auto"
-                }}>Nie ma zadań...</span>
+            <Message
+                message={"Czy na pewno chcesz utworzyć nowe zadanie, ponieważ temat został już zamknięty?"}
+                textConfirm="Tak"
+                textCancel="Nie"
+                onConfirm={() => {
+                    setMsgPlayVisible(false);
+
+                    if (sectionType == "Stories") {
+                        router.push("/interactive-play");
+                    }
+                    else {
+                        router.push("/play");
+                    }
+                }}
+                onClose={() => {
+                    setMsgPlayVisible(false);
+                }}
+                visible={msgPlayVisible}
+            />
+            
+            <div style={{ 
+                padding: "8px", 
+                width: "100%",
+            }}>
+                <div 
+                    className="text-title text-topic-note"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleTopicNoteExpand();
+                    }}
+                >
+                    {topicNote && sectionType !== "Stories" && (
+                        <div 
+                            className="btnElement" 
+                            style={{
+                                marginRight: "4px",
+                                fontWeight: "bold"
+                            }}
+                        >
+                            {expandedTopicNote ? <Minus size={26} /> : <Plus size={26} />}
+                        </div>
+                    )}
+                    {topicName}
+                </div>
+                {expandedTopicNote && (
+                    <div className="topic-note">
+                        <FormatText content={topicNote} />
+                    </div>
+                )}
+            </div>
+
+            {elementReponse?.getElements().length === 0 && !expandedTopicNote ? (
+                <>
+                    <span style={{
+                        color: "#514e4e",
+                        margin: "auto"
+                    }}>Nie ma zadań...</span>
+                </>
             ) : (<>
-          {elementReponse?.getElements().map((element, index) => (
-              <div key={index} className="table">
+            {elementReponse?.getElements().map((element, index) => (
+                <div key={index} className="table">
                   <div
                       className="element element-section"
                       style={{
@@ -354,40 +543,46 @@ export default function TasksPage() {
                               content={ElementResponse.truncateText(task.text, 240) ?? ""}
                           />
                       </div>
-                      <div
-                          style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              flexWrap: "nowrap",
-                              gap: "12px",
-                              overflowWrap: "break-word",
-                          }}
-                      >
-                          <div style={{
-                              flexShrink: 0,
-                              fontWeight: "bold"
-                              }}>Rozdział:</div>
-                              <div style={{ flex: 1 }}>
-                                  <FormatText content={task.section.name ?? ""} />
-                              </div>
-                      </div>
-                      <div
-                          style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              flexWrap: "nowrap",
-                              gap: "12px",
-                              overflowWrap: "break-word",
-                          }}
-                      >
-                          <div style={{
-                              flexShrink: 0,
-                              fontWeight: "bold"
-                          }}>Temat:</div>
-                          <div style={{ flex: 1 }}>
-                              <FormatText content={task.topic.name ?? ""} />
-                          </div>
-                      </div>
+
+                      {task.note && (
+                        <div style={{ 
+                            marginTop: "8px", 
+                            width: "100%"
+                        }}>
+                            <div 
+                                className="text-title" 
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    cursor: "pointer"
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleNoteExpand(task.id);
+                                }}
+                            >
+                                <div 
+                                    className="btnElement" 
+                                    style={{
+                                        marginRight: "4px",
+                                        fontWeight: "bold"
+                                    }}
+                                >
+                                    {expandedNotes[task.id] ? <Minus size={26} /> : <Plus size={26} />}
+                                </div>
+                                Notatka:
+                            </div>
+                            {expandedNotes[task.id] && (
+                                <div style={{ 
+                                    paddingLeft: "20px", 
+                                    marginTop: "8px",
+                                    width: "100%"
+                                }}>
+                                    <FormatText content={task.note} />
+                                </div>
+                            )}
+                        </div>
+                    )}
                   </div>
 
                   <div className="element-options" style={{
@@ -400,7 +595,7 @@ export default function TasksPage() {
                       </div>
                       <div>
                         {task.section.type == "Stories" && task.wordsCount != 0 ? (<button
-                            className={`btnOption ${!task.vocabluary ? "vocabluary" : ""}`}
+                            className={`btnOption ${task.vocabluary ? "vocabluary" : "vocabluary-progress"}`}
                             style={{
                               minWidth: "48px",
                               marginBottom: "4px"
@@ -421,7 +616,6 @@ export default function TasksPage() {
                   </div>
               </div>))}
           </div>))}
-          <br />
           </>)}
           </>
         )}

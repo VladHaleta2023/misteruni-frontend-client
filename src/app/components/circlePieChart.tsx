@@ -1,14 +1,14 @@
 'use client';
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
-const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte', 'Zablokowane'];
-const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb', '#4a4a4a'];
+const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte'];
+const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb'];
 
 interface CirclePieChartProps {
-  percents: [number, number, number, number];
+  percents: [number, number, number];
   statistics?: {
     solvedTasksCount: number | null;
     solvedTasksCountCompleted: number | null;
@@ -30,24 +30,27 @@ export default function CirclePieChart({
   percents,
   statistics,
   names,
-  width = '45vw',
+  width = '70vw',
   maxWidth = '280px',
   fontSize = '16px',
   onPrev,
   onNext,
   showStatistic = true,
 }: CirclePieChartProps) {
+  const [containerWidth, setContainerWidth] = useState(width);
+  const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
+  const [containerFontSize, setContainerFontSize] = useState(fontSize);
+  const [isMobile, setIsMobile] = useState(false);
+  const initializedRef = useRef(false);
+
   const data = percents.map((percent, i) => ({
     name: names && names[i] ? names[i] : DEFAULT_NAMES[i],
     percent,
   }));
 
-  const [containerWidth, setContainerWidth] = useState(width);
-  const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
-  const [containerFontSize, setContainerFontSize] = useState(fontSize);
-  const [isMobile, setIsMobile] = useState(false);
-
   useEffect(() => {
+    if (initializedRef.current) return;
+    
     function updateSize() {
       const w = window.innerWidth;
       setIsMobile(w < 768);
@@ -64,8 +67,20 @@ export default function CirclePieChart({
     }
 
     updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
+    
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateSize, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    initializedRef.current = true;
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimeout);
+    };
   }, [width, maxWidth, fontSize]);
 
   return (
@@ -140,7 +155,7 @@ export default function CirclePieChart({
                   stroke="none"
                   isAnimationActive={false}
                 >
-                  {data.slice(0, -1).map((_, index) => (
+                  {data.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -226,7 +241,7 @@ export default function CirclePieChart({
             marginTop: '10px',
           }}
         >
-          {data.slice(0, -2).map((item, index) => (
+          {data.slice(0, -1).map((item, index) => (
             <div
               key={index}
               style={{

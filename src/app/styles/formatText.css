@@ -1,0 +1,23 @@
+.format-text {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.6;
+  font-size: inherit;
+}
+
+.format-text strong {
+  font-weight: bold;
+  color: inherit;
+}
+
+.format-text em {
+  font-style: italic;
+}
+
+.format-text code {
+  background-color: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}

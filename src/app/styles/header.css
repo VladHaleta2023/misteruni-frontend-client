@@ -2,32 +2,43 @@
   --header-height: 64px;
 }
 
-.header {
+.header-wrapper {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
+  z-index: 2000;
+}
+
+.misterUniLogo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+}
+
+.header {
+  max-width: 800px;
   height: var(--header-height);
   min-height: 64px;
+  margin: 0 auto;
   background-color: #333333;
   color: white;
   padding: 0 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  z-index: 2000;
   box-sizing: border-box;
   user-select: none;
 }
 
 .menu-icons {
   display: flex;
-  flex-direction: row-reverse;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
 }
 
 .menu-icon {
-  padding: 5px 8px;
+  padding: 5px 6px;
   border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -42,7 +53,7 @@
 }
 
 @media (max-width: 768px) {
-  .menu-icons {
-    flex-direction: row;
+  .misterUniLogo {
+    font-size: 22px;
   }
 }

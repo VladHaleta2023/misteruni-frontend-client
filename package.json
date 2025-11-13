@@ -11,18 +11,22 @@
   "dependencies": {
     "@mantine/core": "^8.3.1",
     "axios": "^1.10.0",
-    "katex": "^0.16.22",
+    "katex": "^0.16.25",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.525.0",
+    "marked": "^16.4.1",
     "next": "15.3.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-katex": "^3.1.0",
     "react-toastify": "^11.0.5",
-    "recharts": "^3.0.2"
+    "recharts": "^3.0.2",
+    "remove-markdown": "^0.6.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/katex": "^0.16.7",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20",
     "@types/react": "^19",

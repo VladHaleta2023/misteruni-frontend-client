@@ -37,6 +37,7 @@ export default function InteractivePlayPage() {
             stage: 0,
             text: "",
             note: "",
+            topicNote: "",
             explanation: "",
             percent: 0,
             status: "started",
@@ -709,12 +710,9 @@ export default function InteractivePlayPage() {
 
                 const stage = task?.stage ?? 0;
 
-                const taskId: number = Number(localStorage.getItem("taskId"));
+                if (localStorage.getItem("taskId")) {
+                    const taskId: number = Number(localStorage.getItem("taskId"));
 
-                if (task && task.id)
-                    localStorage.setItem("taskId", task.id);
-
-                if (!task && taskId) {
                     task = await fetchTaskById(
                         subjectId,
                         sectionId,
@@ -725,13 +723,22 @@ export default function InteractivePlayPage() {
 
                     if (signal.aborted) return;
 
-                    setTask(task);
-                    setSentences(await splitIntoSentences(task.text));
-                    setWords(extractWords(task.text));
+                    if (task) {
+                        setTask(task);
+                        setSentences(await splitIntoSentences(task.text));
+                        setWords(extractWords(task.text));
+                    } else {
+                        showAlert(400, "Nie udało się pobrać zadania");
+                    }
 
-                    setLoading(false);
-                    return;
+                    if (task.finished) {
+                        setLoading(false);
+                        return;
+                    }
                 }
+
+                if (task && task.id && !localStorage.getItem("taskId"))
+                    localStorage.setItem("taskId", task.id);
 
                 if (!task || stage < 4) {
                     await loadTask(subjectId, sectionId, topicId, stage, signal);
@@ -739,10 +746,15 @@ export default function InteractivePlayPage() {
                 }
 
                 task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+                if (signal.aborted) return;
 
-                setTask(task);
-                setSentences(await splitIntoSentences(task.text));
-                setWords(extractWords(task.text));
+                if (task) {
+                    setTask(task);
+                    setSentences(await splitIntoSentences(task.text));
+                    setWords(extractWords(task.text));
+                } else {
+                    showAlert(400, "Nie udało się pobrać zadania");
+                }
                 
                 setLoading(false);
             } catch (error) {
@@ -1067,17 +1079,17 @@ export default function InteractivePlayPage() {
         <>
             <Header>
                 <div className="menu-icons">
+                    <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+                        <ArrowLeft size={28} color="white" />
+                    </div>
                     <div className="menu-icon" title="Słownik" onClick={(e) => {
                         e.stopPropagation();
                         setMsgDeleteVisible(true);
                     }} style={{ cursor: "pointer" }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Słownik" onClick={handleStoriesClick} style={{ cursor: "pointer" }}>
+                    <div className="menu-icon" title="Słownik" onClick={handleStoriesClick} style={{ cursor: "pointer", marginLeft: "auto" }}>
                         <Text size={28} color="white" />
-                    </div>
-                    <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
-                        <ArrowLeft size={28} color="white" />
                     </div>
                 </div>
             </Header>
@@ -1179,7 +1191,7 @@ export default function InteractivePlayPage() {
                                             style={{minWidth: "48px"}}
                                             onClick={handleTranslateclick}
                                         >
-                                            {isOriginal ? "PL" : "EN"}
+                                            {isOriginal ? "RU" : "EN"}
                                         </button>) : null}
                                         {!isSentences ? (<button
                                             className="btnOption"

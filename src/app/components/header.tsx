@@ -11,9 +11,11 @@ interface HeaderProps {
 
 export default function Header({ children }: HeaderProps) {
   return (
-    <header className="header">
-      <span className="misterUniLogo">MisterUni</span>
-      {children}
-    </header>
+    <div className="header-wrapper">
+      <header className="header">
+        <span className="misterUniLogo">MisterUni</span>
+        {children}
+      </header>
+    </div>
   );
 }
