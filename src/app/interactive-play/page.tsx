@@ -16,6 +16,12 @@ import FormatText from "../components/formatText";
 import React from "react";
 import { setMainHeight } from "../scripts/mainHeight";
 import Message from "../components/message";
+import RadioMessageOK from "../components/radioMessageOK";
+
+enum PlayBackRateOption {
+    Normal = 'Normal',
+    Slow = 'Slow',
+}
 
 export default function InteractivePlayPage() {
     const router = useRouter();
@@ -23,6 +29,11 @@ export default function InteractivePlayPage() {
     const [textLoading, setTextLoading] = useState<string>("");
 
     const [isPlaying, setIsPlaying] = useState(false);
+
+    const [playBackRateOption, setPlayBackRateOption] = useState<PlayBackRateOption>(PlayBackRateOption.Normal);
+
+    const [msgVisible, setMsgVisible] = useState<boolean>(false);
+
     const audioRef = useRef<HTMLAudioElement>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -45,7 +56,6 @@ export default function InteractivePlayPage() {
             options: [],
             explanations: [],
             subtopics: [],
-            correctOptionIndex: 0,
             answered: false,
             finished: false,
             userOptionIndex: 0,
@@ -203,7 +213,7 @@ export default function InteractivePlayPage() {
                 let text = "";
                 let translate = "";
                 let errors: string[] = [];
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { text: "", translate: "" };
@@ -253,7 +263,7 @@ export default function InteractivePlayPage() {
                 let attempt = 0;
                 let questions: string[] = [];
                 let errors: string[] = [];
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return [];
@@ -303,19 +313,20 @@ export default function InteractivePlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let explanations: string[] = [];
-                let correctOptionIndex = 0;
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
+                const random1: number = Math.floor(Math.random() * 4);
+                const random2 = 3 - random1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], explanations: [] };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOptionIndex, explanations },
+                        { changed, errors, attempt, subtopics: [], text, solution, options, explanations, random1, random2 },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], explanations: [] };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -324,7 +335,6 @@ export default function InteractivePlayPage() {
                         solution = response.data.solution;
                         options = response.data.options;
                         explanations = response.data.explanations;
-                        correctOptionIndex = response.data.correctOptionIndex;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
                     } else {
@@ -333,11 +343,11 @@ export default function InteractivePlayPage() {
                     }
                 }
 
-                return { options, explanations, correctOptionIndex };
+                return { options, explanations };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
+                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [] };
                 handleApiError(error);
-                return { options: [], explanations: [], correctOptionIndex: 0 };
+                return { options: [], explanations: [] };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -354,7 +364,6 @@ export default function InteractivePlayPage() {
         options: string[],
         explanations: string[],
         taskSubtopics: string[],
-        correctOptionIndex: number,
         signal?: AbortSignal,
         id?: number
     ) => {
@@ -368,7 +377,6 @@ export default function InteractivePlayPage() {
                     solution,
                     options,
                     explanations,
-                    correctOptionIndex,
                     taskSubtopics
                 },
                 { signal }
@@ -426,7 +434,6 @@ export default function InteractivePlayPage() {
                     [],
                     [],
                     [],
-                    0,
                     signal,
                     taskId
                 );
@@ -503,7 +510,7 @@ export default function InteractivePlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, translate, [], [], [], 0, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, translate, [], [], [], signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -556,7 +563,6 @@ export default function InteractivePlayPage() {
                         const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, subTasks[i].text, text, i + 1, subTasks.length, signal);
                         const options = optionsResult.options ?? [];
                         const explanations = optionsResult.explanations ?? [];
-                        const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                         if (!options.length || options.length != 4) {
                             setLoading(false);
@@ -566,7 +572,6 @@ export default function InteractivePlayPage() {
 
                         subTasks[i].options = options;
                         subTasks[i].explanations = explanations;
-                        subTasks[i].correctOptionIndex = correctOptionIndex;
                         subTasks[i].stage = 3;
                         
                         await handleSaveSubTasksTransaction(
@@ -592,7 +597,6 @@ export default function InteractivePlayPage() {
                     [],
                     [],
                     [],
-                    0,
                     signal,
                     taskId
                 );
@@ -824,6 +828,7 @@ export default function InteractivePlayPage() {
         const playAudio = async () => {
             try {
                 if (isPlaying) {
+                    audioEl.playbackRate = playBackRateOption === PlayBackRateOption.Normal ? 1 : 0.5;
                     await audioEl.play();
                 } else {
                     audioEl.pause();
@@ -1075,6 +1080,10 @@ export default function InteractivePlayPage() {
         }
     }, [subjectId, task.id]);
 
+    const handlePlayBackRateOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setPlayBackRateOption(e.target.value as PlayBackRateOption);
+    };
+
     return (
         <>
             <Header>
@@ -1095,6 +1104,42 @@ export default function InteractivePlayPage() {
             </Header>
 
             <main>
+                <RadioMessageOK 
+                    message={`Prędkość odtwarzania audio`}
+                    textConfirm="Zatwierdź"
+                    onConfirm={() => {
+                        setMsgVisible(false);
+                        handlePlayPause();
+                    }}
+                    visible={msgVisible}
+                    btnsWidth="140px"
+                >
+                <div className="radio-group">
+                    <label className="radio-option">
+                        <input
+                            type="radio"
+                            name="playBackRateOption"
+                            value={PlayBackRateOption.Normal}
+                            checked={playBackRateOption === PlayBackRateOption.Normal}
+                            onChange={handlePlayBackRateOptionChange}
+                        />
+                        <span>{PlayBackRateOption.Normal}</span>
+                    </label>
+
+                    <label className="radio-option">
+                        <input
+                            type="radio"
+                            name="playBackRateOption"
+                            value={PlayBackRateOption.Slow}
+                            checked={playBackRateOption === PlayBackRateOption.Slow}
+                            onChange={handlePlayBackRateOptionChange}
+                        />
+                        <span>{PlayBackRateOption.Slow}</span>
+                    </label>
+
+                    </div>
+                </RadioMessageOK>
+
                 <Message
                     message={"Czy na pewno chcesz usunąć zadanie?"}
                     textConfirm="Tak"
@@ -1168,7 +1213,13 @@ export default function InteractivePlayPage() {
                                     </button>) : null}
                                     {isSentences ? (<button
                                         className="btnOption"
-                                        onClick={handlePlayPause}
+                                        onClick={() => {
+                                            if (isPlaying) {
+                                                handlePlayPause();
+                                            }
+                                            else
+                                                setMsgVisible(true);
+                                        }}
                                         disabled={(!task.finished && audioRepeat >= 3) ? true : false}>
                                         {isPlaying ? <Pause size={24} /> : <Play size={24} />}
                                     </button>) : null}
@@ -1242,7 +1293,7 @@ export default function InteractivePlayPage() {
                                         {shuffledOptionsBySubTask[subTaskIndex]?.map(({ option, originalIndex }) => (
                                             <div key={originalIndex}>
                                                 <label
-                                                    className={`radio-option ${subTask.finished ? "finished" : ""} ${originalIndex === subTask.correctOptionIndex ? "correct" : ""}`}
+                                                    className={`radio-option ${subTask.finished ? "finished" : ""} ${originalIndex === 0 ? "correct" : ""}`}
                                                     style={{ marginBottom: "12px" }}
                                                 >
                                                     <input

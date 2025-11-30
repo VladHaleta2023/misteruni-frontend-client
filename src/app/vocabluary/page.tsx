@@ -334,7 +334,7 @@ export default function StoriesPage() {
   );
 
   const handleUpdateWords = useCallback(
-    async (outputWords: string[], signal?: AbortSignal) => {
+    async (outputWords: string[], verifiedWordIds: number[], signal?: AbortSignal) => {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");
 
       try {
@@ -344,7 +344,7 @@ export default function StoriesPage() {
 
         const response = await api.put(
           url,
-          { outputWords, wordIds },
+          { outputWords, wordIds: verifiedWordIds },
           { signal }
         );
 
@@ -362,7 +362,7 @@ export default function StoriesPage() {
         setLoading(false);
       }
     },
-    [subjectId, sectionId, topicId, taskId, wordIds]
+    [subjectId, sectionId, topicId, taskId]
   );
 
   const handleVerifyWords = useCallback(async () => {
@@ -371,19 +371,25 @@ export default function StoriesPage() {
       return;
     }
 
-    const filledPairs: [string, string][] = words
+    const filledPairsWithIds = words
       .map(word => {
         const value = getValueById(word.id);
-        return value.trim() ? [word.text, value.trim()] : null;
+        if (!value.trim()) return null;
+        return { 
+          id: word.id, 
+          text: word.text, 
+          translation: value.trim() 
+        };
       })
-      .filter(Boolean) as [string, string][];
+      .filter(Boolean) as { id: number, text: string, translation: string }[];
 
-    if (!subjectId || !sectionId || !topicId) return;
-
-    if (filledPairs.length === 0) {
+    if (filledPairsWithIds.length === 0) {
       showAlert(400, "Nie ma słów lub wyrazów do weryfikacji");
       return;
     }
+
+    const filledPairs: [string, string][] = filledPairsWithIds.map(item => [item.text, item.translation]);
+    const verifiedWordIds = filledPairsWithIds.map(item => item.id);
 
     setLoading(true);
     setVerificationCompleted(false);
@@ -408,7 +414,7 @@ export default function StoriesPage() {
       setOutputText(outputText);
       localStorage.setItem('outputText', outputText);
 
-      await handleUpdateWords(outputWords, signal);
+      await handleUpdateWords(outputWords, verifiedWordIds, signal);
 
       setWordsVerified(true);
       setOutputText(outputText);
@@ -424,6 +430,30 @@ export default function StoriesPage() {
       } else {
         await findWords();
       }
+
+      setWords(prevWords => {
+        const sortedWords = [...prevWords].sort((a, b) => {
+          const aValue = getValueById(a.id);
+          const bValue = getValueById(b.id);
+          const aHasTranslation = aValue.trim() !== "";
+          const bHasTranslation = bValue.trim() !== "";
+          
+          const getPriority = (word: Word, hasTranslation: boolean) => {
+            if (!word.finished && hasTranslation) return 1;
+            if (word.finished && hasTranslation) return 2;
+            if (hasTranslation) return 3;
+            return 4;
+          };
+          
+          const aPriority = getPriority(a, aHasTranslation);
+          const bPriority = getPriority(b, bHasTranslation);
+          
+          return aPriority - bPriority;
+        });
+        
+        return sortedWords;
+      });
+
     } catch (error: unknown) {
       if ((error as DOMException)?.name === "AbortError") return;
       handleApiError(error);

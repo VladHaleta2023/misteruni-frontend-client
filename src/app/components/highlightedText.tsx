@@ -16,19 +16,15 @@ export default function HighlightedText({ word, text }: HighlightedTextProps) {
       const validWords = word.split(/\s+/).filter(Boolean);
       if (!validWords.length) return <>{text}</>;
 
-      const wordPattern = validWords
-        .map(word => `${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
-        .join('|');
+      const wordSet = new Set(validWords.map(w => w.toLowerCase()));
       
-      const regex = new RegExp(`(${wordPattern})`, 'gi');
-      const parts = text.split(regex);
+      const parts = text.split(/(\W+)/);
       
       return parts.map((part, index) => {
         if (!part) return null;
         
-        const isBold = validWords.some(validWord => 
-          part.toLowerCase().includes(validWord.toLowerCase())
-        );
+        const isWord = /\w+/.test(part);
+        const isBold = isWord && wordSet.has(part.toLowerCase());
         
         return isBold ? (
           <span key={index} style={{ fontWeight: "bold" }}>

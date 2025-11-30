@@ -19,7 +19,6 @@ export interface ITask {
     subTasks: ITask[];
     audioFiles: string[];
     subtopics: ISubtopic[];
-    correctOptionIndex: number;
     answered: boolean;
     finished: boolean;
     percent: number;
@@ -64,10 +63,6 @@ export class Task {
 
     public setSubtopics(subtopics: ISubtopic[]) {
         this.task.subtopics = subtopics;
-    }
-
-    public setCorrectOptionIndex(correctOptionIndex: number) {
-        this.task.correctOptionIndex = correctOptionIndex;
     }
 
     public setAnswered(answered: boolean) {

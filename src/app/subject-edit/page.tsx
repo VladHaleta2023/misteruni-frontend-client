@@ -18,7 +18,6 @@ export default function MainPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const [difficultyText, setDifficultyText] = useState("");
   const [thresholdText, setThresholdText] = useState("");
 
   const fetchSubject = useCallback(async (id: number) => {
@@ -28,7 +27,6 @@ export default function MainPage() {
       setLoading(false);
 
       if (response.data?.statusCode === 200) {
-        setDifficultyText(response.data.subject.difficulty);
         setThresholdText(response.data.subject.threshold);
       } else {
         showAlert(response.data.statusCode, response.data.message);
@@ -87,7 +85,6 @@ export default function MainPage() {
 
     try {
       const response = await api.put(`/subjects/${subjectId}`, {
-        difficulty: Number(difficultyText),
         threshold: Number(thresholdText)
       });
 
@@ -131,18 +128,6 @@ export default function MainPage() {
           </div>
         ) : (
             <div className="form-container">
-                <div className="options-container">
-                    <label htmlFor="difficulty" className="label">Trudność:</label>
-                    <input
-                        type="text"
-                        id="difficulty"
-                        name="text-container"
-                        value={difficultyText}
-                        onInput={(e) => setDifficultyText((e.target as HTMLTextAreaElement).value)}
-                        className="text-container"
-                        placeholder="Proszę napisać trudność..."
-                    />
-                </div>
                 <div className="options-container" style={{ marginTop: "12px" }}>
                     <label htmlFor="threshold" className="label">Próg:</label>
                     <input

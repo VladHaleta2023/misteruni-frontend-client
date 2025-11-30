@@ -31,6 +31,7 @@ enum OptionsGenerate {
 interface Subtopic {
     name: string;
     percent: number;
+    importance?: number;
 }
 
 export default function PlayPage() {
@@ -79,7 +80,6 @@ export default function PlayPage() {
             options: [],
             explanations: [],
             subtopics: [],
-            correctOptionIndex: 0,
             answered: false,
             finished: false,
             userOptionIndex: 0,
@@ -293,15 +293,23 @@ export default function PlayPage() {
                     }
                 }
 
+                let subtopics: Subtopic[] | null = null;
+                const storedModeSubtopic = localStorage.getItem("ModeSubtopic");
+
+                if (mode === "strict" && storedModeSubtopic) {
+                    subtopics = [];
+                    subtopics.push(JSON.parse(storedModeSubtopic));
+                }
+
                 let outputSubtopics: string[] = [];
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { text: "", note: "", outputSubtopics: [] };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
-                        { changed, errors, attempt, text, note, outputSubtopics, mode, taskId },
+                        { changed, errors, attempt, text, note, outputSubtopics, subtopics, mode, taskId },
                         { signal: activeSignal }
                     );
 
@@ -333,7 +341,7 @@ export default function PlayPage() {
     );
 
     const handleSolutionGenerate = useCallback(
-        async (subjectId: number, sectionId: number, topicId: number, text: string, signal?: AbortSignal) => {
+        async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, signal?: AbortSignal) => {
             setTextLoading("Generowanie rozwiązania zadania");
 
             const controller = !signal ? new AbortController() : null;
@@ -345,14 +353,14 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let solution = "";
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return "";
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/solution-generate`,
-                        { changed, errors, attempt, text, solution },
+                        { changed, errors, attempt, subtopics, text, solution },
                         { signal: activeSignal }
                     );
 
@@ -383,7 +391,7 @@ export default function PlayPage() {
     );
 
     const handleOptionsGenerate = useCallback(
-        async (subjectId: number, sectionId: number, topicId: number, text: string, solution: string, signal?: AbortSignal) => {
+        async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, solution: string, signal?: AbortSignal) => {
             setTextLoading("Generowanie wariantów zadania");
 
             const controller = !signal ? new AbortController() : null;
@@ -396,19 +404,20 @@ export default function PlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let explanations: string[] = [];
-                let correctOptionIndex = 0;
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
+                const random1: number = Math.floor(Math.random() * 4);
+                const random2 = 3 - random1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], explanations: [] };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, solution, options, explanations, correctOptionIndex },
+                        { changed, errors, attempt, text, subtopics, solution, options, explanations, random1, random2 },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], explanations: [] };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -417,7 +426,6 @@ export default function PlayPage() {
                         solution = response.data.solution;
                         options = response.data.options;
                         explanations = response.data.explanations;
-                        correctOptionIndex = response.data.correctOptionIndex;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
                     } else {
@@ -426,11 +434,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return { options, explanations, correctOptionIndex };
+                return { options, explanations };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
+                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [] };
                 handleApiError(error);
-                return { options: [], explanations: [], correctOptionIndex: 0 };
+                return { options: [], explanations: [] };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -448,7 +456,6 @@ export default function PlayPage() {
         options: string[],
         explanations: string[],
         taskSubtopics: string[],
-        correctOptionIndex: number,
         signal?: AbortSignal,
         id?: number
     ) => {
@@ -463,7 +470,6 @@ export default function PlayPage() {
                     solution,
                     options,
                     explanations,
-                    correctOptionIndex,
                     taskSubtopics
                 },
                 { signal }
@@ -490,9 +496,8 @@ export default function PlayPage() {
             subtopics: Subtopic[],
             solution: string,
             options: string[],
-            correctOptionIndex: number,
+            correctOption: string,
             userSolution: string,
-            userOptionIndex: number,
             signal?: AbortSignal
         ): Promise<{
             outputSubtopics: string[];
@@ -511,14 +516,14 @@ export default function PlayPage() {
                 let outputSubtopics: string[] = [];
                 let explanation: string = "";
                 const taskSubtopics = subtopics?.map(s => s.name) ?? [];
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOptionIndex, userSolution, userOptionIndex, subtopics: taskSubtopics, outputSubtopics, explanation },
+                        { changed, errors, attempt, text, solution, options, correctOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
                         { signal: activeSignal }
                     );
 
@@ -656,7 +661,7 @@ export default function PlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], [], taskSubtopics, 0, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], [], taskSubtopics, signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -672,7 +677,7 @@ export default function PlayPage() {
             taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
 
             if (stage < 2) {
-                const solution = await handleSolutionGenerate(subjectId, sectionId, topicId, text, signal);
+                const solution = await handleSolutionGenerate(subjectId, sectionId, topicId, taskSubtopics, text, signal);
 
                 if (!solution) {
                     setLoading(false);
@@ -682,7 +687,7 @@ export default function PlayPage() {
 
                 stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], [], taskSubtopics, 0, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], [], taskSubtopics, signal, taskId);
             }
 
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -691,13 +696,13 @@ export default function PlayPage() {
             }
 
             text = newTask.text ?? "";
+            taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
             const solution = newTask.solution ?? "";
 
             if (stage < 3) {
-                const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, text, solution, signal);
+                const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, taskSubtopics, text, solution, signal);
                 const options = optionsResult.options ?? [];
                 const explanations = optionsResult.explanations ?? [];
-                const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                 if (!options.length || options.length != 4) {
                     setLoading(false);
@@ -707,7 +712,7 @@ export default function PlayPage() {
 
                 stage = 3;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, explanations, taskSubtopics, correctOptionIndex, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, explanations, taskSubtopics, signal, taskId);
             }
         } catch (error) {
             setLoading(false);
@@ -815,9 +820,8 @@ export default function PlayPage() {
                         task.subtopics ?? [],
                         task.solution ?? "",
                         task.options ?? [],
-                        task.correctOptionIndex ?? 0,
+                        task.options[0] ?? "",
                         task.userSolution ?? "",
-                        task.userOptionIndex ?? 0,
                         signal
                     );
 
@@ -964,6 +968,9 @@ export default function PlayPage() {
     const handleBackClick = () => {
         localStorage.removeItem("answerText");
         localStorage.removeItem("taskId");
+        localStorage.removeItem("Mode");
+        localStorage.removeItem("ModeTaskId");
+        localStorage.removeItem("ModeSubtopics");
 
         router.back();
     };
@@ -1221,13 +1228,13 @@ export default function PlayPage() {
             outputSubtopics.map(item => [item.name, item.percent])
         );
 
-        const bonus = userOptionIndex === task.getTask().correctOptionIndex ? 25 : 0;
+        const bonus = userOptionIndex === 0 ? 20 : 0;
 
         return subtopics.map(item => {
             const subtractValue = outputMap.get(item.name) || 0;
             return {
                 name: item.name,
-                percent: (100 - subtractValue) * 0.75 + bonus
+                percent: (100 - subtractValue) * 0.80 + bonus
             };
         });
     }
@@ -1290,9 +1297,8 @@ export default function PlayPage() {
                     newTask.subtopics ?? [],
                     newTask.solution ?? "",
                     newTask.options ?? [],
-                    newTask.correctOptionIndex ?? 0,
+                    newTask.options[0] ?? "",
                     newTask.userSolution ?? "",
-                    newTask.userOptionIndex ?? 0,
                     signal
                 );
 
@@ -1435,6 +1441,7 @@ export default function PlayPage() {
 
                         if (!loading)
                             setTextLoading("Trwa usuwanie zadania");
+
                         setLoading(true);
                         if (task?.getTask().id) {
                             handleDeleteTask().then(() => {
@@ -1672,7 +1679,7 @@ export default function PlayPage() {
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {shuffledOptions.map(({ option, originalIndex }) => (
                                         <div key={originalIndex}>
-                                            <label className={`radio-option ${task.getTask().finished ? "finished" : ""} ${originalIndex === task.getTask().correctOptionIndex ? "correct" : ""}`} style={{marginBottom: "12px"}}>
+                                            <label className={`radio-option ${task.getTask().finished ? "finished" : ""} ${originalIndex === 0 ? "correct" : ""}`} style={{marginBottom: "12px"}}>
                                                 <input
                                                     type="radio"
                                                     name="userOption"

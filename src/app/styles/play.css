@@ -212,4 +212,9 @@ progress.progress-bar::-moz-progress-bar {
     padding: 12px;
     -webkit-overflow-scrolling: touch;
   }
+
+  .text-title {
+    font-weight: bold;
+    font-size: 17px;
+  }
 }

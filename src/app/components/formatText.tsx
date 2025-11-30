@@ -24,6 +24,7 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/^## (.*)$/gm, '<h2>$1</h2>')
       .replace(/^# (.*)$/gm, '<h1>$1</h1>');
 
+    /*
     cleaned = cleaned.replace(
       /(^\d+\.\s.*(\n\d+\.\s.*)*)/gm,
       (match) => {
@@ -35,7 +36,9 @@ export default function FormatText({ content }: FormatTextProps) {
         return `<ol>${items}</ol>`;
       }
     );
+    */
 
+    /*
     cleaned = cleaned.replace(
       /(^- .*(\n- .*)*)/gm,
       (match) => {
@@ -47,6 +50,7 @@ export default function FormatText({ content }: FormatTextProps) {
         return `<ul>${items}</ul>`;
       }
     );
+    */
 
     cleaned = cleaned
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')

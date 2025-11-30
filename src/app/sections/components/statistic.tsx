@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Minus, Play } from "lucide-react";
+import { Plus, Minus, Play, AlertCircle } from "lucide-react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
@@ -26,8 +26,10 @@ interface Topic {
   percent: number;
   delta: number;
   frequency: number;
+  baseFrequency: number;
   deltaStatus: DeltaStatus;
   status: Status;
+  repeat: boolean;
   subtopics?: Subtopic[];
 }
 
@@ -39,6 +41,7 @@ interface Section {
   delta: number;
   deltaStatus: DeltaStatus;
   status: Status;
+  repeat: boolean;
   topics?: Topic[];
 }
 
@@ -267,8 +270,13 @@ export default function Statistics() {
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
     localStorage.setItem("sectionType", String(sectionType));
+    localStorage.setItem("topicPercent", String(topic.percent));
+    localStorage.setItem("topicStatus", String(topic.status));
 
-    router.push("/tasks");
+    if (sectionType === "Stories" || weekOffset !== 0)
+      router.push("/tasks");
+    else
+      router.push("/subtopics");
   };
 
   const ChartComponent = useCallback(() => {
@@ -319,9 +327,9 @@ export default function Statistics() {
                       }}
                     >
                       {expandedSections[section.id] ? (
-                        <Minus size={24} />
+                        <Minus size={28} />
                       ) : (
-                        <Plus size={24} />
+                        <Plus size={28} />
                       )}
                     </button>
                   )}
@@ -332,6 +340,10 @@ export default function Statistics() {
                 </div>
 
                 <div className="element-options">
+                  {Array.isArray(section.topics) && section.topics.length > 0 && section.repeat && (
+                      <AlertCircle size={24} color="#800020" />
+                  )}
+  
                   {weekOffset === 0 ? (
                     <div
                       className={
@@ -360,12 +372,16 @@ export default function Statistics() {
                       key={`topic-${section.id}-${topic.id}`}
                     >
                       <div className="element-frequency" style={{ color: "#888888" }}>
-                        {section.type !== "Stories" ? topic.frequency : ""}
+                        {section.type !== "Stories" ? topic.baseFrequency : ""}
                       </div>
                       <div className="element-name" style={{ marginLeft: "0px" }}>
                         <FormatText content={topic.name ?? ""} />
                       </div>
                       <div className="element-options">
+                        {topic.repeat && (
+                          <AlertCircle size={24} color="#800020" />
+                        )}
+
                         <div
                           className={
                             weekOffset === 0
@@ -382,7 +398,7 @@ export default function Statistics() {
                             handleTopicPlayClick(section.id, topic, section.type);
                           }}
                         >
-                          <Play size={32} color="black" />
+                          <Play size={28} color="black" />
                         </button>): null}
                       </div>
                     </div>

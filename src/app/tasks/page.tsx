@@ -2,7 +2,7 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, ListCheck, Minus, Play, Plus } from 'lucide-react';
+import { ArrowLeft, Minus, Play, Plus } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ interface ITask {
     id: number;
     text: string;
     percent: number;
+    explanation: string;
     status: Status;
     vocabluary: boolean;
     wordsCount: number;
@@ -42,6 +43,7 @@ interface ITask {
         name: string,
         type: string
     };
+    subtopics: string[];
 }
 
 interface IElement {
@@ -101,6 +103,8 @@ export default function TasksPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
+  const [topicPercent, setTopicPercent] = useState<number | null>(null);
+  const [topicStatus, setTopicStatus] = useState<string | null>(null);
   const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
 
@@ -115,11 +119,14 @@ export default function TasksPage() {
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
   const [expandedNotes, setExpandedNotes] = useState<{[key: number]: boolean}>({});
+  const [expandedExplanations, setExpandedExplanations] = useState<{[key: number]: boolean}>({});
+  const [expandedSubtopics, setExpandedSubtopics] = useState<{[key: number]: boolean}>({});
   const [expandedTopicNote, setExpandedTopicNote] = useState(false);
 
   useEffect(() => {
     localStorage.removeItem("Mode");
     localStorage.removeItem("ModeTaskId");
+    localStorage.removeItem("ModeSubtopic");
 
     if (typeof window !== "undefined") {
         const storedSubjectId = localStorage.getItem("subjectId");
@@ -130,7 +137,7 @@ export default function TasksPage() {
         setTopicId(storedTopicId ? Number(storedTopicId) : null);
         const storedSectionType = localStorage.getItem("sectionType");
         setSectionType(storedSectionType ? String(storedSectionType) : null);
-
+        
         const storedWeekOffset = localStorage.getItem("weekOffset");
         const parsedWeekOffset = Number(storedWeekOffset);
 
@@ -170,6 +177,8 @@ export default function TasksPage() {
               setElementResponse(new ElementResponse(response.data.elements));
               setTopicNote(response.data.topic.note);
               setTopicName(response.data.topic.name);
+              setTopicPercent(response.data.topic.percent);
+              setTopicStatus(response.data.topic.status);
           } else {
               showAlert(response.data.statusCode, response.data.message);
           }
@@ -363,19 +372,29 @@ export default function TasksPage() {
     router.back();
   }
 
-  function handleSubtopicsClick() {
-    router.push("/subtopics");
-  }
-
   function handleTopicVocabluaryClick() {
     router.push("/topic-vocabluary");
   }
 
   const handleNoteExpand = useCallback((taskId: number) => {
-      setExpandedNotes(prev => ({
-          ...prev,
-          [taskId]: !prev[taskId]
-      }));
+    setExpandedNotes(prev => ({
+        ...prev,
+        [taskId]: !prev[taskId]
+    }));
+  }, []);
+
+  const handleExplanationExpand = useCallback((taskId: number) => {
+    setExpandedExplanations(prev => ({
+        ...prev,
+        [taskId]: !prev[taskId]
+    }));
+  }, []);
+
+  const handleSubtopicsExpand = useCallback((taskId: number) => {
+    setExpandedSubtopics(prev => ({
+        ...prev,
+        [taskId]: !prev[taskId]
+    }));
   }, []);
 
   const handleTopicNoteExpand = useCallback(() => {
@@ -394,14 +413,6 @@ export default function TasksPage() {
             >
                 <ArrowLeft size={28} color="white" />
             </div>
-            {sectionType !== "Stories" && weekOffset === 0 ? (<div
-                className="menu-icon"
-                title={"Przełącz do zadań"}
-                onClick={handleSubtopicsClick}
-                style={{ cursor: "pointer" }}
-            >
-                <ListCheck size={28} color="white" />
-            </div>) : null}
             <div style={{ marginLeft: 'auto', display: "flex", gap: "6px" }}>
                 {sectionType === "Stories" && weekOffset === 0 ? (<div
                     className="menu-icon"
@@ -412,7 +423,7 @@ export default function TasksPage() {
                     }}
                     style={{ cursor: "pointer" }}
                 >
-                    <ListCheck size={28} color="white" />
+                    <Text size={28} color="white" />
                 </div>) : null}
                 <div className="menu-icon" title="Play"
                     onClick={async (e) => {
@@ -474,22 +485,32 @@ export default function TasksPage() {
                 <div 
                     className="text-title text-topic-note"
                     onClick={(e) => {
+                        if (!topicNote || sectionType === "Stories")
+                            return;
+
                         e.stopPropagation();
                         handleTopicNoteExpand();
                     }}
                 >
-                    {topicNote && sectionType !== "Stories" && (
-                        <div 
-                            className="btnElement" 
-                            style={{
-                                marginRight: "4px",
-                                fontWeight: "bold"
-                            }}
-                        >
-                            {expandedTopicNote ? <Minus size={26} /> : <Plus size={26} />}
+                    <div className="element-name" style={{ margin: "0px" }}>
+                        {topicNote && sectionType !== "Stories" && (
+                            <div 
+                                className="btnElement" 
+                                style={{
+                                    marginRight: "4px",
+                                    fontWeight: "bold"
+                                }}
+                            >
+                                {expandedTopicNote ? <Minus size={26} /> : <Plus size={26} />}
+                            </div>
+                        )}
+                        {topicName}
+                    </div>
+                    <div className="element-options">
+                        <div className={`element-percent ${topicStatus}`}>
+                            {topicPercent}%
                         </div>
-                    )}
-                    {topicName}
+                    </div>
                 </div>
                 {expandedTopicNote && (
                     <div className="topic-note">
@@ -521,7 +542,7 @@ export default function TasksPage() {
                   <div
                       className={`element element-task ${!task.finished ? "not-finished" : ""}`}
                       style={{
-                          justifyContent: "space-between"
+                        justifyContent: "space-between"
                       }}
                       onClick={() => 
                           handleTaskClick(
@@ -535,18 +556,66 @@ export default function TasksPage() {
                       key={task.id}
                   >
                   <div className="element-name" style={{
-                      flexDirection: "column",
-                      alignItems: "flex-start"
+                    flexDirection: "column",
+                    alignItems: "flex-start"
                   }}>
-                      <div style={{ display: "flex" }}>
-                          <FormatText
-                              content={ElementResponse.truncateText(task.text, 240) ?? ""}
-                          />
-                      </div>
+                    <div style={{ display: "flex", marginBottom: "8px", }}>
+                        {sectionType !== "Stories" ? (
+                          <FormatText content={task.text ?? ""} />
+                        ) : (
+                          ElementResponse.truncateText(task.text, 300)
+                        )}
+                    </div>
 
-                      {task.note && (
-                        <div style={{ 
-                            marginTop: "8px", 
+                    {task.subtopics && task.subtopics.length > 0 && (
+                    <div style={{ 
+                        marginBottom: "8px", 
+                        width: "100%"
+                    }}>
+                        <div 
+                            className="text-title" 
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                cursor: "pointer",
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleSubtopicsExpand(task.id);
+                            }}
+                        >
+                            <div 
+                                className="btnElement" 
+                                style={{
+                                    marginRight: "4px",
+                                    fontWeight: "bold"
+                                }}
+                            >
+                                {expandedSubtopics[task.id] ? <Minus size={26} /> : <Plus size={26} />}
+                            </div>
+                            Podtematy:
+                        </div>
+                        {expandedSubtopics[task.id] && (
+                        <div style={{
+                            paddingLeft: "20px",
+                            marginTop: "8px",
+                            width: "100%"
+                        }}>
+                            {task.subtopics.map((name: string, index: number) => (
+                            <div key={index} style={{ marginBottom: "8px" }}>
+                                <FormatText
+                                    content={
+                                        `${index + 1}. ${name}`
+                                    }
+                                />
+                            </div>
+                            ))}
+                        </div>)}
+                    </div>)}
+
+                    {task.note && (
+                        <div style={{
+                            marginBottom: "8px", 
                             width: "100%"
                         }}>
                             <div 
@@ -576,9 +645,49 @@ export default function TasksPage() {
                                 <div style={{ 
                                     paddingLeft: "20px", 
                                     marginTop: "8px",
-                                    width: "100%"
+                                    width: "100%",
                                 }}>
                                     <FormatText content={task.note} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {task.explanation && (
+                        <div style={{
+                            marginBottom: "8px", 
+                            width: "100%"
+                        }}>
+                            <div 
+                                className="text-title" 
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    cursor: "pointer"
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleExplanationExpand(task.id);
+                                }}
+                            >
+                                <div 
+                                    className="btnElement" 
+                                    style={{
+                                        marginRight: "4px",
+                                        fontWeight: "bold"
+                                    }}
+                                >
+                                    {expandedExplanations[task.id] ? <Minus size={26} /> : <Plus size={26} />}
+                                </div>
+                                Wyjaśnienie:
+                            </div>
+                            {expandedExplanations[task.id] && (
+                                <div style={{ 
+                                    paddingLeft: "20px", 
+                                    marginTop: "8px",
+                                    width: "100%",
+                                }}>
+                                    <FormatText content={task.explanation} />
                                 </div>
                             )}
                         </div>
@@ -588,7 +697,7 @@ export default function TasksPage() {
                   <div className="element-options" style={{
                       flexDirection: "column",
                       alignItems: "center",
-                      justifyContent: "space-between"
+                      justifyContent: "flex-start"
                   }}>
                       <div className={`element-percent ${task.status}`}>
                           {task.finished ? Math.round(task.percent) : 0}%
@@ -615,6 +724,7 @@ export default function TasksPage() {
                       </div>
                   </div>
               </div>))}
+              
           </div>))}
           </>)}
           </>

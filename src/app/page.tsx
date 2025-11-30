@@ -15,7 +15,6 @@ import { Settings } from "lucide-react";
 interface Subject {
   id: number;
   name: string;
-  difficulty: number;
   threshold: number;
   url: string;
   prompt: string;
@@ -133,7 +132,6 @@ export default function MainPage() {
                   <div className="element-subject-options">
                     <div>
                       <div className="element-title">{subject.name}</div>
-                      <div>Trudność: {subject.difficulty}%</div>
                       <div>Próg: {subject.threshold}%</div>
                     </div>
                     <button

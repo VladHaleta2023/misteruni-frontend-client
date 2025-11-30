@@ -43,6 +43,8 @@ export default function StoriesPage() {
 
   const [expandedWords, setExpandedWords] = useState<Record<number, boolean>>({});
 
+  const [selectedInit, setSelectedInit] = useState<boolean>(true);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
@@ -64,6 +66,7 @@ export default function StoriesPage() {
       if (response.data?.statusCode === 200) {
         const fetchedWords: Word[] = response.data.words;
         setWords(fetchedWords);
+        setSelectedWordIds(fetchedWords.map(word => word.id));
 
         textareaRefs.current = new Array(fetchedWords.length).fill(null);
       } else {
@@ -125,10 +128,15 @@ export default function StoriesPage() {
 
   const handleWordClick = (wordId: number, isChecked: boolean) => {
     setSelectedWordIds(prev => {
-      if (isChecked) {
-        return [...prev, wordId];
+      if (selectedInit) {
+        setSelectedInit(false);
+        return [wordId];
       } else {
-        return prev.filter(id => id !== wordId);
+        if (isChecked) {
+            return [...prev, wordId];
+        } else {
+            return prev.filter(id => id !== wordId);
+        }
       }
     });
   };
@@ -146,16 +154,16 @@ export default function StoriesPage() {
     }
 
     try {
-      localStorage.setItem("wordIds", JSON.stringify(selectedWordIds));
-      
-      localStorage.removeItem("taskId");
-      
-      router.push('/vocabluary');
-      
+        localStorage.setItem("wordIds", JSON.stringify(selectedWordIds));
+        
+        localStorage.removeItem("taskId");
+        
+        router.push('/vocabluary');
+        
     } catch {
-      showAlert(500, "Nie udało się zapisać wybranych słów");
+        showAlert(500, "Nie udało się zapisać wybranych słów");
     }
-  };
+ };
 
   const controllersRef = useRef<AbortController[]>([]);
   
