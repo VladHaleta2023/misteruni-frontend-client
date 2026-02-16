@@ -9,22 +9,31 @@ import "@/app/styles/table.css";
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "../scripts/showAlert";
-import HighlightedText from "@/app/components/highlightedText";
 import api from "../utils/api";
 import axios from "axios";
 import React from "react";
+
+type Topic = {
+  id: number;
+  sectionId: number;
+  subjectId: number;
+}
+
+type Task = {
+  id: number;
+  text: string;
+  topic: Topic;
+}
 
 type Word = {
   id: number;
   text: string;
   finished: boolean;
+  frequency: number;
   streakCorrectCount: number;
   totalCorrectCount: number;
   totalAttemptCount: number;
-  task: {
-    id: number,
-    text: string
-  }
+  tasks: Task[]
 }
 
 export default function StoriesPage() {
@@ -37,13 +46,15 @@ export default function StoriesPage() {
   const [words, setWords] = useState<Word[]>([]);
   const [selectedWordIds, setSelectedWordIds] = useState<number[]>([]);
 
+  const [topicName, setTopicName] = useState<string | null>(null);
+  const [wordsStatus, setWordsStatus] = useState<string | null>(null);
+  const [wordsPercent, setWordsPercent] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
 
   const [expandedWords, setExpandedWords] = useState<Record<number, boolean>>({});
-
-  const [selectedInit, setSelectedInit] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -60,13 +71,19 @@ export default function StoriesPage() {
 
   const fetchWords = useCallback(async () => {
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/words`);
+      const response = await api.post(`/subjects/${subjectId}/words`, {
+        topicId: topicId
+      });
+
       setLoading(false);
 
       if (response.data?.statusCode === 200) {
         const fetchedWords: Word[] = response.data.words;
         setWords(fetchedWords);
-        setSelectedWordIds(fetchedWords.map(word => word.id));
+        setTopicName(response.data.topic.name);
+        setWordsStatus(response.data.wordsStatus);
+        setWordsPercent(response.data.wordsPercent);
+        setSelectedWordIds([]);
 
         textareaRefs.current = new Array(fetchedWords.length).fill(null);
       } else {
@@ -92,7 +109,7 @@ export default function StoriesPage() {
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchWords, subjectId]);
+  }, [fetchWords, subjectId, sectionId, topicId]);
 
   useEffect(() => {
     setMainHeight();
@@ -128,15 +145,10 @@ export default function StoriesPage() {
 
   const handleWordClick = (wordId: number, isChecked: boolean) => {
     setSelectedWordIds(prev => {
-      if (selectedInit) {
-        setSelectedInit(false);
-        return [wordId];
+      if (isChecked) {
+        return [...prev, wordId];
       } else {
-        if (isChecked) {
-            return [...prev, wordId];
-        } else {
-            return prev.filter(id => id !== wordId);
-        }
+        return prev.filter(id => id !== wordId);
       }
     });
   };
@@ -194,149 +206,174 @@ export default function StoriesPage() {
 
   return (
     <>
-      <Header>
-        <div className="menu-icons">
-          <div
-            className="menu-icon"
-            title="Wrócić"
-            onClick={handleBackClick}
-            style={{ cursor: "pointer" }}
-          >
-            <ArrowLeft size={28} color="white" />
-          </div>
-          <div 
-            className="menu-icon" 
-            title="Play" 
-            style={{ marginLeft: "auto", cursor: "pointer" }}
-            onClick={handlePlayClick}
-          >
-            <Play size={28} color="white" />
-          </div>
-        </div>
-      </Header>
+        <Header>
+            <div className="menu-icons">
+                <div
+                    className="menu-icon"
+                    title="Wrócić"
+                    onClick={handleBackClick}
+                    style={{ cursor: "pointer" }}
+                >
+                    <ArrowLeft size={28} color="white" />
+                </div>
+                <div 
+                    className="menu-icon" 
+                    title="Play" 
+                    style={{ marginLeft: "auto", cursor: "pointer" }}
+                    onClick={handlePlayClick}
+                >
+                    <Play size={28} color="white" />
+                </div>
+            </div>
+        </Header>
 
-      <main>
-        {loading ? (
-          <div className="spinner-wrapper">
-              <Spinner noText />
-          </div>
-        ) : (
-        <>
-          {words.length === 0 ? (
-            <span style={{
-                color: "#514e4e",
-                margin: "auto"
-            }}>Nie ma słow lub wyrazów...</span>
-          ) : (
-          <>
-          <div style={{
-            padding: "12px"
-          }}>
-            <div>
-              <div className="table" style={{ border: "none" }}>
-                {words.map((word) => {
-                  const isSelected = selectedWordIds.includes(word.id);
-                  
-                  return (
-                    <React.Fragment key={word.id}>
-                        <div
-                            className={`element`}
-                            style={{
-                            alignItems: "start",
-                            border: "1px solid rgb(191, 191, 191)",
-                            borderBottom: "none",
-                            fontWeight: selectedWordIds.includes(word.id) ? "bold" : "normal",
-                            }}
-                            onClick={(e) => {
-                            e.stopPropagation();
-                            handleWordClick(word.id, !isSelected);
-                            }}
-                        >
-                            <div
-                            className="element-word"
-                            style={{
-                                flex: "0 0 auto",
-                                cursor: "pointer",
-                                paddingRight: "0px"
-                            }}
-                            >
-                            <button
-                                className="btnElement"
-                                onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedWords(prev => ({
-                                    ...prev,
-                                    [word.id]: !prev[word.id]
-                                }));
-                                }}
-                            >
-                                {expandedWords[word.id] ? (
-                                <Minus size={24} />
-                                ) : (
-                                <Plus size={24} />
-                                )}
-                            </button>
+        <main>
+            {loading ? (
+                <div className="spinner-wrapper">
+                    <Spinner noText />
+                </div>
+            ) : words.length === 0 ? (
+                <span style={{
+                    color: "#514e4e",
+                    margin: "auto",
+                    display: "block",
+                    textAlign: "center",
+                    padding: "20px"
+                }}>
+                    Brak słow lub wyrazów...
+                </span>
+            ) : (
+                <div style={{ padding: "0px 12px", paddingBottom: "12px" }}>
+                    <div style={{ padding: "8px 0px", width: "100%"}}>
+                        <div className="text-title text-topic-note">
+                            <div className="element-name" style={{ margin: "0px" }}>
+                                {topicName}
                             </div>
-                            <div className="element-word">
-                                {word.text}
-                            </div>
-                            
-                            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
-                            <div className="element-word stats-column">
-                                {word.totalCorrectCount} ({word.totalAttemptCount})
-                            </div>
-                            <div className="element-word stats-column">
-                                <div
-                                className={`element-percent ${word.streakCorrectCount >= 3 ? "completed" : "progress"}`}
-                                style={{
-                                    padding: "0px 5px",
-                                    minWidth: "30px"
-                                }}
-                                >
-                                {word.streakCorrectCount}
+                            <div className="element-options">
+                                <div className={`element-percent ${wordsStatus}`}>
+                                    {wordsPercent}%
                                 </div>
-                            </div>
                             </div>
                         </div>
-                        {expandedWords[word.id] && (
-                        <div
-                            className={`element`}
-                            style={{
-                                alignItems: "start",
-                                border: "1px solid rgb(191, 191, 191)",
-                                borderBottom: "none",
-                            }}
-                            key={`${word.id}-details`}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleWordClick(word.id, !isSelected);
-                            }}
-                            >
-                                <div
-                                    style={{ display: 'block', padding: "8px 12px" }}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleStoryClick(word.task.id);
-                                    }}
-                                >
-                                    <HighlightedText 
-                                        word={word.text}
-                                        text={word.task.text}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </React.Fragment>
-                );
-                })}
-              </div>
-            </div>
-          </div>
-          </>)}
+                    </div>
+                    <div className="table" style={{ border: "none" }}>
+                        {words.map((word) => {
+                            const isSelected = selectedWordIds.includes(word.id);
+                            
+                            return (
+                                <React.Fragment key={word.id}>
+                                    <div
+                                        className="element"
+                                        style={{
+                                            alignItems: "start",
+                                            border: "1px solid rgb(191, 191, 191)",
+                                            borderBottom: "none",
+                                            fontWeight: isSelected ? "bold" : "normal",
+                                            cursor: "pointer"
+                                        }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleWordClick(word.id, !isSelected);
+                                        }}
+                                    >
+                                        <div
+                                            className="element-word"
+                                            style={{
+                                                flex: "0 0 auto",
+                                                cursor: "pointer",
+                                                paddingRight: "0px",
+                                                width: "32px"
+                                            }}
+                                        >
+                                            {word.tasks.length > 0 && (
+                                                <button
+                                                    className="btnElement"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setExpandedWords(prev => ({
+                                                            ...prev,
+                                                            [word.id]: !prev[word.id]
+                                                        }));
+                                                    }}
+                                                >
+                                                    {expandedWords[word.id] ? (
+                                                        <Minus size={24} />
+                                                    ) : (
+                                                        <Plus size={24} />
+                                                    )}
+                                                </button>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="element-frequency" style={{ color: "#888888" }}>{word.frequency}</div>
 
-        </>
-        )}
-      </main>
+                                        <div className="element-word">
+                                            {word.text}
+                                        </div>
+                                        
+                                        <div style={{ 
+                                            marginLeft: "auto", 
+                                            display: "flex", 
+                                            alignItems: "center" 
+                                        }}>
+                                            <div className="element-word stats-column">
+                                                {word.totalCorrectCount} ({word.totalAttemptCount})
+                                            </div>
+                                            <div className="element-word stats-column">
+                                                <div
+                                                    className={`element-percent ${
+                                                        word.streakCorrectCount === 0
+                                                            ? ""
+                                                            : word.streakCorrectCount >= 3
+                                                            ? "completed"
+                                                            : "progress"
+                                                    }`}
+                                                    style={{
+                                                        padding: "0px 5px",
+                                                        minWidth: "30px"
+                                                    }}
+                                                >
+                                                    {word.streakCorrectCount}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {expandedWords[word.id] && (
+                                        <div
+                                            className="element"
+                                            style={{
+                                                alignItems: "start",
+                                                border: "1px solid rgb(191, 191, 191)",
+                                                borderBottom: "none",
+                                            }}
+                                            key={`${word.id}-details`}
+                                        >
+                                            {word.tasks.map((task) => (
+                                                <div
+                                                    key={task.id}
+                                                    style={{ 
+                                                        display: "block", 
+                                                        padding: "8px 12px",
+                                                        cursor: "pointer"
+                                                    }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStoryClick(task.id);
+                                                    }}
+                                                >
+                                                    {task.text}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </main>
     </>
   );
 }

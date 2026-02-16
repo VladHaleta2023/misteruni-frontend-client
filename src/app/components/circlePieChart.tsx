@@ -2,39 +2,27 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte'];
 const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb'];
 
 interface CirclePieChartProps {
   percents: [number, number, number];
-  statistics?: {
-    solvedTasksCount: number | null;
-    solvedTasksCountCompleted: number | null;
-    closedSubtopicsCount: number | null;
-    closedTopicsCount: number | null;
-    weekLabel: string | null;
-    prediction: string | null;
-  };
+  prediction: string | null;
   names?: [string?, string?, string?, string?];
   width?: string;
   maxWidth?: string;
   fontSize?: string;
-  onPrev?: () => void;
-  onNext?: () => void;
   showStatistic?: boolean;
 }
 
 export default function CirclePieChart({
   percents,
-  statistics,
+  prediction,
   names,
-  width = '70vw',
-  maxWidth = '280px',
+  width = '60vw', // Уменьшено с 70vw
+  maxWidth = '280px', // Уменьшено с 280px
   fontSize = '16px',
-  onPrev,
-  onNext,
   showStatistic = true,
 }: CirclePieChartProps) {
   const [containerWidth, setContainerWidth] = useState(width);
@@ -56,7 +44,7 @@ export default function CirclePieChart({
       setIsMobile(w < 768);
 
       if (w < 768) {
-        setContainerFontSize('14px');
+        setContainerFontSize('16px');
         setContainerWidth('60vw');
         setContainerMaxWidth('220px');
       } else {
@@ -110,27 +98,10 @@ export default function CirclePieChart({
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            width: containerWidth,
-            maxWidth: containerMaxWidth,
+            width: '100%',
+            height: 'auto',
           }}
         >
-          {showStatistic && onPrev && (
-            <button
-              onClick={onPrev}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                position: 'absolute',
-                left: '-40px',
-                zIndex: 2,
-              }}
-              tabIndex={-1}
-            >
-              <ArrowLeft size={24} color="#333" />
-            </button>
-          )}
-
           <div
             style={{
               width: '100%',
@@ -147,8 +118,8 @@ export default function CirclePieChart({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius="70%"
-                  outerRadius="95%"
+                  innerRadius="60%"  // Уменьшено (было 60%)
+                  outerRadius="85%"  // Уменьшено (было 85%)
                   startAngle={90}
                   endAngle={-270}
                   paddingAngle={0}
@@ -162,7 +133,7 @@ export default function CirclePieChart({
               </PieChart>
             </ResponsiveContainer>
 
-            {showStatistic && statistics && (
+            {showStatistic && prediction && (
               <div
                 style={{
                   position: 'absolute',
@@ -173,61 +144,22 @@ export default function CirclePieChart({
                   pointerEvents: 'none',
                 }}
               >
-                {statistics.weekLabel && (
+                {prediction != null && (
                   <div
                     style={{
-                      fontSize: containerFontSize,
-                      color: '#333',
-                      marginBottom: '6px',
-                    }}
-                  >
-                    {statistics.weekLabel}
-                  </div>
-                )}
-                {statistics.solvedTasksCount != null &&
-                  statistics.solvedTasksCountCompleted != null && (
-                    <div
-                      style={{
-                        fontSize: containerFontSize,
-                        fontWeight: 600,
-                        color: '#333',
-                        marginBottom: '6px',
-                      }}
-                    >
-                      +{statistics.solvedTasksCount} ({statistics.solvedTasksCountCompleted})
-                    </div>
-                  )}
-                {statistics.prediction != null && (
-                  <div
-                    style={{
-                      fontSize: containerFontSize,
+                      fontSize: isMobile ? 
+                        (parseInt(containerFontSize) * 0.85) + 'px' : 
+                        containerFontSize,
                       fontWeight: 600,
                       color: '#333',
                     }}
                   >
-                    {statistics.prediction}
+                    {prediction}
                   </div>
                 )}
               </div>
             )}
           </div>
-
-          {showStatistic && onNext && (
-            <button
-              onClick={onNext}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                position: 'absolute',
-                right: '-40px',
-                zIndex: 2,
-              }}
-              tabIndex={-1}
-            >
-              <ArrowRight size={24} color="#333" />
-            </button>
-          )}
         </div>
 
         <div
@@ -235,10 +167,10 @@ export default function CirclePieChart({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            minWidth: '100px',
-            fontSize: containerFontSize,
+            fontSize: isMobile ? 
+              (parseInt(containerFontSize) * 0.9) + 'px' : // Уменьшен размер шрифта легенды
+              containerFontSize,
             color: '#333',
-            marginTop: '10px',
           }}
         >
           {data.slice(0, -1).map((item, index) => (
@@ -248,22 +180,21 @@ export default function CirclePieChart({
                 display: 'flex',
                 alignItems: 'center',
                 cursor: 'default',
-                marginBottom: '4px',
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
               }}
             >
               <div
                 style={{
-                  width: '14px',
-                  height: '14px',
+                  width: '12px', // Уменьшено с 14px
+                  height: '12px', // Уменьшено с 14px
                   backgroundColor: COLORS[index % COLORS.length],
-                  marginRight: '10px',
+                  marginRight: '8px', // Уменьшено с 10px
                   borderRadius: '2px',
                   flexShrink: 0,
                 }}
               />
-              <span style={{ marginRight: '6px', fontWeight: 500 }}>{item.percent}%</span>
+              <span style={{ marginRight: '5px', fontWeight: 500 }}>{item.percent}%</span>
               <span>{item.name}</span>
             </div>
           ))}

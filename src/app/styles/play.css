@@ -37,7 +37,7 @@ html, body, #__next {
 
 .text-title {
   font-weight: bold;
-  font-size: 19px;
+  font-size: 18px;
 }
 
 .placeholder-text {
@@ -45,7 +45,6 @@ html, body, #__next {
   opacity: 0.9;
   user-select: none;
   pointer-events: none;
-  font-family: inherit;
 }
 
 textarea::placeholder {
@@ -63,6 +62,7 @@ textarea::placeholder {
   border-radius: 16px;
   margin-bottom: 18px;
   width: 90%;
+  font-size: 18px;
 }
 
 .answer-block {
@@ -105,7 +105,8 @@ textarea:focus {
   align-items: center;
   width: 100%;
   gap: 6px;
-  margin-top: 24px;
+  height: 45px;
+  min-height: 45px;
 }
 
 .btnOption {
@@ -203,18 +204,8 @@ progress.progress-bar::-moz-progress-bar {
 }
 
 @media (max-width: 768px) {
-  .message,
-  .answer-block .message.answer {
-    font-size: 18px;
-  }
-
   .play-container {
     padding: 12px;
     -webkit-overflow-scrolling: touch;
-  }
-
-  .text-title {
-    font-weight: bold;
-    font-size: 17px;
   }
 }

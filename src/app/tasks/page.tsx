@@ -2,7 +2,7 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Minus, Play, Plus } from 'lucide-react';
+import { ArrowLeft, Minus, Play, Plus, Trash2 } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,20 +30,8 @@ interface ITask {
     percent: number;
     explanation: string;
     status: Status;
-    vocabluary: boolean;
-    wordsCount: number;
     finished: boolean;
-    note: string;
-    topic: {
-        id: number,
-        name: string
-    };
-    section: {
-        id: number,
-        name: string,
-        type: string
-    };
-    subtopics: string[];
+    userSolution: string;
 }
 
 interface IElement {
@@ -103,10 +91,13 @@ export default function TasksPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
+  const [taskId, setTaskId] = useState<number | null>(null);
   const [topicPercent, setTopicPercent] = useState<number | null>(null);
   const [topicStatus, setTopicStatus] = useState<string | null>(null);
   const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
+
+  const [textLoading, setTextLoading] = useState<string>("");
 
   const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
 
@@ -118,10 +109,11 @@ export default function TasksPage() {
 
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
-  const [expandedNotes, setExpandedNotes] = useState<{[key: number]: boolean}>({});
+  const [expandedUserSolutions, setExpandedUserSolutions] = useState<{[key: number]: boolean}>({});
   const [expandedExplanations, setExpandedExplanations] = useState<{[key: number]: boolean}>({});
-  const [expandedSubtopics, setExpandedSubtopics] = useState<{[key: number]: boolean}>({});
   const [expandedTopicNote, setExpandedTopicNote] = useState(false);
+
+  const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
 
   useEffect(() => {
     localStorage.removeItem("Mode");
@@ -258,49 +250,11 @@ export default function TasksPage() {
       localStorage.setItem("taskId", String(taskId));
 
       if (sectionType == "Stories") {
-          router.push("/interactive-play");
+        router.push("/interactive-play");
       }
       else {
-          router.push("/play");
+        router.push("/play");
       }
-  }, []);
-
-  const handleStoriesClick = useCallback(async (
-      subjectId: number,
-      sectionId: number,
-      topicId: number,
-      taskId: number
-  ) => {
-      if (!subjectId) {
-          setLoading(false);
-          showAlert(400, "Przedmiot nie został znaleziony");
-          return;
-      }
-
-      if (!sectionId) {
-          setLoading(false);
-          showAlert(400, "Rozdział nie został znaleziony");
-          return;
-      }
-
-      if (!topicId) {
-          setLoading(false);
-          showAlert(400, "Temat nie został znaleziony");
-          return;
-      }
-
-      if (!taskId) {
-          setLoading(false);
-          showAlert(400, "Zadanie nie zostało znalezione");
-          return;
-      }
-
-      localStorage.setItem("subjectId", String(subjectId));
-      localStorage.setItem("sectionId", String(sectionId));
-      localStorage.setItem("topicId", String(topicId));
-      localStorage.setItem("taskId", String(taskId));
-
-       router.push("/vocabluary");
   }, []);
 
   useEffect(() => {
@@ -312,62 +266,6 @@ export default function TasksPage() {
     };
   }, []);
 
-  function handleApiError(error: unknown) {
-    if (axios.isAxiosError(error)) {
-        if (error.code === "ERR_CANCELED") return;
-
-        if (error.response) {
-            showAlert(error.response.status, error.response.data?.message || "Server error");
-        } else {
-            showAlert(500, `Server error: ${error.message}`);
-        }
-    } else if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-    } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-    } else {
-        showAlert(500, "Unknown error");
-    }
-  }
-
-  const fetchTopicById = useCallback(async (
-        subjectId: number,
-        sectionId: number,
-        topicId: number) => {
-        
-        if (!subjectId) {
-            showAlert(400, "Przedmiot nie został znaleziony");
-            return null;
-        }
-
-        if (!sectionId) {
-            showAlert(400, "Rozdział nie został znaleziony");
-            return null;
-        }
-
-        if (!topicId) {
-            showAlert(400, "Temat nie został znaleziony");
-            return null;
-        }
-
-        try {
-            const response = await api.get(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}`
-            );
-
-            if (response.data?.statusCode === 200) {
-                const completed = response.data.topic.completed ?? false;
-                return completed;
-            }
-
-            return null;
-        } catch (error) {
-            if ((error as DOMException)?.name === "AbortError") return null;
-            handleApiError(error);
-            return null;
-        }
-    }, []);
-
   function handleBackClick() {
     router.back();
   }
@@ -376,8 +274,8 @@ export default function TasksPage() {
     router.push("/topic-vocabluary");
   }
 
-  const handleNoteExpand = useCallback((taskId: number) => {
-    setExpandedNotes(prev => ({
+  const handleUserSolutionExpand = useCallback((taskId: number) => {
+    setExpandedUserSolutions(prev => ({
         ...prev,
         [taskId]: !prev[taskId]
     }));
@@ -390,16 +288,43 @@ export default function TasksPage() {
     }));
   }, []);
 
-  const handleSubtopicsExpand = useCallback((taskId: number) => {
-    setExpandedSubtopics(prev => ({
-        ...prev,
-        [taskId]: !prev[taskId]
-    }));
-  }, []);
-
   const handleTopicNoteExpand = useCallback(() => {
     setExpandedTopicNote(prev => !prev);
   }, []);
+
+  const handleDeleteTask = useCallback(async() => {
+    try {
+        setLoading(true);
+        const response = await api.delete(`/subjects/${subjectId}/tasks/${taskId}`);
+
+        if (response.data?.statusCode === 200) {
+            showAlert(response.data.statusCode, response.data.message);
+            await fetchTasksByTopicId();
+        } else {
+            showAlert(response.data.statusCode, response.data.message);
+        }
+    }
+    catch (error) {
+        setLoading(false);
+        if (axios.isAxiosError(error)) {
+            if (error.response) {
+            showAlert(error.response.status, error.response.data.message || "Server error");
+            } else {
+            showAlert(500, `Server error: ${error.message}`);
+            }
+        } else if (error instanceof Error) {
+            showAlert(500, `Server error: ${error.message}`);
+        } else {
+            showAlert(500, "Unknown error");
+        }
+    }
+    finally {
+        setLoading(false);
+        setTextLoading("");
+        setMsgDeleteTaskVisible(false);
+        setTaskId(null);
+    }
+  }, [subjectId, taskId, fetchTasksByTopicId]);
 
   return (
     <>
@@ -413,8 +338,8 @@ export default function TasksPage() {
             >
                 <ArrowLeft size={28} color="white" />
             </div>
-            <div style={{ marginLeft: 'auto', display: "flex", gap: "6px" }}>
-                {sectionType === "Stories" && weekOffset === 0 ? (<div
+            {sectionType === "Stories" && (
+                <div
                     className="menu-icon"
                     title={"Przełącz do listy słów"}
                     onClick={async (e) => {
@@ -424,37 +349,59 @@ export default function TasksPage() {
                     style={{ cursor: "pointer" }}
                 >
                     <Text size={28} color="white" />
-                </div>) : null}
-                <div className="menu-icon" title="Play"
-                    onClick={async (e) => {
-                        e.stopPropagation();
-
-                        if (!subjectId || !sectionId || !topicId) return;
-
-                        const completed = await fetchTopicById(subjectId, sectionId, topicId);
-
-                        if (completed) {
-                            setMsgPlayVisible(true);
-                            return;
-                        }
-
-                        if (sectionType == "Stories") {
-                            router.push("/interactive-play");
-                        }
-                        else {
-                            router.push("/play");
-                        }
-                    }}>
-                        <Play size={28} color="white" />
                 </div>
+            )}
+            <div className="menu-icon" title="Play" style={{ marginLeft: 'auto' }}
+                onClick={async (e) => {
+                    e.stopPropagation();
+
+                    if (!subjectId || !sectionId || !topicId) return;
+
+                    localStorage.removeItem("taskId");
+                    localStorage.removeItem("answerText");
+
+                    if (sectionType == "Stories") {
+                        router.push("/interactive-play");
+                    }
+                    else {
+                        router.push("/play");
+                    }
+                }}>
+                    <Play size={28} color="white" />
             </div>
         </div>
       </Header>
 
+      <Message
+        message={"Czy na pewno chcesz usunąć zadanie?"}
+        textConfirm="Tak"
+        textCancel="Nie"
+        onConfirm={() => {
+            setMsgDeleteTaskVisible(false);
+
+            if (!loading)
+                setTextLoading("Trwa usuwanie zadania...");
+
+            setLoading(true);
+            if (taskId) {
+                handleDeleteTask();
+            }
+            else
+                showAlert(400, "Błąd usuwania zadania");
+
+            setTaskId(null);
+        }}
+        onClose={() => {
+            setMsgDeleteTaskVisible(false);
+            setTaskId(null);
+        }}
+        visible={msgDeleteTaskVisible}
+    />
+
       <main>
         {loading ? (
           <div className="spinner-wrapper">
-              <Spinner noText />
+              <Spinner text={textLoading} />
           </div>
         ) : (
         <>
@@ -524,7 +471,7 @@ export default function TasksPage() {
                     <span style={{
                         color: "#514e4e",
                         margin: "auto"
-                    }}>Nie ma zadań...</span>
+                    }}>Brak zadań...</span>
                 </>
             ) : (<>
             {elementReponse?.getElements().map((element, index) => (
@@ -547,10 +494,10 @@ export default function TasksPage() {
                       onClick={() => 
                           handleTaskClick(
                               subjectId ?? 0,
-                              task.section.id,
-                              task.topic.id,
+                              sectionId ?? 0,
+                              topicId ?? 0,
                               task.id,
-                              task.section.type
+                              sectionType ?? ""
                           )
                       }
                       key={task.id}
@@ -567,53 +514,7 @@ export default function TasksPage() {
                         )}
                     </div>
 
-                    {task.subtopics && task.subtopics.length > 0 && (
-                    <div style={{ 
-                        marginBottom: "8px", 
-                        width: "100%"
-                    }}>
-                        <div 
-                            className="text-title" 
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                cursor: "pointer",
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleSubtopicsExpand(task.id);
-                            }}
-                        >
-                            <div 
-                                className="btnElement" 
-                                style={{
-                                    marginRight: "4px",
-                                    fontWeight: "bold"
-                                }}
-                            >
-                                {expandedSubtopics[task.id] ? <Minus size={26} /> : <Plus size={26} />}
-                            </div>
-                            Podtematy:
-                        </div>
-                        {expandedSubtopics[task.id] && (
-                        <div style={{
-                            paddingLeft: "20px",
-                            marginTop: "8px",
-                            width: "100%"
-                        }}>
-                            {task.subtopics.map((name: string, index: number) => (
-                            <div key={index} style={{ marginBottom: "8px" }}>
-                                <FormatText
-                                    content={
-                                        `${index + 1}. ${name}`
-                                    }
-                                />
-                            </div>
-                            ))}
-                        </div>)}
-                    </div>)}
-
-                    {task.note && (
+                    {task.userSolution && (
                         <div style={{
                             marginBottom: "8px", 
                             width: "100%"
@@ -627,7 +528,7 @@ export default function TasksPage() {
                                 }}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleNoteExpand(task.id);
+                                    handleUserSolutionExpand(task.id);
                                 }}
                             >
                                 <div 
@@ -637,17 +538,17 @@ export default function TasksPage() {
                                         fontWeight: "bold"
                                     }}
                                 >
-                                    {expandedNotes[task.id] ? <Minus size={26} /> : <Plus size={26} />}
+                                    {expandedUserSolutions[task.id] ? <Minus size={26} /> : <Plus size={26} />}
                                 </div>
-                                Notatka:
+                                Moja Odpowiedź:
                             </div>
-                            {expandedNotes[task.id] && (
+                            {expandedUserSolutions[task.id] && (
                                 <div style={{ 
                                     paddingLeft: "20px", 
                                     marginTop: "8px",
                                     width: "100%",
                                 }}>
-                                    <FormatText content={task.note} />
+                                    <FormatText content={task.userSolution} />
                                 </div>
                             )}
                         </div>
@@ -702,26 +603,15 @@ export default function TasksPage() {
                       <div className={`element-percent ${task.status}`}>
                           {task.finished ? Math.round(task.percent) : 0}%
                       </div>
-                      <div>
-                        {task.section.type == "Stories" && task.wordsCount != 0 ? (<button
-                            className={`btnOption ${task.vocabluary ? "vocabluary" : "vocabluary-progress"}`}
-                            style={{
-                              minWidth: "48px",
-                              marginBottom: "4px"
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleStoriesClick(
-                                    subjectId ?? 0,
-                                    task.section.id,
-                                    task.topic.id,
-                                    task.id
-                                );
-                            }}
-                        >
-                            <Text size={28} color="white" />
-                        </button>) : null}
-                      </div>
+                      <div
+                        className="btnOption"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setTaskId(task.id);
+                            setMsgDeleteTaskVisible(true);
+                        }}>
+                          <Trash2 size={26} />
+                        </div>
                   </div>
               </div>))}
               

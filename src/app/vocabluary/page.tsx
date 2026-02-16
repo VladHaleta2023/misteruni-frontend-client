@@ -2,13 +2,12 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Trash2, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "@/app/styles/table.css";
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
-import Message from "@/app/components/message";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
 import axios from "axios";
@@ -26,8 +25,6 @@ export default function StoriesPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
-  const [taskId, setTaskId] = useState<number | null>(null);
-  const [wordId, setWordId] = useState<number | null>(null);
 
   const [wordsVerified, setWordsVerified] = useState<boolean>(false);
 
@@ -41,13 +38,9 @@ export default function StoriesPage() {
   const textareaRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const [textValues, setTextValues] = useState<[number, string][]>([]);
 
-  const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
-
   const [verificationCompleted, setVerificationCompleted] = useState(false);
 
   const [outputText, setOutputText] = useState<string>("");
-
-  const [text, setText] = useState<string>("");
 
   const handleInput = (index: number, id: number, value: string) => {
     setValueById(id, value);
@@ -89,9 +82,6 @@ export default function StoriesPage() {
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
 
-      const storedTaskId = localStorage.getItem("taskId");
-      setTaskId(Number(storedTaskId) ?? null);
-
       const storedWordIds = localStorage.getItem("wordIds");
       let wordIdsArray: number[] = [];
       try {
@@ -128,26 +118,28 @@ export default function StoriesPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("textValues", JSON.stringify(values));
     }
-  }, [taskId, wordIds]);
+  }, [wordIds]);
 
-   const loadTextValuesFromStorage = useCallback((): [number, string][] => {
+  const loadTextValuesFromStorage = useCallback((): [number, string][] => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("textValues");
       if (stored)
         return JSON.parse(stored) || []; 
     }
     return [];
-  }, [taskId, wordIds]);
+  }, [wordIds]);
 
   const fetchWords = useCallback(async () => {
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words`);
+      const response = await api.post(`/subjects/${subjectId}/words`, {
+        topicId: topicId
+      });
+
       setLoading(false);
 
       if (response.data?.statusCode === 200) {
         const fetchedWords: Word[] = response.data.words;
         setWords(fetchedWords);
-        setText(response.data.task.text ?? "");
 
         setTextValues(loadTextValuesFromStorage());
 
@@ -159,11 +151,11 @@ export default function StoriesPage() {
       setLoading(false);
       handleApiError(error);
     }
-  }, [subjectId, sectionId, topicId, taskId, loadTextValuesFromStorage]);
+  }, [subjectId, sectionId, topicId, loadTextValuesFromStorage]);
 
   const findWords = useCallback(async () => {
     try {
-      const response = await api.post(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/find`, {
+      const response = await api.post(`/subjects/${subjectId}/words/find`, {
         wordIds
       });
 
@@ -191,18 +183,15 @@ export default function StoriesPage() {
 
     if (subjectId !== null) {
       setLoading(true);
-    if (taskId !== null)
-      fetchWords();
-    else
       findWords();
-  } else {
-    setLoading(false);
+    } else {
+      setLoading(false);
     }
 
     return () => {
       window.removeEventListener("resize", setMainHeight);
     };
-  }, [fetchWords, findWords, subjectId, taskId]);
+  }, [fetchWords, findWords, subjectId]);
 
   useEffect(() => {
     setMainHeight();
@@ -220,31 +209,6 @@ export default function StoriesPage() {
     localStorage.removeItem("textValues");
     router.back();
   }
-
-  const handleDeleteWord = useCallback(async () => {
-    try {
-      const response = await api.delete(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/${wordId}`);
-
-      setLoading(false);
-      if (response.data?.statusCode === 200) {
-        if (wordId !== null) {
-          setTextValues(prev => prev.filter(([id]) => id !== wordId));
-        }
-
-        showAlert(response.data.statusCode, response.data.message);
-      } else {
-        showAlert(response.data.statusCode, response.data.message);
-      }
-    } catch (error) {
-      setLoading(false);
-      handleApiError(error);
-    } finally {
-      setLoading(false);
-      setTextLoading("");
-      setMsgDeleteVisible(false);
-      await fetchWords();
-    }
-  }, [subjectId, sectionId, topicId, wordId]);
 
   function handleApiError(error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -296,13 +260,20 @@ export default function StoriesPage() {
         while (changed === "true" && attempt <= MAX_ATTEMPTS) {
           if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
 
-          const url = taskId
-            ? `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words-generate`
-            : `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words-generate-selected`;
-
           const response = await api.post(
-            url,
-            { changed, errors, attempt, outputText, outputWords, words },
+            `/subjects/${subjectId}/words/vocabluary-generate`,
+            {
+              sectionId,
+              topicId,
+              data: {
+                changed,
+                errors,
+                attempt,
+                outputText,
+                outputWords,
+                words,
+              },
+            },
             { signal: activeSignal }
           );
 
@@ -330,20 +301,17 @@ export default function StoriesPage() {
         if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
       }
     },
-    [subjectId, sectionId, topicId, taskId, controllersRef]
+    [subjectId, sectionId, topicId, controllersRef]
   );
 
+  // Подумать
   const handleUpdateWords = useCallback(
     async (outputWords: string[], verifiedWordIds: number[], signal?: AbortSignal) => {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");
 
       try {
-        const url = taskId
-          ? `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/words`
-          : `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/words/update-selected`;
-
         const response = await api.put(
-          url,
+          `/subjects/${subjectId}/words/update`,
           { outputWords, wordIds: verifiedWordIds },
           { signal }
         );
@@ -362,7 +330,7 @@ export default function StoriesPage() {
         setLoading(false);
       }
     },
-    [subjectId, sectionId, topicId, taskId]
+    [subjectId, sectionId, topicId]
   );
 
   const handleVerifyWords = useCallback(async () => {
@@ -425,11 +393,7 @@ export default function StoriesPage() {
 
       saveTextValuesToStorage(textValues);
 
-      if (taskId) {
-        await fetchWords();
-      } else {
-        await findWords();
-      }
+      await findWords();
 
       setWords(prevWords => {
         const sortedWords = [...prevWords].sort((a, b) => {
@@ -466,21 +430,18 @@ export default function StoriesPage() {
       const sId = Number(localStorage.getItem("subjectId"));
       const secId = Number(localStorage.getItem("sectionId"));
       const tId = Number(localStorage.getItem("topicId"));
-      const taskNum = Number(localStorage.getItem("taskId"));
 
-      if (sId && secId && tId) {
-        setSubjectId(sId);
-        setSectionId(secId);
-        setTopicId(tId);
-      }
-      else {
+      if (!sId && !secId && !tId)
         showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
-      }
 
-      if (taskNum)
-        setTaskId(taskNum)
-      else
-        setTaskId(null);
+      if (sId)
+        setSubjectId(sId);
+
+      if (secId)
+        setSectionId(secId);
+
+      if (tId)
+        setTopicId(tId);
   }, []);
 
   return (
@@ -509,32 +470,12 @@ export default function StoriesPage() {
             <span style={{
                 color: "#514e4e",
                 margin: "auto"
-            }}>Nie ma słow lub wyrazów...</span>
+            }}>Brak słow lub wyrazów...</span>
           ) : (
           <>
-          <Message
-            message={"Czy na pewno chcesz usunąć słowo lub wyraz?"}
-            textConfirm="Tak"
-            textCancel="Nie"
-            onConfirm={() => {
-              setTextLoading("Trwa usuwanie słowa lub wyrazu");
-              setLoading(true);
-              handleDeleteWord().then(async () => {
-                  await fetchWords();
-              });
-            }}
-            onClose={() => {
-                setMsgDeleteVisible(false);
-            }}
-            visible={msgDeleteVisible}
-          />
           <div style={{
             padding: "12px"
           }}>
-            {taskId !== null && (<div className="text-audio">
-              <div style={{ fontWeight: "bold", marginBottom: "4px" }}>Opowiadanie:</div>
-              {text}
-            </div>)}
             <div>
               <div className="table" style={{
                 border: "1px solid rgb(191, 191, 191)"
@@ -552,15 +493,6 @@ export default function StoriesPage() {
                         <div style={{
                           marginRight: "8px"
                         }}>{word.text}</div>
-                        <Trash2 size={20} style={{
-                          minWidth: "20px",
-                          marginLeft: "auto",
-                          marginTop: "2px"
-                        }} color="#000000" onClick={(e) => {
-                            e.stopPropagation();
-                            setWordId(word.id);
-                            setMsgDeleteVisible(true);
-                        }} />
                       </div>
                       <div className="element-word" style={{ width: "50%" }}>
                         <textarea

@@ -3,89 +3,49 @@ export interface ISubtopic {
     percent: number;
 }
 
+export interface IWord {
+    id: number,
+    text: string;
+}
+
+export function getWordTexts(words: IWord[]): string[] {
+    return words.map(word => word.text);
+}
+
+export function getSubtopicTexts(subtopics: ISubtopic[]): string[] {
+    return subtopics.map(subtopic => subtopic.name);
+}
+
 export type Status = 'started' | 'progress' | 'completed';
+
+export enum ChatMode {
+  STUDENT_ANSWER = "STUDENT_ANSWER",
+  STUDENT_QUESTION = "STUDENT_QUESTION"
+}
 
 export interface ITask {
     id: number;
     stage: number;
     text: string;
-    note: string;
+    topicName: string;
     topicNote: string;
     status: Status;
     explanation: string;
     solution: string;
     options: string[];
     explanations: string[];
-    subTasks: ITask[];
     audioFiles: string[];
     subtopics: ISubtopic[];
     answered: boolean;
     finished: boolean;
+    chatFinished: boolean;
+    chat: string;
+    mode: ChatMode;
     percent: number;
+    percentAudio?: number;
+    percentWords?: number;
     userOptionIndex: number;
+    correctOptionIndex: number;
     userSolution: string;
-}
-
-export class Task {
-    private task: ITask
-
-    constructor(task: ITask) {
-        this.task = task;
-    }
-
-    public getTask() {
-        return this.task;
-    }
-
-    public updateTask(fields: Partial<ITask>) {
-        this.task = { ...this.task, ...fields };
-    }
-
-    public setId(id: number) {
-        this.task.id = id;
-    }
-
-    public setStage(stage: number) {
-        this.task.stage = stage;
-    }
-
-    public setText(text: string) {
-        this.task.text = text;
-    }
-
-    public setSolution(solution: string) {
-        this.task.solution = solution;
-    }
-
-    public setOptions(options: string[]) {
-        this.task.options = options;
-    }
-
-    public setSubtopics(subtopics: ISubtopic[]) {
-        this.task.subtopics = subtopics;
-    }
-
-    public setAnswered(answered: boolean) {
-        this.task.answered = answered;
-    }
-
-    public setFinished(finished: boolean) {
-        this.task.finished = finished;
-    }
-
-    public setUserOptionIndex(userOptionIndex: number) {
-        this.task.userOptionIndex = userOptionIndex;
-    }
-
-    public setUserSolution(userSolution: string) {
-        this.task.userSolution = userSolution;
-    }
-
-    public setSubTasks(subTasks: ITask[]) {
-        this.task.subTasks = subTasks;
-    }
-
-    public setAudioFiles(audioFiles: string[]) {
-        this.task.audioFiles = audioFiles;
-    }
+    words: IWord[]
 }

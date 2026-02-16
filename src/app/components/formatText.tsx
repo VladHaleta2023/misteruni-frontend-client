@@ -16,6 +16,7 @@ export default function FormatText({ content }: FormatTextProps) {
 
     let cleaned = content;
 
+    // Заголовки
     cleaned = cleaned
       .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
       .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
@@ -25,6 +26,7 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/^# (.*)$/gm, '<h1>$1</h1>');
 
     /*
+    // Нумерованные списки (закомментировано)
     cleaned = cleaned.replace(
       /(^\d+\.\s.*(\n\d+\.\s.*)*)/gm,
       (match) => {
@@ -39,6 +41,7 @@ export default function FormatText({ content }: FormatTextProps) {
     */
 
     /*
+    // Маркированные списки (закомментировано)
     cleaned = cleaned.replace(
       /(^- .*(\n- .*)*)/gm,
       (match) => {
@@ -52,6 +55,7 @@ export default function FormatText({ content }: FormatTextProps) {
     );
     */
 
+    // Стили Markdown
     cleaned = cleaned
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -59,17 +63,40 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
       .replace(/`(.*?)`/g, '<code>$1</code>');
 
+    // Сохраняем блочные формулы $$…$$
+    const blockFormulas: string[] = [];
+    cleaned = cleaned.replace(/\$\$([\s\S]+?)\$\$/g, (_, f) => {
+      blockFormulas.push(f);
+      return `%%BLOCK_FORMULA_${blockFormulas.length - 1}%%`;
+    });
+
+    // Сохраняем блочные формулы \[…\]
+    const bracketFormulas: string[] = [];
+    cleaned = cleaned.replace(/\\\[([\s\S]+?)\\\]/g, (_, f) => {
+      bracketFormulas.push(f);
+      return `%%BRACKET_FORMULA_${bracketFormulas.length - 1}%%`;
+    });
+
+    // Переносы строк для обычного текста
     cleaned = cleaned.replace(/(?<!<\/li>)\n/g, '<br />');
 
+    // Возвращаем блочные формулы $$…$$ на место
+    cleaned = cleaned.replace(/%%BLOCK_FORMULA_(\d+)%%/g, (_, i) => `$$${blockFormulas[i]}$$`);
+
+    // Возвращаем блочные формулы \[…\] на место
+    cleaned = cleaned.replace(/%%BRACKET_FORMULA_(\d+)%%/g, (_, i) => `\\[${bracketFormulas[i]}\\]`);
+
+    // Вставляем в DOM
     ref.current.innerHTML = cleaned;
 
+    // Рендерим KaTeX
     try {
       renderMathInElement(ref.current, {
         delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: true },
+          { left: '$$', right: '$$', display: true },  // блочные
+          { left: '$', right: '$', display: false },   // inline
+          { left: '\\(', right: '\\)', display: false }, // inline
+          { left: '\\[', right: '\\]', display: true },  // блочные
         ],
         throwOnError: false,
       });

@@ -20,7 +20,21 @@
   background-color: #f3f3f3;
   border-radius: 8px;
   border: 1px solid #ccc;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #1e1e1e;
+  overflow-wrap: break-word;
+  outline: none;
+  resize: none;
+}
+
+.input-container {
+  width: 100%;
+  padding: 8px 14px;
+  font-size: 16px;
+  box-sizing: border-box;
+  background-color: #f3f3f3;
+  border-radius: 8px;
+  line-height: 1.6;
+  border: 1px solid #ccc;
   color: #1e1e1e;
   overflow-wrap: break-word;
   outline: none;
@@ -88,4 +102,55 @@
   white-space: normal;
   display: inline-block;
   text-align: left;
+}
+
+.react-select__menu {
+  cursor: pointer !important;
+  background-color: #f3f3f3 !important;
+  color: #1e1e1e !important;
+  margin-top: 0 !important;
+}
+
+.react-select__menu-list {
+  cursor: pointer !important;
+  padding: 0 !important;
+}
+
+.react-select__control {
+  cursor: pointer !important;
+  background-color: #f3f3f3 !important;
+  color: #1e1e1e !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.react-select__menu {
+  cursor: pointer !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-top: 1px solid #d1d5db !important;
+  box-shadow: none !important;
+}
+
+.react-select__option--is-focused {
+  cursor: pointer !important;
+  background-color: #ddcce5 !important;
+  color: black !important;
+}
+
+.react-select__option--is-selected {
+  cursor: pointer !important;
+  background-color: #7d4baa !important;
+  color: white !important;
+}
+
+.react-select__control {
+  cursor: pointer !important;
+  border-color: #e0e0e0 !important;
+}
+
+.react-select__control--is-focused {
+  cursor: pointer !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 0 1px transparent !important;
 }

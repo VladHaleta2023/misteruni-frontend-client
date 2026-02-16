@@ -28,7 +28,6 @@
   align-items: center;
   position: relative;
   will-change: transform;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .switchPopUp .text {
@@ -153,6 +152,11 @@
 .radio-option.finished.correct input[type="radio"] {
   background-color: #1b5e20 !important;
   border: 2px solid #1b5e20 !important;
+}
+
+.radio-option.finished.uncorrect input[type="radio"] {
+  background-color: #b71c1c !important;
+  border: 2px solid #b71c1c !important;
 }
 
 .radio-option input[type="radio"]:hover {

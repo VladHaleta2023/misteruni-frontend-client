@@ -4,28 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Mic, Type, X, Check, Trash2, Minus, Plus, Play } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Minus, Plus, Play } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
-import RadioMessage from "@/app/components/radioMessage";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
 import axios from "axios";
 import "@/app/styles/table.css";
-import { ITask, Task } from "../scripts/task";
+import { getSubtopicTexts, ITask } from "../scripts/task";
+import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
+import StatusIndicator from "../components/statusIndicator";
+import { BsQuestion } from "react-icons/bs"; 
 
-enum InsertPosition {
-    None = 'None',
-    Przed = 'Przed',
-    Zamiast = 'Zamiast',
-    Po = 'Po',
-}
-
-enum OptionsGenerate {
-    New = 'Wygeneruj nowe',
-    This = 'Wygeneruj podobne'
+enum ChatMode {
+  STUDENT_ANSWER = "STUDENT_ANSWER",
+  STUDENT_QUESTION = "STUDENT_QUESTION"
 }
 
 interface Subtopic {
@@ -36,43 +31,37 @@ interface Subtopic {
 
 export default function PlayPage() {
     const router = useRouter();
-    const [transcribeLoading, setTranscribeLoading] = useState(false);
     const [loading, setLoading] = useState(true);
-    const [insertPosition, setInsertPosition] = useState<InsertPosition>(InsertPosition.None);
-    const [optionsGenerate, setOptionsGenerate] = useState<OptionsGenerate>(OptionsGenerate.New);
+    const [chatLoading, setChatLoading] = useState(false);
 
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isChatEnd, setIsChatEnd] = useState(false);
+    
+    const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const mainRef = useRef<HTMLDivElement>(null);
 
-    const [isMicMode, setIsMicMode] = useState(true);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [transcribes, setTranscribes] = useState<string[]>([]);
+    const [chatTextValue, setChatTextValue] = useState("");
+    const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
 
-    const [textValue, setTextValue] = useState("");
-    const [sentences, setSentences] = useState<string[]>([]);
-    const [selectedSentences, setSelectedSentences] = useState<number[]>([]);
-
-    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-    const [msgVisible, setMsgVisible] = useState<boolean>(false);
-    const [msgOptionsGenerateVisible, setMsgOptionsGenerateVisible] = useState<boolean>(false);
-    const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
+    const [msgChatVisible, setMsgChatVisible] = useState<boolean>(false);
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
     const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
-    const [selectedSentencesWasEmpty, setSelectedSentencesWasEmpty] = useState<boolean>(false);
 
-    const [noteExpanded, setNoteExpanded] = useState(false);
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
+    const [solutionExpanded, setSolutionExpanded] = useState(false);
+    const [problemsExpanded, setProblemsExpanded] = useState(true);
+    const [optionExplanationsExpanded, setOptionExplanationsExpanded] = useState<Record<number, boolean>>({});
 
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
     const [textLoading, setTextLoading] = useState<string>("");
-    const [task, setTask] = useState<Task>(
-        new Task({
+    const [task, setTask] = useState<ITask>(
+        {
             id: 0,
             stage: 0,
             text: "",
             explanation: "",
-            note: "",
+            topicName: "",
             topicNote: "",
             solution: "",
             percent: 0,
@@ -82,35 +71,182 @@ export default function PlayPage() {
             subtopics: [],
             answered: false,
             finished: false,
+            chatFinished: false,
+            chat: "",
+            mode: ChatMode.STUDENT_ANSWER,
             userOptionIndex: 0,
+            correctOptionIndex: 0,
             userSolution: "",
             audioFiles: [],
-            subTasks: []
-        })
+            words: []
+        }
     );
-
-    const fullUpdateTask = (task: ITask) => {
-        setTask(new Task(task));
-    };
 
     const [subjectId, setSubjectId] = useState<number | null>(null);
     const [sectionId, setSectionId] = useState<number | null>(null);
     const [topicId, setTopicId] = useState<number | null>(null);
 
-    const scrollToBottom = () => {
-        if (!containerRef.current) return;
+    const [tempTypingBlocks, setTempTypingBlocks] = useState<ChatBlock[]>([]);
+    const [isTyping, setIsTyping] = useState(false);
+    const [isProcessingChat, setIsProcessingChat] = useState(false);
+    const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+    const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const lastTypedBlockIndexRef = useRef<number>(-1);
+
+    const shouldScrollRef = useRef(true);
+
+    const [showFinalBlocks, setShowFinalBlocks] = useState(false);
+    const [isExplanationTyping, setIsExplanationTyping] = useState(false);
+    const [typedExplanation, setTypedExplanation] = useState("");
+    const explanationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const getNewRobotBlocks = useCallback((allBlocks: ChatBlock[], existingBlocks: ChatBlock[]): ChatBlock[] => {
+        const allRobotBlocks = allBlocks.filter(block => !block.isUser);
+        const existingRobotBlocks = existingBlocks.filter(block => !block.isUser);
+        
+        return allRobotBlocks.slice(existingRobotBlocks.length);
+    }, []);
+
+    const simulateTypingForRobotBlocks = useCallback((newRobotBlocks: ChatBlock[]) => {
+        if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+        }
+
+        setIsTyping(true);
+        setChatLoading(false);
+        setIsProcessingChat(false);
+        lastTypedBlockIndexRef.current = -1;
+        setTempTypingBlocks([]);
+
+        let currentBlockIndex = 0;
+        let currentCharIndex = 0;
+        const blocksToType = [...newRobotBlocks];
+
+        shouldScrollRef.current = true;
+        
         requestAnimationFrame(() => {
-            if (containerRef.current) {
-                containerRef.current!.scrollTop = containerRef.current!.scrollHeight;
+            scrollToBottom(true);
+        });
+
+        typingIntervalRef.current = setInterval(() => {
+            if (currentBlockIndex >= blocksToType.length) {
+                if (typingIntervalRef.current) {
+                    clearInterval(typingIntervalRef.current);
+                    typingIntervalRef.current = null;
+                }
+                
+                setChatBlocks(prev => {
+                    const updatedBlocks = [...prev];
+                    
+                    let lastHumanIndex = -1;
+                    for (let i = updatedBlocks.length - 1; i >= 0; i--) {
+                        if (updatedBlocks[i].isUser) {
+                            lastHumanIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    if (lastHumanIndex >= 0) {
+                        updatedBlocks.splice(lastHumanIndex + 1, 0, ...blocksToType);
+                    } else {
+                        updatedBlocks.push(...blocksToType);
+                    }
+                    
+                    return updatedBlocks;
+                });
+                
+                setTempTypingBlocks([]);
+                setIsTyping(false);
+                
+                shouldScrollRef.current = true;
+                scrollToBottom(true);
+                return;
+            }
+
+            const currentBlock = blocksToType[currentBlockIndex];
+            
+            if (currentCharIndex === 0 && currentBlockIndex > lastTypedBlockIndexRef.current) {
+                lastTypedBlockIndexRef.current = currentBlockIndex;
+                setTempTypingBlocks(prev => [...prev, {
+                    ...currentBlock,
+                    content: ""
+                }]);
+            }
+
+            if (currentCharIndex < currentBlock.content.length) {
+                setTempTypingBlocks(prev => {
+                    const updated = [...prev];
+                    updated[currentBlockIndex] = {
+                        ...updated[currentBlockIndex],
+                        content: currentBlock.content.substring(0, currentCharIndex + 1)
+                    };
+                    return updated;
+                });
+                currentCharIndex++;
+                
+                if (shouldScrollRef.current && currentCharIndex % 3 === 0) {
+                    scrollToBottom(true);
+                }
+            } else {
+                currentBlockIndex++;
+                currentCharIndex = 0;
+                
+                shouldScrollRef.current = true;
+                scrollToBottom(true);
+            }
+        }, 10);
+    }, []);
+
+    const simulateExplanationTyping = useCallback((explanation: string) => {
+        if (explanationIntervalRef.current) {
+            clearInterval(explanationIntervalRef.current);
+            explanationIntervalRef.current = null;
+        }
+
+        setIsExplanationTyping(true);
+        setTypedExplanation("");
+        
+        let currentIndex = 0;
+        
+        explanationIntervalRef.current = setInterval(() => {
+            if (currentIndex >= explanation.length) {
+                if (explanationIntervalRef.current) {
+                    clearInterval(explanationIntervalRef.current);
+                    explanationIntervalRef.current = null;
+                }
+                setIsExplanationTyping(false);
+                
+                shouldScrollRef.current = true;
+                scrollToBottom(true);
+                return;
+            }
+
+            setTypedExplanation(prev => prev + explanation[currentIndex]);
+            currentIndex++;
+            
+            if (shouldScrollRef.current && currentIndex % 3 === 0) {
+                scrollToBottom(true);
+            }
+        }, 10);
+    }, []);
+
+    const scrollToBottom = useCallback((instant = false) => {
+        if (!mainRef.current || !shouldScrollRef.current) return;
+        
+        requestAnimationFrame(() => {
+            if (mainRef.current) {
+                if (instant) {
+                    mainRef.current.scrollTop = mainRef.current.scrollHeight;
+                } else {
+                    mainRef.current.scrollTo({
+                        top: mainRef.current.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
             }
         });
-    };
-
-    const scrollToTop = () => {
-        if (containerRef.current) {
-            containerRef.current.scrollTop = 0;
-        }
-    }
+    }, []);
 
     const fetchPendingTask = useCallback(async (
         subjectId: number,
@@ -159,7 +295,7 @@ export default function PlayPage() {
         }
     }, []);
 
-    const fetchTopicById = useCallback(async (
+    const fetchCompletedTopicById = useCallback(async (
         subjectId: number,
         sectionId: number,
         topicId: number,
@@ -186,14 +322,14 @@ export default function PlayPage() {
 
         try {
             const response = await api.get(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}`,
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/completed`,
                 { signal: activeSignal }
             );
 
             if (activeSignal.aborted) return null;
 
             if (response.data?.statusCode === 200) {
-                const completed = response.data.topic.completed ?? false;
+                const completed = response.data.completed ?? false;
                 return completed;
             }
 
@@ -262,7 +398,7 @@ export default function PlayPage() {
 
     const handleTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-            setTextLoading("Generowanie treści zadania");
+            setTextLoading("Generowanie Treści Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -272,54 +408,25 @@ export default function PlayPage() {
                 let changed = "true";
                 let attempt = 0;
                 let text = "";
-                let note = "";
                 let errors: string[] = [];
-
-                let mode: string = "auto";
-                const storedMode = localStorage.getItem("Mode");
-
-                if (storedMode)
-                    mode = String(storedMode);
-
-                let taskId: number | null = null;
-
-                if (mode === "strict") {
-                    const storedTaskId = localStorage.getItem("ModeTaskId");
-
-                    if (storedTaskId !== null && !isNaN(Number(storedTaskId))) {
-                        taskId = Number(storedTaskId);
-                    } else {
-                        taskId = null;
-                    }
-                }
-
-                let subtopics: Subtopic[] | null = null;
-                const storedModeSubtopic = localStorage.getItem("ModeSubtopic");
-
-                if (mode === "strict" && storedModeSubtopic) {
-                    subtopics = [];
-                    subtopics.push(JSON.parse(storedModeSubtopic));
-                }
-
                 let outputSubtopics: string[] = [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { text: "", note: "", outputSubtopics: [] };
+                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-generate`,
-                        { changed, errors, attempt, text, note, outputSubtopics, subtopics, mode, taskId },
+                        { changed, errors, attempt, text, outputSubtopics },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return { text: "", note: "", outputSubtopics: [] };
+                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
                         errors = response.data.errors;
                         text = response.data.text;
-                        note = response.data.note;
                         outputSubtopics = response.data.outputSubtopics;
                         attempt = response.data.attempt;
                         console.log(`Generowanie treści zadania: Próba ${attempt}`);
@@ -329,11 +436,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return { text, note, outputSubtopics };
+                return { text, outputSubtopics };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { text: "", note: "", topicNote: "", outputSubtopics: [] };
+                if ((error as DOMException)?.name === "AbortError") return { text: "", outputSubtopics: [] };
                 handleApiError(error);
-                return { text: "", note: "", outputSubtopics: [] };
+                return { text: "", outputSubtopics: [] };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -342,7 +449,7 @@ export default function PlayPage() {
 
     const handleSolutionGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, signal?: AbortSignal) => {
-            setTextLoading("Generowanie rozwiązania zadania");
+            setTextLoading("Generowanie Rozwiązania Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -353,7 +460,7 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let solution = "";
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return "";
@@ -392,7 +499,7 @@ export default function PlayPage() {
 
     const handleOptionsGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, solution: string, signal?: AbortSignal) => {
-            setTextLoading("Generowanie wariantów zadania");
+            setTextLoading("Generowanie Wariantów Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -403,9 +510,11 @@ export default function PlayPage() {
                 let attempt = 0;
                 let errors: string[] = [];
                 let options: string[] = [];
+                let correctOptionIndex: number = 0;
                 let explanations: string[] = [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
                 const random1: number = Math.floor(Math.random() * 4);
+                const randomOption: number = Math.floor(Math.random() * 4) + 1;
                 const random2 = 3 - random1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
@@ -413,11 +522,11 @@ export default function PlayPage() {
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, subtopics, solution, options, explanations, random1, random2 },
+                        { changed, errors, attempt, text, subtopics, solution, options, explanations, correctOptionIndex, random1, random2, randomOption },
                         { signal: activeSignal }
                     );
 
-                    if (activeSignal?.aborted) return { options: [], explanations: [] };
+                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -425,6 +534,7 @@ export default function PlayPage() {
                         text = response.data.text;
                         solution = response.data.solution;
                         options = response.data.options;
+                        correctOptionIndex = response.data.correctOptionIndex;
                         explanations = response.data.explanations;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
@@ -434,11 +544,11 @@ export default function PlayPage() {
                     }
                 }
 
-                return { options, explanations };
+                return { options, explanations, correctOptionIndex };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [] };
+                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
                 handleApiError(error);
-                return { options: [], explanations: [] };
+                return { options: [], explanations: [], correctOptionIndex: 0 };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -451,9 +561,9 @@ export default function PlayPage() {
         topicId: number,
         stage: number,
         text: string,
-        note: string,
         solution: string,
         options: string[],
+        correctOptionIndex: number,
         explanations: string[],
         taskSubtopics: string[],
         signal?: AbortSignal,
@@ -466,9 +576,9 @@ export default function PlayPage() {
                     id,
                     stage,
                     text,
-                    note,
                     solution,
                     options,
+                    correctOptionIndex,
                     explanations,
                     taskSubtopics
                 },
@@ -497,13 +607,14 @@ export default function PlayPage() {
             solution: string,
             options: string[],
             correctOption: string,
+            userOption: string,
             userSolution: string,
             signal?: AbortSignal
         ): Promise<{
             outputSubtopics: string[];
             explanation: string;
         }> => {
-            setTextLoading("Obliczanie procentów podtematów");
+            setTextLoading("Obliczanie Wyników...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -516,14 +627,14 @@ export default function PlayPage() {
                 let outputSubtopics: string[] = [];
                 let explanation: string = "";
                 const taskSubtopics = subtopics?.map(s => s.name) ?? [];
-                const MAX_ATTEMPTS = 1;
+                const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
 
                     const response = await api.post(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
+                        { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
                         { signal: activeSignal }
                     );
 
@@ -553,6 +664,115 @@ export default function PlayPage() {
         }, []
     );
 
+    const handleChatGenerate = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        text: string,
+        solution: string,
+        userSolution: string,
+        options: string[],
+        correctOption: string,
+        userOption: string,
+        chat: string,
+        chatFinished: boolean,
+        mode: ChatMode,
+        subtopics: string[],
+        signal?: AbortSignal
+        ): Promise<{
+        chat: string;
+        userSolution: string;
+        chatFinished: boolean;
+    }> => {
+        const controller = !signal ? new AbortController() : null;
+        if (controller) controllersRef.current.push(controller);
+        const activeSignal = signal ?? controller?.signal;
+
+        try {
+            let changed = "true";
+            let attempt = 0;
+            let errors: string[] = [];
+            const MAX_ATTEMPTS = 2;
+
+            while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                if (activeSignal?.aborted) return { chat, userSolution, chatFinished };
+
+                const response = await api.post(
+                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/chat-generate`,
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption },
+                    { signal: activeSignal }
+                );
+
+                if (activeSignal?.aborted) return { chat, userSolution, chatFinished };
+
+                if (response.data?.statusCode === 201) {
+                    changed = response.data.changed;
+                    errors = response.data.errors;
+                    chat = response.data.chat;
+                    chatFinished = response.data.chatFinished;
+                    userSolution = response.data.userSolution;
+                    attempt = response.data.attempt;
+                    console.log(`Przetwarzanie Odpowiedzi AI: Próba ${attempt}`);
+                } else {
+                    showAlert(400, "Nie udało się przetworzyć odpowiedzi AI");
+                    break;
+                }
+            }
+
+            return { chat, userSolution, chatFinished };
+        } catch (error: unknown) {
+            setLoading(false);
+            setChatLoading(false);
+            if ((error as DOMException)?.name === "AbortError") return { chat, userSolution, chatFinished };
+            handleApiError(error);
+            return { chat, userSolution, chatFinished };
+        } finally {
+            if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+        }
+    }, []);
+
+    const handleUpdateChat = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        chat: string,
+        chatFinished: boolean,
+        userSolution: string,
+        mode: ChatMode,
+        signal?: AbortSignal,
+    ) => {
+        if (!taskId) {
+            setLoading(false);
+            setChatLoading(false);
+            showAlert(400, "Zadanie nie jest dostępne");
+            return;
+        }
+
+        try {
+            const response = await api.put(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat`,
+                {
+                    chat,
+                    chatFinished,
+                    userSolution,
+                    mode
+                },
+                { signal }
+            );
+
+            if (response.data?.statusCode !== 200) {
+                setLoading(false);
+                setChatLoading(false);
+                showAlert(400, "Nie udało się zaktualizować czat");
+            }
+        } catch (error) {
+            setLoading(false);
+            setChatLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
     const handleTaskUserSolutionSave = useCallback(async (
         subjectId: number,
         sectionId: number,
@@ -563,7 +783,7 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
-            setTextLoading("Zapisywanie rozwiązania");
+            setTextLoading("Zapisywanie Rozwiązania...");
 
             const taskUserSolutionResponse = await api.put(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/user-solution`,
@@ -575,12 +795,11 @@ export default function PlayPage() {
             );
 
             if (taskUserSolutionResponse.data?.statusCode !== 200) {
-                setLoading(false);
+                setChatLoading(false);
                 showAlert(400, `Nie udało się zapisać odpowiedź`);
             }
         }
         catch (error: unknown) {
-            setLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -635,6 +854,201 @@ export default function PlayPage() {
         }
     }
 
+    const loadChat = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        signal?: AbortSignal
+    ) => {
+        if (!taskId) return;
+
+        try {
+            let newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
+            if (!newTask || signal?.aborted) return;
+
+            if (newTask.answered && newTask.chatFinished && !newTask.finished) {
+                const data = await handleProblemsGenerate(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    newTask.text ?? "",
+                    newTask.subtopics ?? [],
+                    newTask.solution ?? "",
+                    newTask.options ?? [],
+                    newTask.options[newTask.correctOptionIndex] ?? "",
+                    newTask.options[newTask.userOptionIndex] ?? "",
+                    newTask.userSolution ?? "",
+                    signal
+                );
+
+                if (!data || signal?.aborted) return;
+
+                const outputSubtopics = subtractPercents(
+                    newTask.subtopics ?? [],
+                    newTask.correctOptionIndex ?? 0,
+                    newTask.userOptionIndex ?? 0,
+                    data.outputSubtopics.map(([name, percent]) => ({
+                        name,
+                        percent: Number(percent)
+                    }))
+                );
+
+                await handleSaveSubtopicsProgressTransaction(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    taskId,
+                    outputSubtopics,
+                    data.explanation ?? ""
+                );
+
+                if (signal?.aborted) return;
+
+                newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
+
+                await handleUpdateChat(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    newTask.id,
+                    newTask.chat,
+                    newTask.chatFinished,
+                    newTask.userSolution,
+                    ChatMode.STUDENT_ANSWER,
+                    signal
+                );
+
+                return;
+            }
+
+            const isEmptyChat = isEmptyString(newTask.chat);
+
+            const shouldGenerateChat =
+                getLastMarker(newTask.chat) === "STUDENT_ANSWER" ||
+                getLastMarker(newTask.chat) === "STUDENT_QUESTION" ||
+                isEmptyChat;
+
+            if (shouldGenerateChat) {
+                const mode = getLastMarker(newTask.chat) === "STUDENT_ANSWER"
+                    ? ChatMode.STUDENT_ANSWER
+                    : getLastMarker(newTask.chat) === "STUDENT_QUESTION"
+                    ? ChatMode.STUDENT_QUESTION
+                    : newTask.mode;
+
+                const result = await handleChatGenerate(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    newTask.text,
+                    newTask.solution,
+                    newTask.userSolution,
+                    newTask.options,
+                    newTask.options[newTask.correctOptionIndex],
+                    newTask.options[newTask.userOptionIndex],
+                    newTask.chat,
+                    newTask.chatFinished,
+                    mode,
+                    getSubtopicTexts(newTask.subtopics),
+                    signal
+                );
+
+                if (signal?.aborted || !result) return;
+
+                const { chat, chatFinished, userSolution } = result;
+
+                if (chatFinished) {
+                    newTask.chatFinished = chatFinished;
+
+                    const data = await handleProblemsGenerate(
+                        subjectId,
+                        sectionId,
+                        topicId,
+                        newTask.text ?? "",
+                        newTask.subtopics ?? [],
+                        newTask.solution ?? "",
+                        newTask.options ?? [],
+                        newTask.options[newTask.correctOptionIndex] ?? "",
+                        newTask.options[newTask.userOptionIndex] ?? "",
+                        newTask.userSolution ?? "",
+                        signal
+                    );
+
+                    if (!data || signal?.aborted) return;
+
+                    const outputSubtopics = subtractPercents(
+                        newTask.subtopics ?? [],
+                        newTask.correctOptionIndex ?? 0,
+                        newTask.userOptionIndex ?? 0,
+                        data.outputSubtopics.map(([name, percent]) => ({
+                            name,
+                            percent: Number(percent)
+                        }))
+                    );
+
+                    await handleSaveSubtopicsProgressTransaction(
+                        subjectId,
+                        sectionId,
+                        topicId,
+                        taskId,
+                        outputSubtopics,
+                        data.explanation ?? ""
+                    );
+
+                    if (signal?.aborted) return;
+
+                    newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
+
+                    await handleUpdateChat(
+                        subjectId,
+                        sectionId,
+                        topicId,
+                        newTask.id,
+                        newTask.chat,
+                        chatFinished,
+                        newTask.userSolution,
+                        ChatMode.STUDENT_ANSWER,
+                        signal
+                    );
+
+                    return;
+                }
+
+                let newChat = chat;
+                if (!isEmptyChat)
+                    newChat = newTask.chat + `\n${chat}`;
+
+                await handleUpdateChat(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    taskId,
+                    newChat,
+                    chatFinished,
+                    userSolution,
+                    mode,
+                    signal
+                );
+
+                setLoading(false);
+                setChatLoading(false);
+                setIsProcessingChat(false);
+                
+                const newChatBlocks = parseChat(newChat);
+                const newRobotBlocks = getNewRobotBlocks(newChatBlocks, parseChat(newTask.chat));
+                
+                if (newRobotBlocks.length > 0)
+                    simulateTypingForRobotBlocks(newRobotBlocks);
+            }
+        } catch (error) {
+            if ((error as DOMException)?.name === "AbortError") return;
+            setLoading(false);
+            setChatLoading(false);
+            setIsProcessingChat(false);
+            handleApiError(error);
+        }
+    }, [handleChatGenerate, handleUpdateChat, handleSaveSubtopicsProgressTransaction, handleProblemsGenerate, getNewRobotBlocks, simulateTypingForRobotBlocks]);
+
     const loadTask = useCallback(async (
         subjectId: number,
         sectionId: number,
@@ -643,7 +1057,6 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
-            let note: string = "";
             let text: string = "";
             let taskSubtopics: string[] = [];
 
@@ -651,9 +1064,8 @@ export default function PlayPage() {
                 const taskResult = await handleTextGenerate(subjectId, sectionId, topicId, signal);
                 text = taskResult?.text ?? "";
                 taskSubtopics = taskResult?.outputSubtopics ?? [];
-                note = taskResult?.note ?? "";
 
-                if (!text || !note) {
+                if (!text) {
                     setLoading(false);
                     showAlert(400, "Nie udało się wygenerować treści zadania");
                     return;
@@ -661,7 +1073,7 @@ export default function PlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, "", [], [], taskSubtopics, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", [], 0, [], taskSubtopics, signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -687,7 +1099,7 @@ export default function PlayPage() {
 
                 stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, [], [], taskSubtopics, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], 0, [], taskSubtopics, signal, taskId);
             }
 
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -703,6 +1115,7 @@ export default function PlayPage() {
                 const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, taskSubtopics, text, solution, signal);
                 const options = optionsResult.options ?? [];
                 const explanations = optionsResult.explanations ?? [];
+                const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                 if (!options.length || options.length != 4) {
                     setLoading(false);
@@ -712,13 +1125,80 @@ export default function PlayPage() {
 
                 stage = 3;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, note, solution, options, explanations, taskSubtopics, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, correctOptionIndex, explanations, taskSubtopics, signal, taskId);
             }
         } catch (error) {
             setLoading(false);
             handleApiError(error);
         }
     }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction]);
+
+    const handleChatEnd = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        task: ITask,
+        newChat: string,
+        signal?: AbortSignal
+    ) => {
+        try {
+            shouldScrollRef.current = true;
+            scrollToBottom(true);
+
+            setChatLoading(true);
+            setTextLoading("Obliczanie Wyników...");
+
+            await handleUpdateChat(
+                subjectId ?? 0,
+                sectionId ?? 0,
+                topicId ?? 0,
+                task.id,
+                newChat,
+                true,
+                task.userSolution,
+                task.mode,
+                signal
+            );
+
+            await loadChat(
+                subjectId ?? 0,
+                sectionId ?? 0,
+                topicId ?? 0,
+                task.id,
+                signal
+            );
+
+            const finalTask = await fetchTaskById(
+                subjectId ?? 0,
+                sectionId ?? 0,
+                topicId ?? 0,
+                task.id,
+                signal
+            );
+
+            if (finalTask) {
+                setTask(finalTask);
+                setChatBlocks(parseChat(finalTask.chat));
+                
+                setShowFinalBlocks(true);
+                
+                if (finalTask.explanation) {
+                    simulateExplanationTyping(finalTask.explanation);
+                }
+            }
+        }
+        catch (error) {
+            setIsProcessingChat(false);
+            setChatLoading(false);
+            setChatTextValue("");
+            handleApiError(error);
+        }
+        finally {
+            setIsProcessingChat(false);
+            setChatLoading(false);
+            setChatTextValue("");
+        }
+    }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping]);
 
     useEffect(() => {
         const handleUnload = () => {
@@ -760,7 +1240,7 @@ export default function PlayPage() {
 
         const fetchAndLoadTask = async () => {
             try {
-                setTextLoading("Pobieranie zadania");
+                setTextLoading("Pobieranie Zadania...");
 
                 let task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
                 if (signal.aborted) return;
@@ -780,18 +1260,19 @@ export default function PlayPage() {
 
                     if (signal.aborted) return;
 
-                    setUserOptionIndex(task.userOptionIndex ?? 0);
+                    setUserOptionIndex(task.userOptionIndex ?? 0)
+                    setTask(task);
+                    setChatBlocks(parseChat(task.chat));
 
-                    fullUpdateTask(task);
-
-                    if (task.finished) {
+                    if (task.finished || (!task.answered && stage >= 3)) {
                         setLoading(false);
                         return;
                     }
                 }
 
-                if (task && task.id)
+                if (task && task.id) {
                     localStorage.setItem("taskId", task.id);
+                }
 
                 if (!task || stage < 3) {
                     await loadTask(subjectId, sectionId, topicId, stage, signal);
@@ -807,57 +1288,28 @@ export default function PlayPage() {
                     return;
                 }
 
-                if (task.answered && !task.finished) {
-                    setUserOptionIndex(task.userOptionIndex ?? 0);
-
-                    fullUpdateTask(task);
-
-                    const data = await handleProblemsGenerate(
-                        subjectId ?? 0,
-                        sectionId ?? 0,
-                        topicId ?? 0,
-                        task.text ?? "",
-                        task.subtopics ?? [],
-                        task.solution ?? "",
-                        task.options ?? [],
-                        task.options[0] ?? "",
-                        task.userSolution ?? "",
-                        signal
-                    );
-
-                    if (signal.aborted || !data) return;
-
-                    const outputSubtopics: Subtopic[] = subtractPercents(
-                        task.subtopics ?? [],
-                        data.outputSubtopics.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
-                    );
-
-                    const explanation = data.explanation ?? "";
-
-                    await handleSaveSubtopicsProgressTransaction(
-                        subjectId ?? 0,
-                        sectionId ?? 0,
-                        topicId ?? 0,
-                        task.id ?? 0,
-                        outputSubtopics,
-                        explanation
-                    );
-
-                    if (signal.aborted) return;
-
-                    task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
+                if (task.answered) {
+                    setLoading(true);
+                    setTextLoading("Pobieranie Czatu AI...");
+                    await loadChat(subjectId, sectionId, topicId, task.id, signal);
                 }
-                
-                fullUpdateTask(task);
 
-                setLoading(false);
+                task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
+                setTask(task);
+                localStorage.setItem("taskId", task.id);
+                
+                if (task.finished) {
+                    setShowFinalBlocks(true);
+                    setTypedExplanation(task.explanation || "");
+                }
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
-                setLoading(false);
                 handleApiError(error);
             } finally {
                 controllersRef.current = controllersRef.current.filter(c => c !== controller);
                 setLoading(false);
+                setChatLoading(false);
+                setTextLoading("");
             }
         };
 
@@ -867,11 +1319,22 @@ export default function PlayPage() {
             controller.abort();
             controllerRef.current = null;
         };
-    }, [subjectId, sectionId, topicId, fetchTopicById]);
+    }, [subjectId, sectionId, topicId]);
 
-    const adjustTextareaRows = () => {
-        if (textareaRef.current) {
-            const textarea = textareaRef.current;
+    useEffect(() => {
+        return () => {
+            if (typingIntervalRef.current) {
+                clearInterval(typingIntervalRef.current);
+            }
+            if (explanationIntervalRef.current) {
+                clearInterval(explanationIntervalRef.current);
+            }
+        };
+    }, []);
+
+    const adjustChatTextareaRows = () => {
+        if (chatTextareaRef.current) {
+            const textarea = chatTextareaRef.current;
             const main = document.querySelector("main");
             const scrollTop = main?.scrollTop ?? window.scrollY;
 
@@ -884,9 +1347,7 @@ export default function PlayPage() {
     };
 
     useEffect(() => {
-        setInsertPosition(InsertPosition.None);
-        setOptionsGenerate(OptionsGenerate.New);
-        setMsgVisible(false);
+        setMsgChatVisible(false);
 
         setMainHeight();
 
@@ -901,334 +1362,24 @@ export default function PlayPage() {
         };
     }, []);
 
-    useEffect(() => {
-        const savedAnswer = localStorage.getItem("answerText");
-
-        if (savedAnswer) {
-            setTextValue(savedAnswer);
-            adjustTextareaRows();
-            splitIntoSentences(savedAnswer)
-                .then(sentences => setSentences(sentences))
-                .catch(() => setSentences([]));
-            setSelectedSentences([0]);
-        }
-    }, []);
-
-    const firstLoadRef = useRef(true);
-
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        if (firstLoadRef.current && !loading) {
-            firstLoadRef.current = false;
-            return;
-        }
-
-        if (loading) return;
-
-        if (transcribeLoading) {
-            scrollToBottom();
-        } else {
-            scrollToTop();
-        }
-    }, [sentences, transcribes, loading, transcribeLoading]);
-
-    const splitIntoSentences = async (text: string): Promise<string[]> => {
-        try {
-            const response = await api.post("/options/split-into-sentences", { 
-                text,
-                language: "pl"
-            });
-
-            if (response.status !== 201) {
-                showAlert(400, `Nie udało się podzielić tekstu na zdania`);
-                return [];
-            }
-
-            const sentences = response.data?.sentences;
-
-            if (Array.isArray(sentences) && sentences.every(item => typeof item === 'string')) {
-                return sentences;
-            }
-
-            return [];
-        } catch {
-            showAlert(400, `Nie udało się podzielić tekstu na zdania`);
-            return [];
-        }
-    };
-
-    const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const handleChatInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newValue = e.target.value;
-        setTextValue(newValue);
-        localStorage.setItem("answerText", newValue);
-        adjustTextareaRows();
+        setChatTextValue(newValue);
+        adjustChatTextareaRows();
     };
 
     const handleBackClick = () => {
-        localStorage.removeItem("answerText");
         localStorage.removeItem("taskId");
-        localStorage.removeItem("Mode");
-        localStorage.removeItem("ModeTaskId");
-        localStorage.removeItem("ModeSubtopics");
 
         router.back();
     };
 
-    const toggleInputMode = () => {
-        setIsMicMode(prev => !prev);
-    };
-
-    useEffect(() => {
-        const savedAnswer = localStorage.getItem("answerText") || "";
-
-        if (!isMicMode) {
-            textareaRef.current?.focus({ preventScroll: true });
-            setTextValue(savedAnswer);
-            adjustTextareaRows();
-        }
-        else {
-            splitIntoSentences(savedAnswer)
-                .then(sentences => setSentences(sentences))
-                .catch(() => setSentences([]));
-            setSelectedSentences([0]);
-        }
-    }, [isMicMode]);
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [sentences, textValue]);
-
-    const handleSentenceSelect = (id: number) => {
-        setSelectedSentences(prev => {
-            if (prev.length === 0) return [id];
-            const min = Math.min(...prev);
-            const max = Math.max(...prev);
-            if (id === min - 1 || id === max + 1) return [...prev, id].sort((a, b) => a - b);
-            return [id];
-        });
-    };
-
-    const handleSentenceDeselect = (id: number) => {
-        setSelectedSentences(prev => {
-            if (!prev.includes(id)) return prev;
-            if (prev.length === 1) return [];
-            const min = Math.min(...prev);
-            const max = Math.max(...prev);
-            if (id === min || id === max) return prev.filter(item => item !== id);
-            return [id];
-        });
-    };
-
-    const fetchAudioTranscribe = useCallback(async (part_id: number, file: File, subjectId?: number) => {
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('part_id', part_id.toString());
-            formData.append('language', "pl");
-
-            const response = await api.post(`/options/${subjectId}/audio-transcribe`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-
-            if (response.data?.statusCode === 201) {
-                return response.data.transcription;
-            }
-
-            return null;
-        } catch (error) {
-            console.error(`Błąd serwera podczas transkrypcji audio:`, error);
-            return null;
-        }
-    }, []);
-
-    const startRecording = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const recorder = new MediaRecorder(stream);
-            const chunks: Blob[] = [];
-
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    chunks.push(e.data);
-                }
-            };
-
-            recorder.onstop = async () => {
-                setTranscribeLoading(true);
-
-                const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-                const audioFile = new File([audioBlob], 'recorded.webm', { type: 'audio/webm' });
-
-                const MAX_FILE_SIZE = 10 * 1024 * 1024;
-                const totalSize = audioFile.size;
-                let start = 0;
-                let partId = 1;
-
-                const subjectId = parseInt(localStorage.getItem("subjectId") || "") || undefined;
-                const newTranscribes: string[] = [];
-                const errors: string[] = [];
-
-                while (start < totalSize) {
-                    const end = Math.min(start + MAX_FILE_SIZE, totalSize);
-                    const chunk = audioFile.slice(start, end);
-                    const chunkFile = new File([chunk], `part_${partId}.webm`, { type: 'audio/webm' });
-
-                    const transcription = await fetchAudioTranscribe(partId, chunkFile, subjectId);
-
-                    if (transcription) {
-                        newTranscribes.push(transcription);
-                    } else {
-                        errors.push(`Nie udało się zrobić transkrypcji części ${partId}`);
-                    }
-
-                    start = end;
-                    partId += 1;
-                }
-
-                const newSentences = await splitIntoSentences(newTranscribes.join(" "));
-
-                if (insertPosition === InsertPosition.None) {
-                    const newTextValue = newSentences.join(" ");
-                    setTranscribes(prev => [...prev, ...newTranscribes]);
-                    setTextValue(newTextValue);
-                    setSentences(newSentences);
-                    setSelectedSentences(newSentences.map((_, i) => i));
-                    localStorage.setItem("answerText", newTextValue);
-                }
-                else if (insertPosition === InsertPosition.Przed) {
-                    const minIndex = Math.min(...selectedSentences);
-                    const updatedSentences = [...sentences];
-                    updatedSentences.splice(minIndex, 0, ...newSentences);
-                    const newTextValue = updatedSentences.join(" ");
-                    setSentences(updatedSentences);
-                    setTextValue(newTextValue);
-                    setSelectedSentences(newSentences.map((_, i) => minIndex + i));
-                    localStorage.setItem("answerText", newTextValue);
-                }
-                else if (insertPosition === InsertPosition.Zamiast) {
-                    const minIndex = Math.min(...selectedSentences);
-                    const maxIndex = Math.max(...selectedSentences);
-                    const updatedSentences = [...sentences];
-                    updatedSentences.splice(minIndex, maxIndex - minIndex + 1, ...newSentences);
-                    const newTextValue = updatedSentences.join(" ");
-                    setSentences(updatedSentences);
-                    setTextValue(newTextValue);
-                    setSelectedSentences(newSentences.map((_, i) => minIndex + i));
-                    localStorage.setItem("answerText", newTextValue);
-                }
-                else if (insertPosition === InsertPosition.Po) {
-                    const maxIndex = Math.max(...selectedSentences);
-                    const updatedSentences = [...sentences];
-                    updatedSentences.splice(maxIndex + 1, 0, ...newSentences);
-                    const newTextValue = updatedSentences.join(" ");
-                    setSentences(updatedSentences);
-                    setTextValue(newTextValue);
-                    setSelectedSentences(newSentences.map((_, i) => maxIndex + 1 + i));
-                    localStorage.setItem("answerText", newTextValue);
-                }
-
-                setIsPlaying(prev => !prev);
-                setTranscribeLoading(false);
-
-                if (errors.length !== 0) 
-                    showAlert(500, errors.join("\n"));
-                else
-                    showAlert(200, "Przetwarzanie audio na tekst udane");
-            };
-
-            recorder.start();
-            setMediaRecorder(recorder);
-        } catch (error) {
-            console.error("Błąd podczas dostępu do mikrofonu:", error);
-            showAlert(400, "Nie udało się uzyskać dostępu do mikrofonu. Sprawdź uprawnienia i spróbuj ponownie.");
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorder) {
-            mediaRecorder.stop();
-            setMediaRecorder(null);
-        }
-    };
-
-    const togglePlayPause = () => {
-        if (!isMicMode) {
-            toggleInputMode();
-            return;
-        }
-
-        if (!isPlaying) {
-            if (sentences.length !== 0) {
-                if (selectedSentences.length === 0) {
-                    setSelectedSentencesWasEmpty(true);
-
-                    try {
-                        for (let i = 0; i < sentences.length; i++)
-                            selectedSentences.push(i);
-                    }
-                    catch {}
-                }
-
-                setInsertPosition(InsertPosition.Po);
-                setMsgVisible(true);
-            }
-            else {
-                setInsertPosition(InsertPosition.None);
-                setIsPlaying(prev => !prev);
-                startRecording();
-            }
-        }
-        else {
-            stopRecording();
-        }
-    };
-
-    const handlePositionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInsertPosition(e.target.value as InsertPosition);
-    };
-
-    const handleOptionGenerateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setOptionsGenerate(e.target.value as OptionsGenerate);
-    };
-
-    const handleDeleteText = () => {
-        if (isMicMode) {
-            const newSentences = sentences.filter((_, index) => !selectedSentences.includes(index));
-            const newTextValue = newSentences.join(" ");
-
-            setTranscribes([]);
-
-            if (newSentences.length !== 0) {
-                setTextValue(newTextValue);
-                localStorage.setItem("answerText", newTextValue);
-                setSentences(newSentences);
-                setSelectedSentences([]);
-            }
-            else {
-                setTextValue("");
-                localStorage.setItem("answerText", "");
-                setSentences([]);
-                setSelectedSentences([]);
-            }
-        }
-        else {
-            setTextValue("");
-            setSentences([]);
-            setSelectedSentences([]);
-            setTranscribes([]);
-            localStorage.setItem("answerText", "");
-        }
-    }
-
-    function subtractPercents(subtopics: Subtopic[], outputSubtopics: Subtopic[]): Subtopic[] {
+    function subtractPercents(subtopics: Subtopic[], correctOptionIndex: number, userOptionIndex: number, outputSubtopics: Subtopic[]): Subtopic[] {
         const outputMap = new Map<string, number>(
             outputSubtopics.map(item => [item.name, item.percent])
         );
 
-        const bonus = userOptionIndex === 0 ? 20 : 0;
+        const bonus = userOptionIndex === correctOptionIndex ? 20 : 0;
 
         return subtopics.map(item => {
             const subtractValue = outputMap.get(item.name) || 0;
@@ -1243,131 +1394,213 @@ export default function PlayPage() {
         return /^\s*$/.test(str);
     }
 
-    const handleSubmitTaskClick = useCallback(async () => {
-        if (isEmptyString(textValue)) {
-            showAlert(400, "Odpowiedź nie może być pusta");
-            return;
-        }
+    const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
+        if (isTyping || isProcessingChat) return;
 
-        if (controllerRef.current) {
-            controllerRef.current.abort();
-        }
+        setChatLoading(true);
+        setIsProcessingChat(true);
+        
+        // Сохраняем текущие значения ДО асинхронных операций
+        const currentChat = task.chat;
+        const currentTaskId = task.id;
+        const currentSubjectId = subjectId;
+        const currentSectionId = sectionId;
+        const currentTopicId = topicId;
+        const currentUserSolution = task.userSolution;
+        const currentChatFinished = task.chatFinished;
+        const userMessage = chatTextValue;
+        
+        setChatTextValue("");
+
+        if (controllerRef.current) controllerRef.current.abort();
 
         const controller = new AbortController();
         controllerRef.current = controller;
         controllersRef.current.push(controller);
         const signal = controller.signal;
 
-        if (!task?.getTask().answered) {
-            setLoading(true);
+        try {
+            shouldScrollRef.current = true;
+            scrollToBottom(true);
+
+            setTextLoading("Przetwarzanie Czatu AI...");
+
+            const userBlock: ChatBlock = {
+                isUser: true,
+                title: type === 'question' ? "Moje Pytanie:" : "Moja Odpowiedź:",
+                content: userMessage,
+                type: type === 'question' ? "STUDENT_QUESTION" : "STUDENT_ANSWER"
+            };
+
+            setChatBlocks(prev => [...prev, userBlock]);
+            shouldScrollRef.current = true;
+            scrollToBottom(true);
+
+            const chatMode = type === 'question' ? ChatMode.STUDENT_QUESTION : ChatMode.STUDENT_ANSWER;
+            const marker = type === 'question' ? 'STUDENT_QUESTION' : 'STUDENT_ANSWER';
+            
+            const newChat = currentChat + `\n\n[${marker}]\n${userMessage}`;
+            
+            await handleUpdateChat(
+                currentSubjectId ?? 0,
+                currentSectionId ?? 0,
+                currentTopicId ?? 0,
+                currentTaskId,
+                newChat,
+                currentChatFinished,
+                currentUserSolution,
+                chatMode,
+                signal
+            );
+
+            await loadChat(
+                currentSubjectId ?? 0,
+                currentSectionId ?? 0,
+                currentTopicId ?? 0,
+                currentTaskId,
+                signal
+            );
+
+            const updatedTask = await fetchTaskById(
+                currentSubjectId ?? 0,
+                currentSectionId ?? 0,
+                currentTopicId ?? 0,
+                currentTaskId,
+                signal
+            );
+
+            if (updatedTask) {
+                setTask(updatedTask);
+            }
+
+        } catch (error: unknown) {
+            if ((error as DOMException)?.name === "AbortError") {
+                setChatBlocks(prev => prev.filter(block => 
+                    !block.isUser || block.content !== userMessage
+                ));
+                return;
+            }
+            setChatLoading(false);
+            setIsProcessingChat(false);
+            handleApiError(error);
+        } finally {
+            setChatLoading(false);
+            setIsProcessingChat(false);
+
+            controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            controllerRef.current = null;
+        }
+    }, [task.id, subjectId, sectionId, topicId, chatTextValue, handleUpdateChat, loadChat, fetchTaskById, isTyping, isProcessingChat]);
+
+    const handleSubmitTaskClick = useCallback(async () => {
+        if (isSubmittingAnswer) return;
+        
+        setIsSubmittingAnswer(true);
+
+        if (controllerRef.current) controllerRef.current.abort();
+
+        const controller = new AbortController();
+        controllerRef.current = controller;
+        controllersRef.current.push(controller);
+        const signal = controller.signal;
+
+        if (!task.answered) {
             try {
-                localStorage.removeItem("answerText");
-                setTextValue("");
-                setSentences([]);
-                setSelectedSentences([]);
-                setTranscribes([]);
+                shouldScrollRef.current = true;
+                scrollToBottom(true);
 
+                setChatLoading(true);
+                setTextLoading("Zapisywanie rozwiązania...");
+
+                // Сохраняем ID до асинхронных операций
+                const currentTaskId = task.id;
+                const currentSubjectId = subjectId;
+                const currentSectionId = sectionId;
+                const currentTopicId = topicId;
+                const currentUserOptionIndex = userOptionIndex;
+
+                // 1. Сохраняем ответ пользователя
                 await handleTaskUserSolutionSave(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
-                    task?.getTask().id ?? 0,
-                    textValue,
-                    userOptionIndex ?? 0,
+                    currentSubjectId ?? 0,
+                    currentSectionId ?? 0,
+                    currentTopicId ?? 0,
+                    currentTaskId ?? 0,
+                    "",
+                    currentUserOptionIndex ?? 0,
                     signal
                 );
 
                 if (signal.aborted) return;
 
-                let newTask: ITask = await fetchPendingTask(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
-                    signal
-                );
-                if (signal.aborted || !newTask) return showAlert(400, "Nie udało się pobrać zadania");
+                // 2. Немедленно обновляем UI
+                setTask(prev => ({
+                    ...prev,
+                    answered: true,
+                    userOptionIndex: currentUserOptionIndex ?? 0
+                }));
 
-                fullUpdateTask(newTask);
-
-                const data = await handleProblemsGenerate(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
-                    newTask.text ?? "",
-                    newTask.subtopics ?? [],
-                    newTask.solution ?? "",
-                    newTask.options ?? [],
-                    newTask.options[0] ?? "",
-                    newTask.userSolution ?? "",
+                // 3. Получаем обновленную задачу
+                const newTask = await fetchPendingTask(
+                    currentSubjectId ?? 0,
+                    currentSectionId ?? 0,
+                    currentTopicId ?? 0,
                     signal
                 );
 
-                if (signal.aborted || !data) return;
+                if (signal.aborted || !newTask) {
+                    showAlert(400, "Nie udało się pobrać zadania");
+                    return;
+                }
 
-                const outputSubtopics: Subtopic[] = subtractPercents(
-                    newTask.subtopics ?? [],
-                    data.outputSubtopics.map(([name, percent]) => ({ name, percent: Number(percent) })) ?? []
-                );
+                setTextLoading("Przetwarzanie czatu AI...");
 
-                const explanation = data.explanation ?? "";
-
-                await handleSaveSubtopicsProgressTransaction(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
-                    newTask.id ?? 0,
-                    outputSubtopics,
-                    explanation,
-                    signal
-                );
-
-                if (signal.aborted) return;
-
-                newTask = await fetchTaskById(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
+                // 4. Загружаем чат (обновит chatBlocks)
+                await loadChat(
+                    currentSubjectId ?? 0,
+                    currentSectionId ?? 0,
+                    currentTopicId ?? 0,
                     newTask.id,
                     signal
                 );
 
-                fullUpdateTask(newTask);
-            }
-            catch (error: unknown) {
+                // 5. Получаем полную обновленную задачу
+                const finalTask = await fetchTaskById(
+                    currentSubjectId ?? 0,
+                    currentSectionId ?? 0,
+                    currentTopicId ?? 0,
+                    newTask.id,
+                    signal
+                );
+
+                if (finalTask) {
+                    setTask(finalTask);
+                }
+
+            } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
+                setChatLoading(false);
+                setIsProcessingChat(false);
                 handleApiError(error);
-            }
-            finally {
-                if (!signal.aborted) setLoading(false);
+            } finally {
+                setChatLoading(false);
+                setIsProcessingChat(false);
+                setIsSubmittingAnswer(false);
+
                 controllersRef.current = controllersRef.current.filter(c => c !== controller);
                 controllerRef.current = null;
             }
         }
-    }, [task, textValue, userOptionIndex, subjectId, sectionId, topicId]);
-
-    const shuffledOptions = useMemo(() => {
-        const optionsWithIndex = (task?.getTask().options ?? []).map((option, i) => ({
-            option,
-            originalIndex: i
-        }));
-
-        for (let i = optionsWithIndex.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [optionsWithIndex[i], optionsWithIndex[j]] = [optionsWithIndex[j], optionsWithIndex[i]];
-        }
-
-        return optionsWithIndex;
-    }, [task?.getTask().options]); 
+    }, [task.id, task.answered, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     useEffect(() => {
-        if (shuffledOptions.length > 0 && task.getTask().answered === false && task.getTask().finished === false) {
-            setUserOptionIndex(shuffledOptions[0].originalIndex);
+        if (task?.options.length > 0 && task?.answered === false && task?.finished === false) {
+            setUserOptionIndex(0);
         }
-    }, [shuffledOptions]);
+    }, [task?.options, task?.answered, task?.finished]);
 
     const handleDeleteTask = useCallback(async() => {
         try {
-            const response = await api.delete(`/subjects/${subjectId}/tasks/${task?.getTask().id}`);
+            const response = await api.delete(`/subjects/${subjectId}/tasks/${task.id}`);
 
             setLoading(false);
             if (response.data?.statusCode === 200) {
@@ -1378,24 +1611,36 @@ export default function PlayPage() {
         }
         catch (error) {
             setLoading(false);
-            if (axios.isAxiosError(error)) {
-                if (error.response) {
-                showAlert(error.response.status, error.response.data.message || "Server error");
-                } else {
-                showAlert(500, `Server error: ${error.message}`);
-                }
-            } else if (error instanceof Error) {
-                showAlert(500, `Server error: ${error.message}`);
-            } else {
-                showAlert(500, "Unknown error");
-            }
+            handleApiError(error);
         }
         finally {
             setLoading(false);
             setTextLoading("");
-            setMsgDeleteVisible(false);
+            setMsgDeleteTaskVisible(false);
         }
-    }, [subjectId, task?.getTask().id]);
+    }, [subjectId, task.id]);
+
+    const allDisplayBlocks = useMemo(() => {
+        const result = [...chatBlocks];
+        
+        if (tempTypingBlocks.length > 0) {
+            let lastHumanIndex = -1;
+            for (let i = result.length - 1; i >= 0; i--) {
+                if (result[i].isUser) {
+                    lastHumanIndex = i;
+                    break;
+                }
+            }
+            
+            if (lastHumanIndex >= 0) {
+                result.splice(lastHumanIndex + 1, 0, ...tempTypingBlocks);
+            } else {
+                result.push(...tempTypingBlocks);
+            }
+        }
+        
+        return result;
+    }, [chatBlocks, tempTypingBlocks]);
 
     return (
         <>
@@ -1404,7 +1649,7 @@ export default function PlayPage() {
                     <div className="menu-icon" title="Wróć" onClick={handleBackClick}>
                         <ArrowLeft size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Słownik" onClick={(e) => {
+                    <div className="menu-icon" title="Usuń" onClick={(e) => {
                         e.stopPropagation();
                         setMsgDeleteTaskVisible(true);
                     }}>
@@ -1416,34 +1661,39 @@ export default function PlayPage() {
 
                         if (!subjectId || !sectionId || !topicId) return;
 
-                        localStorage.removeItem("Mode");
-                        localStorage.removeItem("ModeTaskId");
+                        setTextLoading("");
+                        setLoading(true);
 
-                        const completed = await fetchTopicById(subjectId, sectionId, topicId);
+                        const completed = await fetchCompletedTopicById(subjectId, sectionId, topicId);
 
-                        if (completed)
+                        if (completed) {
+                            setLoading(false);
                             setMsgPlayVisible(true);
-                        else
-                            setMsgOptionsGenerateVisible(true);
+                            return;
+                        }
+                        
+                        localStorage.removeItem("taskId");
+                        window.location.reload();
                     }}>
                         <Play size={28} color="white" />
                     </div>
                 </div>
             </Header>
 
-            <main>
+            <main ref={mainRef}>
                 <Message
                     message={"Czy na pewno chcesz usunąć zadanie?"}
                     textConfirm="Tak"
                     textCancel="Nie"
                     onConfirm={() => {
                         setMsgDeleteTaskVisible(false);
+                        setLoading(true);
 
                         if (!loading)
-                            setTextLoading("Trwa usuwanie zadania");
+                            setTextLoading("Trwa usuwanie zadania...");
 
                         setLoading(true);
-                        if (task?.getTask().id) {
+                        if (task.id) {
                             handleDeleteTask().then(() => {
                                 setTimeout(() => {
                                     handleBackClick();
@@ -1464,162 +1714,86 @@ export default function PlayPage() {
                     textCancel="Nie"
                     onConfirm={() => {
                         setMsgPlayVisible(false);
-                        setMsgOptionsGenerateVisible(true);
+                        
+                        localStorage.removeItem("taskId");
+                        window.location.reload();
                     }}
                     onClose={() => {
                         setMsgPlayVisible(false);
                     }}
                     visible={msgPlayVisible}
                 />
-                <Message
-                    message={
-                        isMicMode ?
-                        "Czy na pewno chcesz usunąć wybrany fragment tekstu?" :
-                        "Czy na pewno chcesz usunąć cały tekst?"
-                    }
+
+                <Message 
+                    message={`Czy na pewno zadanie było rozwiązane?`}
                     textConfirm="Tak"
                     textCancel="Nie"
-                    onConfirm={() => {
-                        handleDeleteText();
-                        setMsgDeleteVisible(false);
-                        setSelectedSentences([]);
+                    onConfirm={async () => {
+                        setMsgChatVisible(false);
+                        setIsChatEnd(true);
+                        const newChat = removeLastBlockOptimal(task.chat)
+                        setChatBlocks(parseChat(newChat));
 
-                        if (!isMicMode)
-                            adjustTextareaRows();
+                        if (controllerRef.current) controllerRef.current.abort();
+
+                        const controller = new AbortController();
+                        controllersRef.current.push(controller);
+                        const signal = controller.signal;
+
+                        await handleChatEnd(
+                            subjectId ?? 0,
+                            sectionId ?? 0,
+                            topicId ?? 0,
+                            task,
+                            newChat,
+                            signal
+                        );
                     }}
                     onClose={() => {
-                        setMsgDeleteVisible(false);
-                        if (selectedSentencesWasEmpty) {
-                            setSelectedSentencesWasEmpty(false);
-                            setSelectedSentences([]);
-                        }
+                        setMsgChatVisible(false);
                     }}
-                    visible={msgDeleteVisible}
+                    visible={msgChatVisible}
                 />
-                <RadioMessage 
-                    message={`Czy chcesz wygenerować nowe zadanie czy wygenerować podobne?`}
-                    textConfirm="Zatwierdź"
-                    textCancel="Anuluj"
-                    onConfirm={() => {
-                        setMsgOptionsGenerateVisible(false);
 
-                        if (optionsGenerate === OptionsGenerate.New)
-                            localStorage.setItem("Mode", "auto");
-                        else
-                            localStorage.setItem("Mode", "strict");
-
-                        const storedId = localStorage.getItem("taskId");
-                        localStorage.setItem("ModeTaskId", String(storedId));
-
-                        localStorage.removeItem("taskId");
-                        localStorage.removeItem("answerText");
-                        window.location.reload();
-                    }}
-                    onClose={() => {
-                        setMsgOptionsGenerateVisible(false);
-                        setOptionsGenerate(OptionsGenerate.New);
-                    }}
-                    visible={msgOptionsGenerateVisible}
-                    btnsWidth="140px"
-                >
-                <div className="radio-group">
-                    <label className="radio-option">
-                        <input
-                            type="radio"
-                            name="optionsGenerate"
-                            value={OptionsGenerate.New}
-                            checked={optionsGenerate === OptionsGenerate.New}
-                            onChange={handleOptionGenerateChange}
-                        />
-                        <span>{OptionsGenerate.New}</span>
-                    </label>
-
-                    <label className="radio-option">
-                        <input
-                            type="radio"
-                            name="optionsGenerate"
-                            value={OptionsGenerate.This}
-                            checked={optionsGenerate === OptionsGenerate.This}
-                            onChange={handleOptionGenerateChange}
-                        />
-                        <span>{OptionsGenerate.This}</span>
-                    </label>
-                    </div>
-                </RadioMessage>
-
-                <RadioMessage 
-                    message={`Gdzie chcesz wstawić nowy fragment audio?`}
-                    textConfirm="Zatwierdź"
-                    textCancel="Anuluj"
-                    onConfirm={() => {
-                        setMsgVisible(false);
-                        setIsPlaying(prev => !prev);
-                        startRecording();
-                    }}
-                    onClose={() => {
-                        setMsgVisible(false);
-                        setInsertPosition(InsertPosition.None);
-                        if (selectedSentencesWasEmpty) {
-                            setSelectedSentencesWasEmpty(false);
-                            setSelectedSentences([]);
-                        }
-                    }}
-                    visible={msgVisible}
-                    btnsWidth="140px"
-                >
-                <div className="radio-group">
-                    <label className="radio-option">
-                        <input
-                            type="radio"
-                            name="insertPosition"
-                            value={InsertPosition.Przed}
-                            checked={insertPosition === InsertPosition.Przed}
-                            onChange={handlePositionChange}
-                        />
-                        <span>{InsertPosition.Przed}</span>
-                    </label>
-
-                    <label className="radio-option">
-                        <input
-                            type="radio"
-                            name="insertPosition"
-                            value={InsertPosition.Zamiast}
-                            checked={insertPosition === InsertPosition.Zamiast}
-                            onChange={handlePositionChange}
-                        />
-                        <span>{InsertPosition.Zamiast}</span>
-                    </label>
-
-                    <label className="radio-option">
-                        <input
-                            type="radio"
-                            name="insertPosition"
-                            value={InsertPosition.Po}
-                            checked={insertPosition === InsertPosition.Po}
-                            onChange={handlePositionChange}
-                        />
-                        <span>{InsertPosition.Po}</span>
-                    </label>
-                    </div>
-                </RadioMessage>
-
-                {(loading || transcribeLoading) ? (
+                {(loading) ? (
                     <div className="spinner-wrapper">
-                        <Spinner visible={true} text={transcribeLoading ? "Przetwarzanie audio na tekst..." : textLoading} />
+                        <Spinner visible={true} text={textLoading} />
                     </div>
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            <div className={`message human ${task.getTask().status}`}>
+                            <div className="message robot">
+                                <div className="element-name" style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    cursor: "pointer",
+                                    fontWeight: "bold"
+                                }}
+                                    onClick={() => setTopicNoteExpanded((prev) => !prev)}>
+                                    <div className="btnElement" style={{
+                                        marginRight: "4px",
+                                        fontWeight: "bold"
+                                    }}>
+                                        {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                    </div>
+                                    {task.topicName ?? ""}
+                                </div>
+                                {topicNoteExpanded && (
+                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                        <FormatText content={task.topicNote ?? ""} />
+                                    </div>
+                                )}
+                            </div>
+                            <div className={`message human ${task.status}`}>
                                 <div className="text-title" style={{ fontWeight: "bold" }}>
-                                    {task.getTask().finished ? "Ocena:" : "Podtematy:"}
+                                    {task.finished ? "Ocena:" : "Podtematy:"}
                                 </div>
                                 <div style={{ marginTop: "8px" }}>
-                                    {task?.getTask().subtopics.map((subtopic: Subtopic, index: number) => (
+                                    {task.subtopics.map((subtopic: Subtopic, index: number) => (
                                     <div key={index}>
                                         <FormatText
                                             content={
-                                                task.getTask().finished
+                                                task.finished
                                                 ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
                                                 : `${index + 1}. ${subtopic.name}`
                                             }
@@ -1629,201 +1803,242 @@ export default function PlayPage() {
                                 </div>
                             </div>
                             <div className="message robot">
-                                <div className="text-title" style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    cursor: "pointer"
-                                }}
-                                    onClick={() => setTopicNoteExpanded((prev) => !prev)}>
-                                    <div className="btnElement" style={{
-                                        marginRight: "4px",
-                                        fontWeight: "bold"
-                                    }}>
-                                        {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                    </div>
-                                    Notatka tematu:
-                                </div>
-                                {topicNoteExpanded && (
-                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
-                                        <FormatText content={task?.getTask().topicNote ?? ""} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="message robot">
-                                <div className="text-title" style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    cursor: "pointer"
-                                }}
-                                    onClick={() => setNoteExpanded((prev) => !prev)}>
-                                    <div className="btnElement" style={{
-                                        marginRight: "4px",
-                                        fontWeight: "bold"
-                                    }}>
-                                        {noteExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                    </div>
-                                    Notatka zadania:
-                                </div>
-                                {noteExpanded && (
-                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
-                                        <FormatText content={task?.getTask().note ?? ""} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="message robot">
-                                <div className="text-title">Tekst zadania:</div>
-                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().text ?? ""} /></div>
+                                <div className="text-title">Tekst Zadania:</div>
+                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task.text ?? ""} /></div>
                             </div>
                             <div className="message human">
-                                <div className="text-title">Warianty odpowiedzi:</div>
+                                <div className="text-title">Warianty Odpowiedzi:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
-                                    {shuffledOptions.map(({ option, originalIndex }) => (
-                                        <div key={originalIndex}>
-                                            <label className={`radio-option ${task.getTask().finished ? "finished" : ""} ${originalIndex === 0 ? "correct" : ""}`} style={{marginBottom: "12px"}}>
+                                    {(task.options ?? []).map((option, index) => (
+                                        <div key={index}>
+                                            <label className={`radio-option finished ${
+                                                task.answered ? (
+                                                    index === task.correctOptionIndex 
+                                                        ? "correct" 
+                                                        : userOptionIndex === index 
+                                                        ? "uncorrect" 
+                                                        : ""
+                                                ) : ""
+                                            }`} style={{marginBottom: "12px"}}>
                                                 <input
                                                     type="radio"
                                                     name="userOption"
-                                                    value={originalIndex}
-                                                    checked={userOptionIndex === originalIndex}
-                                                    onChange={() => setUserOptionIndex(originalIndex)}
-                                                    disabled={task.getTask().finished}
+                                                    value={index}
+                                                    checked={userOptionIndex === index}
+                                                    onChange={() => setUserOptionIndex(index)}
                                                     style={{
                                                         marginTop: "0.75px"
                                                     }}
                                                 />
                                                 <span><FormatText content={option ?? ""} /></span>
                                             </label>
-
-                                            {task.getTask().finished ? (
-                                                <div style={{ marginLeft: "32px" }}>
-                                                <div className="text-title">Wyjaśnienie:</div>
+                                            {task.finished ? (
                                                 <div>
-                                                    <span><FormatText content={task.getTask().explanations[originalIndex] ?? ""} /></span>
+                                                    <div
+                                                        className="text-title"
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            cursor: "pointer",
+                                                            fontWeight: "bold"
+                                                        }}
+                                                        onClick={() => {
+                                                            setOptionExplanationsExpanded(prev => ({
+                                                                ...prev,
+                                                                [index]: !prev[index]
+                                                            }));
+                                                        }}
+                                                    >
+                                                        <div
+                                                            className="btnElement"
+                                                            style={{
+                                                                marginRight: "4px",
+                                                                fontWeight: "bold"
+                                                            }}
+                                                        >
+                                                            {optionExplanationsExpanded[index] ? <Minus size={26} /> : <Plus size={26} />}
+                                                        </div>
+                                                        Wyjaśnienie:
+                                                    </div>
+                                                    
+                                                    {optionExplanationsExpanded[index] && (
+                                                        <div style={{ marginTop: "8px", paddingLeft: "20px" }}>
+                                                            <FormatText content={task.explanations[index] ?? ""} />
+                                                        </div>
+                                                    )}
+                                                    <br />
                                                 </div>
-                                                <br />
-                                            </div>) : null}
+                                            ) : null}
                                         </div>
                                     ))}
                                 </div>
-                                <div className="text-title">
-                                    {task.getTask().finished ? "Moje rozwiązanie:" : "Rozwiązanie:"}
-                                </div>
-                                {!isMicMode ? (
-                                    !task.getTask().finished ? (
-                                    <textarea
-                                        ref={textareaRef}
-                                        placeholder="Wpisz rozwiązanie..."
-                                        onInput={handleInput}
-                                        className="answer-block"
-                                        value={textValue}
-                                        rows={1}
-                                        name="userSolution"
-                                        id="userSolution"
-                                    />) : (
-                                         <div className="answer-block readonly">
-                                            {task.getTask().userSolution || ""}
-                                        </div>
-                                    )
-                                ) : (
-                                    !task.getTask().finished ? (
-                                    <div className="sentences" style={{ marginTop: "8px" }}>
-                                    {sentences.length > 0 ? (
-                                        sentences.map((sentence, i) => {
-                                        const isSelected = selectedSentences.includes(i);
-                                        const handleClick = () => {
-                                            if (isSelected) handleSentenceDeselect(i);
-                                            else handleSentenceSelect(i);
-                                        };
-                                        return (
-                                            <span
-                                                key={i}
-                                                className={`sentence ${isSelected ? 'active' : ''}`}
-                                                onClick={handleClick}
-                                                >
-                                                {sentence}
-                                            </span>
-                                        );
-                                        })
-                                    ) : (
-                                        <textarea readOnly rows={1} placeholder="Naciśnij mikrofon i powiedz..." style={{ width: "100%" }}></textarea>
-                                    )}
-                                    </div>) : (
-                                        <div className="answer-block readonly">
-                                            {task.getTask().userSolution || ""}
-                                        </div>
-                                    )
-                                )}
-                                {!task.getTask().finished ? (
-                                <div className="options">
-                                    <button
-                                        className={isMicMode
-                                            ? `btnOption ${isPlaying ? 'darkgreen' : ''}`
-                                            : 'btnOption disabled'}
-                                        title={isPlaying ? "Pauza" : "Start"}
-                                        onClick={togglePlayPause}
-                                    >
-                                        <Mic size={28} color="white" />
-                                    </button>
-                                    <button
-                                        className={isMicMode ? `btnOption disabled` : `btnOption`}
-                                        title={isMicMode ? "Mikrofon (włączony)" : "Wpisz tekst"}
-                                        onClick={toggleInputMode}
-                                    >
-                                        <Type size={28} color="white" />
-                                    </button>
-                                    <button
-                                        className="btnOption"
-                                        title="Usuń"
-                                        style={{
-                                            cursor: "pointer"
-                                        }}
-                                        onClick={() => {
-                                            if (sentences.length === 0 && textValue === "") return;
-
-                                            if (isMicMode) {
-                                                if (sentences.length !== 0 && selectedSentences.length === 0) {
-                                                    setSelectedSentencesWasEmpty(true);
-                                                    const allIndexes = sentences.map((_, index) => index);
-                                                    setSelectedSentences(allIndexes);
-                                                }
-                                            }
-
-                                            setMsgDeleteVisible(true);
-                                        }}
-                                    >
-                                        <X size={28} color="white" />
-                                    </button>
-                                    <div style={{
+                                {!task.answered && !isSubmittingAnswer && (
+                                    <div className="options" style={{
                                         display: "flex",
-                                        gap: "6px",
-                                        marginLeft: "auto"
+                                        cursor: "pointer",
                                     }}>
-                                        <button
-                                            style={{ width: "64px" }}
-                                            className="btnOption"
-                                            title={"Wysłać Odpowiedź"}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                handleSubmitTaskClick();
+                                        <div style={{
+                                            display: "flex",
+                                            gap: "6px",
+                                            marginLeft: "auto",
+                                            cursor: "pointer"
+                                        }}>
+                                            <button
+                                                className="btnOption"
+                                                title={"Wysłać Odpowiedź"}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleSubmitTaskClick();
+                                                }}
+                                                disabled={isSubmittingAnswer}
+                                            >
+                                                <Check size={28} color="white" />
+                                            </button>
+                                        </div>
+                                </div>)}
+                            </div>
+                            
+                            {task.answered && (
+                                <>
+                                    {allDisplayBlocks?.map((block: ChatBlock, index: number) => (
+                                        block.isUser ? (
+                                            <div key={index} className="message human">
+                                                <div className="text-title">{block.title}</div>
+                                                <div className="answer-block readonly" style={{ marginTop: "8px" }}>
+                                                    <FormatText content={block.content} />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div key={index} className="message robot">
+                                                <div className="text-title">{block.title}</div>
+                                                <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                                    <FormatText content={block.content} />
+                                                </div>
+                                            </div>
+                                        )
+                                    ))}
+                                    
+                                    {(getLastMarker(task.chat) === "AI_QUESTION" && !isChatEnd && !task.chatFinished && chatBlocks.length > 0 && !isTyping && !isProcessingChat) && (
+                                        <div className="message human">
+                                            <textarea
+                                                ref={chatTextareaRef}
+                                                placeholder={`Zakończ, zapytaj, daj odpowiedź...`}
+                                                className="answer-block"
+                                                style={{ marginTop: "0px" }}
+                                                value={chatTextValue}
+                                                onInput={handleChatInput}
+                                                rows={2}
+                                                name="userSolution"
+                                                id="userSolution"
+                                            />
+                                            {!isTyping && !chatLoading && !isProcessingChat && (
+                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>
+                                                    {isEmptyString(chatTextValue) && (<button
+                                                        className={`btnOption darkgreen`}
+                                                        style={{ height: "44px" }}
+                                                        title={`Zakończ`}
+                                                        onClick={async (e) => {
+                                                            e.preventDefault();
+                                                            setMsgChatVisible(true);
+                                                        }}
+                                                    >
+                                                        Zakończ
+                                                    </button>)}
+                                                    <div style={{ display: "flex", gap: "6px", cursor: "pointer", marginLeft: "auto" }}>
+                                                        <button
+                                                            className="btnOption"
+                                                            title="Zadaj Pytanie"
+                                                            onClick={async (e) => {
+                                                                e.preventDefault();
+                                                                handleSendMessage('question');
+                                                            }}
+                                                        >
+                                                            <BsQuestion size={28} color="white" />
+                                                        </button>
+                                                        <button
+                                                            className={`btnOption`}
+                                                            title={`Wyślij`}
+                                                            onClick={async (e) => {
+                                                                e.preventDefault();
+                                                                handleSendMessage('answer');
+                                                            }}
+                                                        >
+                                                            <Check size={28} color="white" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            
+                            {chatLoading && (
+                                <StatusIndicator text={textLoading} />
+                            )}
+                            
+                            {(task.finished || showFinalBlocks) && (
+                            <>
+                                <br />
+                                <div className="message robot">
+                                    <div
+                                        className="text-title"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            fontWeight: "bold"
+                                        }}
+                                        onClick={() => setSolutionExpanded(prev => !prev)}
+                                    >
+                                        <div
+                                            className="btnElement"
+                                            style={{
+                                                marginRight: "4px",
+                                                fontWeight: "bold"
                                             }}
                                         >
-                                            <Check size={28} color="white" />
-                                        </button>
+                                            {solutionExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        </div>
+                                        Prawidłowe rozwiązanie:
                                     </div>
-                                </div>
-                            ) : null}
-                            </div>
-                            {task?.getTask().finished && (
-                            <>
-                                <div className="message robot">
-                                    <div className="text-title">Prawidłowe rozwiązanie:</div>
-                                    <div style={{paddingLeft: "20px", marginTop: "8px"}}>
-                                        <FormatText content={task?.getTask().solution} />
-                                    </div>
+                                    {solutionExpanded && (
+                                        <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                            <FormatText content={task.solution} />
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="message robot">
-                                    <div className="text-title">Wyjaśnienie rozwiązania:</div>
-                                    <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task?.getTask().explanation ?? ""} /></div>
+                                    <div
+                                        className="text-title"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            fontWeight: "bold"
+                                        }}
+                                        onClick={() => setProblemsExpanded(prev => !prev)}
+                                    >
+                                        <div
+                                            className="btnElement"
+                                            style={{
+                                                marginRight: "4px",
+                                                fontWeight: "bold"
+                                            }}
+                                        >
+                                            {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        </div>
+                                        Wyjaśnienie rozwiązania:
+                                    </div>
+                                    {(problemsExpanded || isExplanationTyping) && (
+                                        <div style={{paddingLeft: "20px", marginTop: "8px"}}>
+                                            {isExplanationTyping ? (
+                                                <FormatText content={typedExplanation} />
+                                            ) : (
+                                                <FormatText content={task.explanation ?? ""} />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </>
                             )}

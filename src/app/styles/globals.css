@@ -9,8 +9,13 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: Verdana, Geneva, Tahoma, sans-serif;
   scrollbar-width: none !important;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+.katex,
+.katex * {
+  font-family: KaTeX_Main, KaTeX_Math, serif !important;
 }
 
 *::-webkit-scrollbar {
@@ -35,12 +40,13 @@ main {
   word-wrap: break-word;
   word-break: break-word;
   font-size: 18px;
-  min-height: 100vh;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   padding-top: var(--header-height);
   scroll-padding-top: var(--header-height); 
   background-color: #e0e0e0;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .internal-div {
