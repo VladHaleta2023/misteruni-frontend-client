@@ -10,7 +10,7 @@ import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
-import { ArrowLeft, ListCheck, Minus, Play, Plus } from "lucide-react";
+import { ArrowLeft, ListCheck, Minus, Play, Plus, BookOpen } from "lucide-react";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
@@ -33,6 +33,7 @@ export default function SubtopicsPage() {
   const [topicStatus, setTopicStatus] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
   const [topicNote, setTopicNote] = useState<string>("");
+  const [literatures, setLiteratures] = useState<string[]>([]);
 
   const [expandedTopicNote, setExpandedTopicNote] = useState(false);
 
@@ -123,6 +124,7 @@ export default function SubtopicsPage() {
         setTopicPercent(response.data.topic.percent);
         setTopicStatus(response.data.topic.status);
         setTopicNote(response.data.topic.note);
+        setLiteratures(response.data.topic.literatures);
         
         const newTotal: [number, number, number] = [
           Number(response.data.total.completed),
@@ -263,8 +265,25 @@ export default function SubtopicsPage() {
                       {topicName}
                   </div>
                   <div className="element-options">
+                      {literatures.length > 0 ? (<div
+                        className="btnOption"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          
+                          if (literatures.length === 1) {
+                            localStorage.setItem("literature", literatures[0]);
+                            router.push('/literature');
+                          }
+                          else {
+                            localStorage.setItem("literatures", JSON.stringify(literatures));
+                            router.push('/literatures');
+                          }
+                        }}
+                      >
+                        <BookOpen size={26} />
+                      </div>) : null}
                       <div className={`element-percent ${topicStatus}`}>
-                          {topicPercent}%
+                        {topicPercent}%
                       </div>
                   </div>
               </div>

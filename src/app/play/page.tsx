@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Check, Trash2, Minus, Plus, Play } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -78,7 +78,9 @@ export default function PlayPage() {
             correctOptionIndex: 0,
             userSolution: "",
             audioFiles: [],
-            words: []
+            words: [],
+            literatures: [],
+            wordsCompleted: false
         }
     );
 
@@ -283,54 +285,6 @@ export default function PlayPage() {
 
             if (response.data?.statusCode === 200) {
                 return response.data.task ?? null;
-            }
-
-            return null;
-        } catch (error) {
-            if ((error as DOMException)?.name === "AbortError") return null;
-            handleApiError(error);
-            return null;
-        } finally {
-            if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
-        }
-    }, []);
-
-    const fetchCompletedTopicById = useCallback(async (
-        subjectId: number,
-        sectionId: number,
-        topicId: number,
-        signal?: AbortSignal) => {
-        
-        if (!subjectId) {
-            showAlert(400, "Przedmiot nie został znaleziony");
-            return null;
-        }
-
-        if (!sectionId) {
-            showAlert(400, "Rozdział nie został znaleziony");
-            return null;
-        }
-
-        if (!topicId) {
-            showAlert(400, "Temat nie został znaleziony");
-            return null;
-        }
-
-        const controller = new AbortController();
-        if (!signal) controllersRef.current.push(controller);
-        const activeSignal = signal ?? controller.signal;
-
-        try {
-            const response = await api.get(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/completed`,
-                { signal: activeSignal }
-            );
-
-            if (activeSignal.aborted) return null;
-
-            if (response.data?.statusCode === 200) {
-                const completed = response.data.completed ?? false;
-                return completed;
             }
 
             return null;
@@ -1655,28 +1609,6 @@ export default function PlayPage() {
                     }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div className="menu-icon" title="Play" style={{ marginLeft: 'auto' }}
-                    onClick={async (e) => {
-                        e.stopPropagation();
-
-                        if (!subjectId || !sectionId || !topicId) return;
-
-                        setTextLoading("");
-                        setLoading(true);
-
-                        const completed = await fetchCompletedTopicById(subjectId, sectionId, topicId);
-
-                        if (completed) {
-                            setLoading(false);
-                            setMsgPlayVisible(true);
-                            return;
-                        }
-                        
-                        localStorage.removeItem("taskId");
-                        window.location.reload();
-                    }}>
-                        <Play size={28} color="white" />
-                    </div>
                 </div>
             </Header>
 
@@ -1767,16 +1699,39 @@ export default function PlayPage() {
                                     display: "flex",
                                     alignItems: "center",
                                     cursor: "pointer",
-                                    fontWeight: "bold"
+                                    fontWeight: "bold",
+                                    justifyContent: "space-between"
                                 }}
                                     onClick={() => setTopicNoteExpanded((prev) => !prev)}>
-                                    <div className="btnElement" style={{
-                                        marginRight: "4px",
-                                        fontWeight: "bold"
+                                    <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
                                     }}>
-                                        {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        <div className="btnElement" style={{
+                                            marginRight: "4px",
+                                            fontWeight: "bold"
+                                        }}>
+                                            {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        </div>
+                                        {task.topicName ?? ""}
                                     </div>
-                                    {task.topicName ?? ""}
+                                    {task.literatures.length > 0 ? (<div
+                                        className="btnOption"
+                                        onClick={(e) => {
+                                        e.stopPropagation();
+                                        
+                                        if (task.literatures.length === 1) {
+                                            localStorage.setItem("literature", task.literatures[0]);
+                                            router.push('/literature');
+                                        }
+                                        else {
+                                            localStorage.setItem("literatures", JSON.stringify(task.literatures));
+                                            router.push('/literatures');
+                                        }
+                                        }}
+                                    >
+                                        <BookOpen size={26} />
+                                    </div>) : null}
                                 </div>
                                 {topicNoteExpanded && (
                                     <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
@@ -1829,6 +1784,7 @@ export default function PlayPage() {
                                                     style={{
                                                         marginTop: "0.75px"
                                                     }}
+                                                    disabled={task.answered}
                                                 />
                                                 <span><FormatText content={option ?? ""} /></span>
                                             </label>

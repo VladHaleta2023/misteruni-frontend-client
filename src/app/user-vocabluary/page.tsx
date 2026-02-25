@@ -13,6 +13,7 @@ import api from "../utils/api";
 import axios from "axios";
 import React from "react";
 import Message from "../components/message";
+import { Status } from "../scripts/task";
 
 type Topic = {
   id: number;
@@ -30,7 +31,9 @@ type Word = {
   id: number;
   text: string;
   finished: boolean;
-  streakCorrectCount: number;
+  frequency: number;
+  percent: number;
+  status: Status;
   totalCorrectCount: number;
   totalAttemptCount: number;
   tasks: Task[]
@@ -334,19 +337,13 @@ export default function StoriesPage() {
                           </div>
                           <div className="element-word stats-column">
                               <div
-                              className={`element-percent ${
-                                word.streakCorrectCount === 0
-                                  ? ""
-                                  : word.streakCorrectCount >= 3
-                                  ? "completed"
-                                  : "progress"
-                              }`}
+                              className={`element-percent ${word.status}`}
                               style={{
                                   padding: "0px 5px",
                                   minWidth: "30px"
                               }}
                               >
-                              {word.streakCorrectCount}
+                              {word.percent}%
                               </div>
                           </div>
                           <Trash2 size={24} style={{

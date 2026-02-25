@@ -2,7 +2,7 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Minus, Play, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Minus, Play, Plus, Trash2 } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -97,6 +97,8 @@ export default function TasksPage() {
   const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
 
+  const [literatures, setLiteratures] = useState<string[]>([]);
+
   const [textLoading, setTextLoading] = useState<string>("");
 
   const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
@@ -171,6 +173,7 @@ export default function TasksPage() {
               setTopicName(response.data.topic.name);
               setTopicPercent(response.data.topic.percent);
               setTopicStatus(response.data.topic.status);
+              setLiteratures(response.data.topic.literatures);
           } else {
               showAlert(response.data.statusCode, response.data.message);
           }
@@ -454,6 +457,23 @@ export default function TasksPage() {
                         {topicName}
                     </div>
                     <div className="element-options">
+                        {literatures.length > 0 ? (<div
+                            className="btnOption"
+                            onClick={(e) => {
+                            e.stopPropagation();
+                            
+                            if (literatures.length === 1) {
+                                localStorage.setItem("literature", literatures[0]);
+                                router.push('/literature');
+                            }
+                            else {
+                                localStorage.setItem("literatures", JSON.stringify(literatures));
+                                router.push('/literatures');
+                            }
+                            }}
+                        >
+                            <BookOpen size={26} />
+                        </div>) : null}
                         <div className={`element-percent ${topicStatus}`}>
                             {topicPercent}%
                         </div>
@@ -468,10 +488,39 @@ export default function TasksPage() {
 
             {elementReponse?.getElements().length === 0 && !expandedTopicNote ? (
                 <>
-                    <span style={{
+                    <div style={{
                         color: "#514e4e",
+                        display: "flex",
+                        flexDirection: "column",
                         margin: "auto"
-                    }}>Brak zadań...</span>
+                    }}>
+                        {sectionType === "Stories" ? (
+                        <>
+                            <div>
+                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                    <span>Naciśnij</span>
+                                    <Play strokeWidth={4} />
+                                </div>
+                                <span>aby zgenerować nowe nagranie</span>
+                            </div>
+                            <br />
+                            <div>
+                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                    <span>Naciśnij</span>
+                                    <Text strokeWidth={4} />
+                                </div>
+                                <span>aby ćwiczyć słowy tematyczne</span>
+                            </div>
+                        </>) : (
+                            <div>
+                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                    <span>Naciśnij</span>
+                                    <Play strokeWidth={4} />
+                                </div>
+                                <span>aby zgenerować nowe zadanie</span>
+                            </div>
+                        )}
+                    </div>
                 </>
             ) : (<>
             {elementReponse?.getElements().map((element, index) => (

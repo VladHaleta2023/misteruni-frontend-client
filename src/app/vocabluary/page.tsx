@@ -255,7 +255,7 @@ export default function StoriesPage() {
         let outputText = "";
         let outputWords: string[] = [];
         let errors: string[] = [];
-        const MAX_ATTEMPTS = 2;
+        const MAX_ATTEMPTS = 0;
 
         while (changed === "true" && attempt <= MAX_ATTEMPTS) {
           if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
@@ -304,7 +304,6 @@ export default function StoriesPage() {
     [subjectId, sectionId, topicId, controllersRef]
   );
 
-  // Подумать
   const handleUpdateWords = useCallback(
     async (outputWords: string[], verifiedWordIds: number[], signal?: AbortSignal) => {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");

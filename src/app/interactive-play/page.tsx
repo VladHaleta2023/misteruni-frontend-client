@@ -97,7 +97,9 @@ export default function InteractivePlayPage() {
         correctOptionIndex: 0,
         userSolution: "",
         audioFiles: [],
-        words: []
+        words: [],
+        literatures: [],
+        wordsCompleted: false
     });
 
     const [subjectId, setSubjectId] = useState<number | null>(null);
@@ -419,8 +421,6 @@ export default function InteractivePlayPage() {
             if (!signal) controllersRef.current = controllersRef.current.filter(c => c !== controller);
         }
     }, []);
-
-    // ============ УНИКАЛЬНЫЕ ФУНКЦИИ ДЛЯ INTERACTIVE PLAY ============
 
     const handleInteractiveTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
@@ -1635,8 +1635,8 @@ export default function InteractivePlayPage() {
     };
 
     const handleVocabluaryClick = useCallback(async() => {
-        localStorage.setItem("wordIds", JSON.stringify(task.words.map(word => word.id)));
-        router.push('/vocabluary');
+        localStorage.setItem("fetchWordIds", JSON.stringify(task.words.map(word => word.id)));
+        router.push('/topic-vocabluary');
     }, [task, router]);
 
     useEffect(() => {
@@ -1791,7 +1791,7 @@ export default function InteractivePlayPage() {
         const playAudio = async () => {
             try {
                 if (isPlaying) {
-                    audioEl.playbackRate = playBackRateOption === PlayBackRateOption.Normal ? 1 : 0.5;
+                    audioEl.playbackRate = playBackRateOption === PlayBackRateOption.Normal ? 1 : 0.75;
                     await audioEl.play();
                 } else {
                     audioEl.pause();
@@ -1995,6 +1995,40 @@ export default function InteractivePlayPage() {
                     <div className="spinner-wrapper">
                         <Spinner visible={true} text={textLoading} />
                     </div>
+                ) : !task.wordsCompleted ? (
+                    <>
+                        <div className="play-container" ref={containerRef}>
+                            <div className="chat">
+                                <div className="message robot">
+                                    <div className="element-name" style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        cursor: "pointer",
+                                        fontWeight: "bold"
+                                    }}>
+                                        {task.topicName}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{
+                                color: "#514e4e",
+                                display: "flex",
+                                flexDirection: "column",
+                                margin: "auto"
+                            }}>
+                                <div>
+                                    <span>Nie wszystkie słowa zostały jeszcze przećwiczone.</span>
+
+                                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                        <span>Naciśnij</span>
+                                        <Text strokeWidth={4} />
+                                    </div>
+
+                                    <span>aby ćwiczyć słowa tematyczne</span>
+                                </div>
+                            </div>
+                        </div>
+                    </>
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
@@ -2050,11 +2084,11 @@ export default function InteractivePlayPage() {
                                     </>
                                 )}
                                 
-                                {!task.finished && (
-                                    <div className="text-title">{audioRepeat}/3</div>
+                                {!(audioRepeat >= 2 || task.finished) && (
+                                    <div className="text-title">{audioRepeat}/2</div>
                                 )}
                                 
-                                {task.finished ? (
+                                {(audioRepeat >= 2 || task.finished) ? (
                                     <div className="sentences context">
                                         <div className="text-title" style={{ marginBottom: "12px" }}>Opowiadanie:</div>
                                         <div className="text-audio">
@@ -2086,7 +2120,7 @@ export default function InteractivePlayPage() {
                                 ) : null}
                                 
                                 <div className="options">
-                                    {task.finished && isSentences && (
+                                    {(audioRepeat >= 2 || task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handlePrev}>
                                             <ChevronLeft size={24} />
                                         </button>
@@ -2102,20 +2136,19 @@ export default function InteractivePlayPage() {
                                                     setMsgVisible(true);
                                                 }
                                             }}
-                                            disabled={!task.finished && audioRepeat >= 3}
                                         >
                                             {isPlaying ? <Pause size={24} /> : <Play size={24} />}
                                         </button>
                                     )}
                                     
-                                    {task.finished && isSentences && (
+                                    {(audioRepeat >= 2 || task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handleNext}>
                                             <ChevronRight size={24} />
                                         </button>
                                     )}
                                     
                                     <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
-                                        {task.finished && (
+                                        {(audioRepeat >= 2 || task.finished) && (
                                             <button
                                                 className={isSentences ? "btnOption disabled" : "btnOption"}
                                                 onClick={handleTextOptionСlick}
@@ -2124,7 +2157,7 @@ export default function InteractivePlayPage() {
                                             </button>
                                         )}
                                         
-                                        {task.finished && isSentences && (
+                                        {(audioRepeat >= 2 || task.finished) && isSentences && (
                                             <button
                                                 className="btnOption"
                                                 style={{ minWidth: "48px" }}
@@ -2141,7 +2174,7 @@ export default function InteractivePlayPage() {
                                         )}
                                     </div>
                                     
-                                    {!task.finished && (
+                                    {!(audioRepeat >= 2 || task.finished) && (
                                         <div style={{ marginLeft: "8px", flexGrow: 1 }}>
                                             <progress
                                                 value={progress}
@@ -2176,7 +2209,7 @@ export default function InteractivePlayPage() {
                             </div>
                             
                             <div className="message human">
-                                <div className="text-title">Warianty Odpowiedzi:</div>
+                                <div className="text-title">O czym chodzi:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {(task.options ?? []).map((option, index) => (
                                         <div key={index}>

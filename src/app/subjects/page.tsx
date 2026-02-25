@@ -236,10 +236,35 @@ export default function SubjectPage() {
         ) : (
           <>
             {subjects.length === 0 ? (
-              <span style={{
+              <div style={{
                   color: "#514e4e",
+                  display: "flex",
+                  flexDirection: "column",
                   margin: "auto"
-              }}>Brak przedmiotów...</span>
+              }}>
+                <div>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                  <span>Naciśnij</span>
+                  <div
+                    className="menu-icon"
+                    style={{ border: "3px solid #514e4e", borderRadius: "50%" }}
+                    onClick={handleAddSubject}
+                    title={"Dodaj Przedmiot"}
+                  >
+                    <Plus strokeWidth={4} />
+                  </div>
+                </div>
+                <span>aby dodać nowy przedmiot</span>
+                </div>
+                <br />
+                <div>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                        <span>Naciśnij</span>
+                        <LogOut strokeWidth={4} />
+                    </div>
+                    <span>aby wylogować się</span>
+                </div>
+              </div>
             ) : (<>
             <div className="table" id="subject">
               {subjects.map((userSubject) => (
