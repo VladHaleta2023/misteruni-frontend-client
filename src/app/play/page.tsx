@@ -1316,9 +1316,9 @@ export default function PlayPage() {
         };
     }, []);
 
-    const handleChatInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newValue = e.target.value;
-        setChatTextValue(newValue);
+    const handleChatInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+        const target = e.target as HTMLTextAreaElement;
+        setChatTextValue(target.value);
         adjustChatTextareaRows();
     };
 
