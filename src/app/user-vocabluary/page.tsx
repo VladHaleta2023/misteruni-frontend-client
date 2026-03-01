@@ -229,14 +229,19 @@ export default function StoriesPage() {
           >
             <ArrowLeft size={28} color="white" />
           </div>
-          <div 
+          {words.length != 0 && (<div 
             className="menu-icon" 
             title="Play" 
-            style={{ marginLeft: "auto", cursor: "pointer" }}
+            style={{
+              marginLeft: "auto",
+              cursor: "pointer",
+              backgroundColor: "darkgreen",
+              padding: "8px 24px"
+            }}
             onClick={handlePlayClick}
           >
             <Play size={28} color="white" />
-          </div>
+          </div>)}
         </div>
       </Header>
 

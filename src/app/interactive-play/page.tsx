@@ -1116,7 +1116,7 @@ export default function InteractivePlayPage() {
                     subjectId,
                     sectionId,
                     topicId,
-                    outputWords,
+                    [],
                     text,
                     translate,
                     signal
@@ -2072,7 +2072,7 @@ export default function InteractivePlayPage() {
                                             <div className="btnElement" style={{ marginRight: "4px", fontWeight: "bold" }}>
                                                 {taskWordsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                             </div>
-                                            Słowy Opowiadania:
+                                            Słownictwo:
                                         </div>
                                         {taskWordsExpanded && (
                                             <div className="text-audio">

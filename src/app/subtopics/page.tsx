@@ -214,7 +214,11 @@ export default function SubtopicsPage() {
             <ListCheck size={28} color="white" />
           </div>
 
-          <div className="menu-icon" title="Play" style={{ marginLeft: "auto" }}
+          <div className="menu-icon" title="Play" style={{
+            marginLeft: "auto",
+            backgroundColor: "darkgreen",
+            padding: "8px 24px"
+          }}
             onClick={async (e) => {
                 e.stopPropagation();
 
@@ -235,6 +239,7 @@ export default function SubtopicsPage() {
         </div>
       ) : (
         <div style={{ minHeight: '200px' }}>
+          <ChartComponent />
           <div style={{ 
               padding: "8px", 
               width: "100%",
@@ -288,13 +293,15 @@ export default function SubtopicsPage() {
                   </div>
               </div>
               {expandedTopicNote && (
-                  <div className="topic-note">
-                      <FormatText content={topicNote} />
-                  </div>
+                  <>
+                    <br />
+                    <div className="topic-note">
+                        <FormatText content={topicNote} />
+                    </div>
+                  </>
               )}
           </div>
 
-          <ChartComponent />
           <div className="table" style={{ marginTop: "12px" }}>
             {subtopics.flatMap((subtopic) => [
               <div

@@ -21,6 +21,7 @@ enum SubjectDetailLevel {
 type Subject = {
   id: number;
   name: string;
+  minDetailLevel: string;
 }
 
 type OptionType = {
@@ -54,11 +55,29 @@ export default function UpdatePage() {
     [subjects]
   );
 
-  const detailLevelOptions: DetailLevelOption[] = [
-    { value: SubjectDetailLevel.MANDATORY, label: "Obowiązkowy" },
-    { value: SubjectDetailLevel.DESIRABLE, label: "Pożądany" },
-    { value: SubjectDetailLevel.OPTIONAL, label: "Opcjonalny" }
-  ];
+  const detailLevelOptions = useMemo<DetailLevelOption[]>(() => {
+    const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
+    const minLevel = selectedSubject?.minDetailLevel as SubjectDetailLevel | undefined;
+
+    if (!minLevel || minLevel === SubjectDetailLevel.MANDATORY) {
+      return [
+        { value: SubjectDetailLevel.MANDATORY, label: "Obowiązkowy" },
+        { value: SubjectDetailLevel.DESIRABLE, label: "Pożądany" },
+        { value: SubjectDetailLevel.OPTIONAL, label: "Opcjonalny" }
+      ];
+    }
+
+    if (minLevel === SubjectDetailLevel.DESIRABLE) {
+      return [
+        { value: SubjectDetailLevel.DESIRABLE, label: "Obowiązkowy" },
+        { value: SubjectDetailLevel.OPTIONAL, label: "Pożądany" }
+      ];
+    }
+
+    return [
+      { value: SubjectDetailLevel.OPTIONAL, label: "Obowiązkowy" }
+    ];
+  }, [subjects, selectedSubjectId]);
 
   const dailyStudyOptions: OptionType[] = [
     { value: 30, label: "30 minut" },
@@ -78,7 +97,7 @@ export default function UpdatePage() {
 
   const selectedDetailLevelOption = useMemo<DetailLevelOption | null>(() => 
     detailLevelOptions.find(option => option.value === detailLevel) || null,
-    [detailLevel]
+    [detailLevel, detailLevelOptions]
   );
 
   const selectedDailyStudyOption = useMemo<OptionType | null>(() => 
@@ -88,19 +107,28 @@ export default function UpdatePage() {
 
   const fetchSubjects = useCallback(async () => {
     setLoading(true);
-
     try {
       const response = await api.get(`/subjects/available`);
 
       if (response.data?.statusCode === 200) {
-        setSubjects(response.data.subjects);
-        setSelectedSubjectId(null);
+        const subjectsData: Subject[] = response.data.subjects;
+        setSubjects(subjectsData);
+
+        if (subjectsData.length > 0) {
+          const firstSubject = subjectsData[0];
+          setSelectedSubjectId(firstSubject.id);
+          setDetailLevel(firstSubject.minDetailLevel as SubjectDetailLevel);
+        } else {
+          setSelectedSubjectId(null);
+          setDetailLevel(SubjectDetailLevel.MANDATORY);
+        }
+
         setDailyStudyMinutes(60);
+        setThreshold(50);
       }
 
       setLoading(false);
-    }
-    catch (error) {
+    } catch (error) {
       setLoading(false);
       if (axios.isAxiosError(error)) {
         if (error.response) {
@@ -118,25 +146,28 @@ export default function UpdatePage() {
 
   const fetchSubjectById = useCallback(async (subjectId: number) => {
     setLoading(true);
-
     try {
       const response = await api.get(`/user-subjects/${subjectId}`);
 
       if (response.data?.statusCode === 200) {
+        const subj = response.data.subject.subject;
+
         setSubjects([{
-          id: response.data?.subject?.subject?.id ?? 0,
-          name: response.data?.subject?.subject?.name ?? ""
+          id: subj.id,
+          name: subj.name,
+          minDetailLevel: subj.minDetailLevel,
         }]);
-        setThreshold(response.data?.subject?.threshold ?? 50);
-        setDetailLevel(response.data?.subject?.detailLevel ?? SubjectDetailLevel.MANDATORY);
-        setDailyStudyMinutes(response.data?.subject?.dailyStudyMinutes ?? 60);
-        setSelectedSubjectId(response.data?.subject?.subject?.id ?? 0);
-        setSubjectId(response.data?.subject?.subject?.id ?? 0);
+
+        setThreshold(response.data.subject.threshold ?? 50);
+        // Используем detailLevel с базы
+        setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
+        setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
+        setSelectedSubjectId(subj.id);
+        setSubjectId(subj.id);
       }
-      
+
       setLoading(false);
-    }
-    catch (error) {
+    } catch (error) {
       setLoading(false);
       if (axios.isAxiosError(error)) {
         if (error.response) {
@@ -199,8 +230,7 @@ export default function UpdatePage() {
           router.back();
         }, 1500);
       }
-    }
-    catch (error) {
+    } catch (error) {
       setLoading(false);
       if (axios.isAxiosError(error)) {
         if (error.response) {
@@ -247,8 +277,7 @@ export default function UpdatePage() {
           router.back();
         }, 1500);
       }
-    }
-    catch (error) {
+    } catch (error) {
       setLoading(false);
       if (axios.isAxiosError(error)) {
         if (error.response) {
@@ -290,7 +319,20 @@ export default function UpdatePage() {
               <Select
                 id="subject-select"
                 value={selectedSubjectOption}
-                onChange={(selectedOption) => setSelectedSubjectId(selectedOption?.value ?? null)}
+                onChange={(selectedOption) => {
+                  const newSubjectId = selectedOption?.value ?? null;
+                  setSelectedSubjectId(newSubjectId);
+
+                  const selectedSubject = subjects.find(s => s.id === newSubjectId);
+
+                  if (subjectId === null && selectedSubject) {
+                    // создание нового предмета — дефолт minDetailLevel
+                    setDetailLevel(selectedSubject.minDetailLevel as SubjectDetailLevel);
+                    setDailyStudyMinutes(60);
+                    setThreshold(50);
+                  }
+                  // редактирование — оставляем detailLevel с базы
+                }}
                 classNamePrefix="react-select"
                 options={subjectOptions}
                 placeholder="Wybierz przedmiot..."

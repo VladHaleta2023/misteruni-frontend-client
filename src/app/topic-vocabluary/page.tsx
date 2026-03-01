@@ -98,10 +98,19 @@ export default function StoriesPage() {
         setTopicName(response.data.topic?.name || "Personal Vocabulary");
         setWordsStatus(response.data.wordsStatus);
         setWordsPercent(response.data.wordsPercent);
-        setSelectedWordIds([]);
+
+        let initialSelected: number[] = [];
+        const storedWordIds = localStorage.getItem("fetchWordIds");
+        if (storedWordIds) {
+            try {
+                const parsed = JSON.parse(storedWordIds);
+                if (Array.isArray(parsed)) initialSelected = parsed;
+            } catch {}
+        }
+        setSelectedWordIds(initialSelected);
 
         textareaRefs.current = new Array(fetchedWords.length).fill(null);
-      } else {
+    } else {
         showAlert(response.data.statusCode, response.data.message);
       }
     } catch (error) {
@@ -177,7 +186,12 @@ export default function StoriesPage() {
           <div className="menu-icon" title="Wrócić" onClick={handleBackClick} style={{ cursor: "pointer" }}>
             <ArrowLeft size={28} color="white" />
           </div>
-          <div className="menu-icon" title="Play" style={{ marginLeft: "auto", cursor: "pointer" }} onClick={handlePlayClick}>
+          <div className="menu-icon" title="Play"  style={{
+            marginLeft: "auto",
+            cursor: "pointer",
+            backgroundColor: "darkgreen",
+            padding: "8px 24px"
+          }} onClick={handlePlayClick}>
             <Play size={28} color="white" />
           </div>
         </div>
@@ -195,9 +209,9 @@ export default function StoriesPage() {
             <div style={{ padding: "8px 0px", width: "100%" }}>
               <div className="text-title text-topic-note">
                 <div className="element-name" style={{ margin: "0px" }}>{topicName}</div>
-                <div className="element-options">
+                {!localStorage.getItem("fetchWordIds") && (<div className="element-options">
                   <div className={`element-percent ${wordsStatus}`}>{wordsPercent}%</div>
-                </div>
+                </div>)}
               </div>
             </div>
 
@@ -213,7 +227,7 @@ export default function StoriesPage() {
                       onClick={(e) => { e.stopPropagation(); handleWordClick(word.id, !isSelected); }}
                     >
                       <div className="element-word" style={{ flex: "0 0 auto", width: "32px" }}>
-                        {word.tasks.length > 0 && (
+                        {word.tasks.length > 0 && !localStorage.getItem("fetchWordIds") && (
                           <button className="btnElement" onClick={(e) => { e.stopPropagation(); setExpandedWords(prev => ({ ...prev, [word.id]: !prev[word.id] })); }}>
                             {expandedWords[word.id] ? <Minus size={24} /> : <Plus size={24} />}
                           </button>

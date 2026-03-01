@@ -12,11 +12,14 @@ import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
 import axios from "axios";
 import FormatText from "../components/formatText";
+import { Status } from "../scripts/task";
 
 type Word = {
   id: number;
   text: string;
   finished: boolean;
+  percent: number;
+  status: Status;
 }
 
 export default function StoriesPage() {
@@ -64,7 +67,7 @@ export default function StoriesPage() {
   };
 
   const adjustTextareaRows = (textarea: HTMLTextAreaElement) => {
-    textarea.rows = 1;
+    textarea.rows = 2;
     const fontSize = 20;
     const lineHeight = fontSize * 1.4;
     const lines = Math.ceil(textarea.scrollHeight / lineHeight);
@@ -476,6 +479,13 @@ export default function StoriesPage() {
             padding: "12px"
           }}>
             <div>
+              {wordsVerified && outputText ? (
+                <>
+                  <div className="wordsDescription" style={{ marginBottom: "12px" }}>
+                    <FormatText content={outputText} />
+                  </div>
+                </>
+              ) : null}
               <div className="table" style={{
                 border: "1px solid rgb(191, 191, 191)"
               }}>
@@ -507,12 +517,18 @@ export default function StoriesPage() {
                             margin: "0px"
                           }}
                           value={getValueById(word.id)}
-                          rows={1}
+                          rows={2}
                           name={`userSolution-${word.id}`}
                           id={`userSolution-${word.id}`}
+                          disabled={verificationCompleted && getValueById(word.id).trim() !== "" ? true : false}
                         />
                       </div>
-                      <div className="element-word" style={{ width: "38px" }}>
+                      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", minWidth: "80px", maxWidth: "80px" }}>
+                        <div className="element-word stats-column" style={{ justifyContent: "flex-start" }}>
+                          <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
+                        </div>
+                      </div>
+                      <div className="element-word" style={{ maxWidth: "38px", minWidth: "38px" }}>
                         {verificationCompleted && getValueById(word.id).trim() !== "" ? (
                           word.finished ? (
                             <Check size={28} strokeWidth={3} style={{ color: "#556b4f" }} />
@@ -528,13 +544,6 @@ export default function StoriesPage() {
               <div style={{
                 marginTop: "12px"
               }}>
-                {wordsVerified && outputText ? (
-                  <>
-                    <div className="wordsDescription">
-                      <FormatText content={outputText} />
-                    </div>
-                  </>
-                ) : null}
                 {!verificationCompleted && (
                   <button
                     onClick={handleVerifyWords}

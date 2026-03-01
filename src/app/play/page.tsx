@@ -1700,7 +1700,8 @@ export default function PlayPage() {
                                     alignItems: "center",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    justifyContent: "space-between"
+                                    justifyContent: "space-between",
+                                    gap: "6px"
                                 }}
                                     onClick={() => setTopicNoteExpanded((prev) => !prev)}>
                                     <div style={{
