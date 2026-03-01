@@ -10,7 +10,7 @@ import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
-import { ArrowLeft, ListCheck, Minus, Play, BookOpen } from "lucide-react";
+import { ArrowLeft, ListCheck, Minus, Play, BookOpen, LibraryBig } from "lucide-react";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
@@ -285,7 +285,7 @@ export default function SubtopicsPage() {
                           }
                         }}
                       >
-                        <BookOpen size={26} />
+                        <LibraryBig size={26} />
                       </div>) : null}
                       <div className={`element-percent ${topicStatus}`}>
                         {topicPercent}%

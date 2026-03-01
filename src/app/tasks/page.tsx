@@ -2,7 +2,7 @@
 
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, BookOpen, Minus, Play, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, LibraryBig, Minus, Play, Plus, Trash2 } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -475,7 +475,7 @@ export default function TasksPage() {
                             }
                             }}
                         >
-                            <BookOpen size={26} />
+                            <LibraryBig size={26} />
                         </div>) : null}
                         <div className={`element-percent ${topicStatus}`}>
                             {topicPercent}%
