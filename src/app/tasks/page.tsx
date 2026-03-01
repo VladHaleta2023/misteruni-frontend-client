@@ -448,13 +448,13 @@ export default function TasksPage() {
                     <div className="element-name" style={{ margin: "0px" }}>
                         {topicNote && sectionType !== "Stories" && (
                             <div 
-                                className="btnElement" 
+                                className="btnOption" 
                                 style={{
-                                    marginRight: "4px",
+                                    marginRight: "12px",
                                     fontWeight: "bold"
                                 }}
                             >
-                                {expandedTopicNote ? <Minus size={26} /> : <Plus size={26} />}
+                                {expandedTopicNote ? <Minus size={26} /> : <BookOpen size={26} />}
                             </div>
                         )}
                         {topicName}
@@ -484,6 +484,7 @@ export default function TasksPage() {
                 </div>
                 {expandedTopicNote && (
                     <div className="topic-note">
+                        <br />
                         <FormatText content={topicNote} />
                     </div>
                 )}

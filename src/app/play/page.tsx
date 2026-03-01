@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -1708,11 +1708,11 @@ export default function PlayPage() {
                                         display: "flex",
                                         alignItems: "center",
                                     }}>
-                                        <div className="btnElement" style={{
-                                            marginRight: "4px",
-                                            fontWeight: "bold"
+                                        <div className="btnOption" style={{
+                                            marginRight: "12px",
+                                            fontWeight: "bold",
                                         }}>
-                                            {topicNoteExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                            {topicNoteExpanded ? <Minus size={26} /> : <BookOpen size={26} />}
                                         </div>
                                         {task.topicName ?? ""}
                                     </div>
@@ -1731,11 +1731,12 @@ export default function PlayPage() {
                                         }
                                         }}
                                     >
-                                        <BookOpen size={26} />
+                                        <LibraryBig size={26} />
                                     </div>) : null}
                                 </div>
                                 {topicNoteExpanded && (
                                     <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                        <br />
                                         <FormatText content={task.topicNote ?? ""} />
                                     </div>
                                 )}

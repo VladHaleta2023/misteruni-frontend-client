@@ -10,7 +10,7 @@ import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
-import { ArrowLeft, ListCheck, Minus, Play, Plus, BookOpen } from "lucide-react";
+import { ArrowLeft, ListCheck, Minus, Play, BookOpen } from "lucide-react";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
@@ -258,13 +258,13 @@ export default function SubtopicsPage() {
                   <div className="element-name" style={{ margin: "0px" }}>
                       {topicNote && sectionType !== "Stories" && (
                           <div 
-                              className="btnElement" 
+                              className="btnOption" 
                               style={{
-                                  marginRight: "4px",
+                                  marginRight: "12px",
                                   fontWeight: "bold"
                               }}
                           >
-                              {expandedTopicNote ? <Minus size={26} /> : <Plus size={26} />}
+                              {expandedTopicNote ? <Minus size={26} /> : <BookOpen size={26} />}
                           </div>
                       )}
                       {topicName}

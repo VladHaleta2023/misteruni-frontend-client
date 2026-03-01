@@ -33,6 +33,7 @@
 .element-section {
   background-color: #cccccc;
   color: #000000;
+  font-size: clamp(18px, 1.67vw, 20px) !important;
 }
 
 .element-topic {

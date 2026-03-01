@@ -27,7 +27,6 @@ export default function CirclePieChart({
 }: CirclePieChartProps) {
   const [containerWidth, setContainerWidth] = useState(width);
   const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
-  const [containerFontSize, setContainerFontSize] = useState(fontSize);
   const [isMobile, setIsMobile] = useState(false);
   const initializedRef = useRef(false);
 
@@ -44,11 +43,9 @@ export default function CirclePieChart({
       setIsMobile(w < 768);
 
       if (w < 768) {
-        setContainerFontSize('16px');
         setContainerWidth('60vw');
         setContainerMaxWidth('220px');
       } else {
-        setContainerFontSize(fontSize);
         setContainerWidth(width);
         setContainerMaxWidth(maxWidth);
       }
@@ -70,6 +67,8 @@ export default function CirclePieChart({
       clearTimeout(resizeTimeout);
     };
   }, [width, maxWidth, fontSize]);
+
+  const clampFont = (min: number, vw: number, max: number) => `clamp(${min}px, ${vw}vw, ${max}px)`;
 
   return (
     <>
@@ -147,10 +146,8 @@ export default function CirclePieChart({
                 {prediction != null && (
                   <div
                     style={{
-                      fontSize: isMobile ? 
-                        (parseInt(containerFontSize) * 0.85) + 'px' : 
-                        containerFontSize,
-                      fontWeight: 600,
+                      fontSize: clampFont(16, 1.67, 18),
+                      fontWeight: 'bold',
                       color: '#333',
                     }}
                   >
@@ -167,9 +164,7 @@ export default function CirclePieChart({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            fontSize: isMobile ? 
-              (parseInt(containerFontSize) * 0.9) + 'px' : // Уменьшен размер шрифта легенды
-              containerFontSize,
+            fontSize: clampFont(16, 1.67, 18),
             color: '#333',
           }}
         >
