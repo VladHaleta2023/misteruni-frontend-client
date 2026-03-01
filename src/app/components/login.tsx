@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import "@/app/styles/components.css";
 import { FcGoogle } from "react-icons/fc";
-import { FaFacebook } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
@@ -56,7 +55,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleOAuthRedirect = (provider: "google" | "facebook") => {
+  const handleOAuthRedirect = (provider: "google") => {
     window.location.href = `${API_URL}/auth/${provider}`;
   };
 
@@ -126,23 +125,6 @@ export default function LoginPage() {
             >
               <FcGoogle size={24} />
               <span>Kontynuuj z Google</span>
-            </button>
-          </div>
-
-          <div className="options-container" style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
-            <button
-              className="btnOption"
-              onClick={() => handleOAuthRedirect("facebook")}
-              style={{
-                width: "260px",
-                backgroundColor: "#c2c2c2",
-                color: "#333333",
-                gap: "12px",
-                justifyContent: "flex-start"
-              }}
-            >
-              <FaFacebook size={24} />
-              <span>Kontynuuj z Facebook</span>
             </button>
           </div>
         </div>
