@@ -210,111 +210,136 @@ export default function SubjectPage() {
 
   return (
     <>
-      <Header>
-        <div className="menu-icons">
-          <div
-            className="menu-icon"
-            style={{ border: "3px solid white", borderRadius: "50%" }}
-            onClick={handleAddSubject}
-            title="Dodaj Przedmiot"
-          >
-            <Plus size={28} color="white" />
-          </div>
+        <Header>
+            <div className="menu-icons">
+            <div
+                className="menu-icon"
+                style={{ border: "3px solid white", borderRadius: "50%" }}
+                onClick={handleAddSubject}
+                title={"Dodaj Przedmiot"}
+            >
+                <Plus size={28} color="white" />
+            </div>
+            <div
+                className="menu-icon"
+                onClick={handleLogout}
+                style={{ marginLeft: "auto" }}
+                title={"Wyloguj się"}
+            >
+                <LogOut size={28} color="white" />
+            </div>
+            </div>
+        </Header>
 
-          <div
-            className="menu-icon"
-            onClick={handleLogout}
-            style={{ marginLeft: "auto" }}
-            title="Wyloguj się"
-          >
-            <LogOut size={28} color="white" />
-          </div>
-        </div>
-      </Header>
+        <Message
+            message={"Czy na pewno chcesz usunąć dany przedmiot?"}
+            textConfirm="Tak"
+            textCancel="Nie"
+            onConfirm={async () => {
+            setMsgDeleteTaskVisible(false);
+            const subjectId = localStorage.getItem("subjectId");
 
-      <Message
-        message="Czy na pewno chcesz usunąć dany przedmiot?"
-        textConfirm="Tak"
-        textCancel="Nie"
-        visible={msgDeleteSubjectVisible}
-        onConfirm={async () => {
-          setMsgDeleteTaskVisible(false);
-          const subjectId = localStorage.getItem("subjectId");
-          await handleSubjectDelete(Number(subjectId));
-          localStorage.removeItem("subjectId");
-        }}
-        onClose={() => {
-          setMsgDeleteTaskVisible(false);
-          localStorage.removeItem("subjectId");
-        }}
-      />
+            await handleSubjectDelete(Number(subjectId));
 
-      <main>
-        {loading ? (
-          <div className="spinner-wrapper">
-            <Spinner noText />
-          </div>
-        ) : (
-          <div className="table" id="subject">
-            {subjects.map((userSubject) => (
-              <div
-                key={userSubject.subject.id}
-                className="element element-subject"
-                onClick={() =>
-                  handleSubjectClick(
-                    userSubject.subject.id,
-                    userSubject.subject.type
-                  )
-                }
-                style={{ cursor: "pointer" }}
-              >
-                {userSubject.subject.url && (
-                  <img
-                    src={userSubject.subject.url}
-                    alt={userSubject.subject.name}
-                    className="element-icon"
-                  />
-                )}
+            localStorage.removeItem("subjectId");
+            }}
+            onClose={() => {
+            setMsgDeleteTaskVisible(false);
+            localStorage.removeItem("subjectId");
+            }}
+            visible={msgDeleteSubjectVisible}
+        />
 
-                <div className="element-subject-options">
-                  <div>
-                    <div className="element-title">
-                      {userSubject.subject.name}
+        <main>
+            {loading ? (
+            <div className="spinner-wrapper">
+                <Spinner noText />
+            </div>
+            ) : (
+            <>
+                {subjects.length === 0 ? (
+                <div style={{
+                    color: "#514e4e",
+                    display: "flex",
+                    flexDirection: "column",
+                    margin: "auto"
+                }}>
+                    <div>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    <span>Naciśnij</span>
+                    <div
+                        className="menu-icon"
+                        style={{ border: "3px solid #514e4e", borderRadius: "50%" }}
+                        onClick={handleAddSubject}
+                        title={"Dodaj Przedmiot"}
+                    >
+                        <Plus strokeWidth={4} />
                     </div>
-                    <div>Próg: {userSubject.threshold}%</div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      className="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubjectEdit(userSubject.subject.id);
-                      }}
-                    >
-                      <Settings size={24} color="white" />
-                    </button>
-
-                    <button
-                      className="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        localStorage.setItem(
-                          "subjectId",
-                          String(userSubject.subject.id)
-                        );
-                        setMsgDeleteTaskVisible(true);
-                      }}
-                    >
-                      <Trash2 size={24} color="white" />
-                    </button>
-                  </div>
+                    </div>
+                    <span>aby dodać nowy przedmiot</span>
+                    </div>
+                    <br />
+                    <div>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                            <span>Naciśnij</span>
+                            <LogOut strokeWidth={4} />
+                        </div>
+                        <span>aby wylogować się</span>
+                    </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
+                ) : (<>
+                <div className="table" id="subject">
+                {subjects.map((userSubject) => (
+                    <div
+                    key={userSubject.subject.id}
+                    className="element element-subject"
+                    id={`${userSubject.subject.id}`}
+                    onClick={() => handleSubjectClick(userSubject.subject.id, userSubject.subject.type)}
+                    style={{ cursor: "pointer" }}
+                    >
+                    {userSubject.subject.url ? (
+                    <img
+                        src={userSubject.subject.url}
+                        alt={userSubject.subject.name}
+                        className="element-icon"
+                        />
+                    ) : null}
+                    <div className="element-subject-options">
+                        <div>
+                        <div className="element-title">{userSubject.subject.name}</div>
+                        <div>Próg: {userSubject.threshold}%</div>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                        <button
+                            id={String(userSubject.subject.id)}
+                            className="button btnSubjectOptionsEdit"
+                            onClick={(e) => {
+                            e.stopPropagation();
+                            handleSubjectEdit(Number(e.currentTarget.id))
+                            }}
+                        >
+                            <Settings size={24} color="white" />
+                        </button>
+                        <button
+                            id={String(userSubject.subject.id)}
+                            className="button btnSubjectOptionsEdit"
+                            onClick={(e) => {
+                            e.stopPropagation();
+                            localStorage.setItem("subjectId", String(e.currentTarget.id));
+                            setMsgDeleteTaskVisible(true);
+                            }}
+                        >
+                            <Trash2 size={24} color="white" />
+                        </button>
+                        </div>
+                    </div>
+                    </div>
+                ))}
+                </div>
+                </>)}
+            </>
+            )}
+        </main>
     </>
   );
 }
