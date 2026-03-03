@@ -33,6 +33,7 @@ export default function LoginPage() {
       const response = await api.post("/auth/login", { login, password });
 
       if (response.data?.statusCode === 200) {
+        localStorage.setItem("accessToken", response.data.token);
         router.push("/subjects");
       }
     } catch (error: unknown) {
