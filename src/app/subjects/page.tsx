@@ -134,6 +134,7 @@ export default function SubjectPage() {
         localStorage.removeItem("weekOffset");
         localStorage.removeItem("subjectId");
         localStorage.removeItem("subjectType");
+        localStorage.removeItem("accessToken");
 
         showAlert(response.data.statusCode, response.data.message);
         
