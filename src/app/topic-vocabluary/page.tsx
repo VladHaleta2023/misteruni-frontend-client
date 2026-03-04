@@ -85,7 +85,7 @@ export default function StoriesPage() {
         }
       }
 
-      const response = await api.post(`/subjects/${subjectId}/words`, {
+      const response = await api.post<any>(`/subjects/${subjectId}/words`, {
         topicId,
         wordIds: storedWordIds
       });
@@ -135,13 +135,16 @@ export default function StoriesPage() {
   }
 
   function handleApiError(error: unknown) {
-    if (axios.isAxiosError(error)) {
-      if (error.code === "ERR_CANCELED") return;
-      if (error.response) showAlert(error.response.status, error.response.data?.message || "Server error");
-      else showAlert(500, `Server error: ${error.message}`);
-    } else if (error instanceof DOMException && error.name === "AbortError") return;
-    else if (error instanceof Error) showAlert(500, `Server error: ${error.message}`);
-    else showAlert(500, "Unknown error");
+    const err = error as any;
+    if (err?.response) {
+      showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+    } 
+    else if (error instanceof Error) {
+      showAlert(500, error.message);
+    }
+    else {
+      showAlert(500, "Unknown error");
+    }
   }
 
   const handleWordClick = (wordId: number, isChecked: boolean) => {

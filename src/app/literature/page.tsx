@@ -52,7 +52,7 @@ export default function LiteraturePage() {
 
   const fetchLiterature = useCallback(async () => {
     try {
-      const response = await api.get(`/subjects/${subjectId}/literature?name=${literature}`);
+      const response = await api.get<any>(`/subjects/${subjectId}/literature?name=${literature}`);
 
       if (response.data?.statusCode === 200) {
         setNote(response.data?.literature?.note ?? "");
@@ -63,15 +63,14 @@ export default function LiteraturePage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }

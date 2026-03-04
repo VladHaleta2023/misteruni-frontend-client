@@ -71,7 +71,7 @@ export default function StoriesPage() {
 
   const fetchWords = useCallback(async () => {
     try {
-      const response = await api.post(`/subjects/${subjectId}/words`, {
+      const response = await api.post<any>(`/subjects/${subjectId}/words`, {
         topicId: null
       });
 
@@ -98,7 +98,7 @@ export default function StoriesPage() {
     if (!wordId || !subjectId) return;
 
     try {
-        const response = await api.delete(`/subjects/${subjectId}/words/${wordId}`);
+        const response = await api.delete<any>(`/subjects/${subjectId}/words/${wordId}`);
 
         if (response.data?.statusCode === 200) {
             showAlert(response.data.statusCode, response.data.message);
@@ -141,21 +141,16 @@ export default function StoriesPage() {
   }
 
   function handleApiError(error: unknown) {
-      if (axios.isAxiosError(error)) {
-          if (error.code === "ERR_CANCELED") return;
-
-          if (error.response) {
-              showAlert(error.response.status, error.response.data?.message || "Server error");
-          } else {
-              showAlert(500, `Server error: ${error.message}`);
-          }
-      } else if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-      } else if (error instanceof Error) {
-          showAlert(500, `Server error: ${error.message}`);
-      } else {
-          showAlert(500, "Unknown error");
-      }
+    const err = error as any;
+    if (err?.response) {
+      showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+    } 
+    else if (error instanceof Error) {
+      showAlert(500, error.message);
+    }
+    else {
+      showAlert(500, "Unknown error");
+    }
   }
 
   const handleWordClick = (wordId: number, isChecked: boolean) => {

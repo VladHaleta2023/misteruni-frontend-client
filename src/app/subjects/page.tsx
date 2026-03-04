@@ -66,7 +66,7 @@ export default function SubjectPage() {
 
   const fetchSubjects = useCallback(async () => {
     try {
-      const response = await api.get("/user-subjects");
+      const response = await api.get<any>("/user-subjects");
       if (response.data?.statusCode === 200) {
         const fetchedUserSubjects: UserSubject[] = response.data.subjects;
         setSubjects(fetchedUserSubjects);
@@ -86,16 +86,14 @@ export default function SubjectPage() {
     }
     catch (error: unknown) {
       setLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }
@@ -128,7 +126,7 @@ export default function SubjectPage() {
     setLoading(true);
 
     try {
-      const response = await api.post("/auth/logout");
+      const response = await api.post<any>("/auth/logout");
 
       if (response.data?.statusCode === 200) {
         localStorage.removeItem("weekOffset");
@@ -144,16 +142,14 @@ export default function SubjectPage() {
       }
     } catch (error: unknown) {
       setLoading(false);
-
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data?.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
         showAlert(500, error.message);
-      } else {
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }
@@ -166,22 +162,21 @@ export default function SubjectPage() {
 
   const handleSubjectDelete = async (id: number) => {
     try {
-      const response = await api.delete(`/user-subjects/${id}`);
+      const response = await api.delete<any>(`/user-subjects/${id}`);
 
       if (response.data?.statusCode === 200) {
         showAlert(response.data.statusCode, response.data.message);
         setSubjects(prev => prev.filter(subj => subj.subject.id !== id));
       }
     } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data?.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
         showAlert(500, error.message);
-      } else {
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }

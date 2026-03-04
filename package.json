@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@mantine/core": "^8.3.1",
-    "axios": "^1.10.0",
+    "axios": "^1.13.6",
     "katex": "^0.16.25",
     "lodash.debounce": "^4.0.8",
     "lucide-react": "^0.525.0",

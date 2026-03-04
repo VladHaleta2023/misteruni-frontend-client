@@ -3,11 +3,16 @@
 import React, { useState } from "react";
 import "@/app/styles/components.css";
 import { useRouter } from "next/navigation";
-import axios from "axios";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
 import { Eye, EyeOff } from "lucide-react";
 import Spinner from "./spinner";
+
+interface AuthResponse {
+  statusCode: number;
+  token?: string;
+  message?: string;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -48,7 +53,7 @@ export default function RegisterPage() {
             return;
         }
 
-        const response = await api.post("/auth/register", {
+        const response = await api.post<AuthResponse>("/auth/register", {
             email: email.trim().toLowerCase(),
             username: username.trim(),
             password,
@@ -61,16 +66,9 @@ export default function RegisterPage() {
     } catch (error: unknown) {
         setLoading(false);
 
-        if (axios.isAxiosError(error)) {
-            if (error.response) {
-                showAlert(
-                    error.response.status,
-                    error.response.data?.message || "Server error"
-                );
-            }
-            else {
-                showAlert(500, `Server error: ${error.message}`);
-            }
+        const err = error as any;
+        if (err?.response) {
+            showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
         }
         else if (error instanceof Error) {
             showAlert(500, error.message);

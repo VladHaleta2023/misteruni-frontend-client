@@ -108,7 +108,7 @@ export default function UpdatePage() {
   const fetchSubjects = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/subjects/available`);
+      const response = await api.get<any>(`/subjects/available`);
 
       if (response.data?.statusCode === 200) {
         const subjectsData: Subject[] = response.data.subjects;
@@ -130,15 +130,14 @@ export default function UpdatePage() {
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }
@@ -147,7 +146,7 @@ export default function UpdatePage() {
   const fetchSubjectById = useCallback(async (subjectId: number) => {
     setLoading(true);
     try {
-      const response = await api.get(`/user-subjects/${subjectId}`);
+      const response = await api.get<any>(`/user-subjects/${subjectId}`);
 
       if (response.data?.statusCode === 200) {
         const subj = response.data.subject.subject;
@@ -169,15 +168,14 @@ export default function UpdatePage() {
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }
@@ -216,7 +214,7 @@ export default function UpdatePage() {
     }
 
     try {
-      const response = await api.put(`/user-subjects/${selectedSubjectOption?.value}`, {
+      const response = await api.put<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
         dailyStudyMinutes
@@ -232,15 +230,14 @@ export default function UpdatePage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }
@@ -263,7 +260,7 @@ export default function UpdatePage() {
     }
 
     try {
-      const response = await api.post(`/user-subjects/${selectedSubjectOption?.value}`, {
+      const response = await api.post<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
         dailyStudyMinutes
@@ -279,15 +276,14 @@ export default function UpdatePage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     }

@@ -159,7 +159,7 @@ export default function SectionsPage() {
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections`);
+      const response = await api.get<any>(`/subjects/${subjectId}/sections`);
 
       if (response.data?.statusCode === 200) {
         const fetchedSections: Section[] = response.data.sections;
@@ -185,16 +185,15 @@ export default function SectionsPage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
-        showAlert(500, "Unknown error");
+      const err = error as any;
+      if (err?.response) {
+          showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+          showAlert(500, error.message);
+      }
+      else {
+          showAlert(500, "Unknown error");
       }
     } finally {
       fetchInProgressRef.current = false;
@@ -242,7 +241,7 @@ export default function SectionsPage() {
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/topics/first-uncompleted`);
+      const response = await api.get<any>(`/subjects/${subjectId}/sections/topics/first-uncompleted`);
 
       if (response.data?.statusCode === 200) {
         handlePlayClick(
@@ -256,15 +255,15 @@ export default function SectionsPage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+    
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     } finally {

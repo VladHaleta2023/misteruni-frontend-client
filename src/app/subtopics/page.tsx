@@ -115,7 +115,7 @@ export default function SubtopicsPage() {
     }
 
     try {
-      const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics`);
+      const response = await api.get<any>(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/subtopics`);
 
       if (response.data?.statusCode === 200) {
         const fetchedSubtopics: Subtopic[] = response.data.subtopics;
@@ -147,15 +147,14 @@ export default function SubtopicsPage() {
       }
     } catch (error) {
       setLoading(false);
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          showAlert(error.response.status, error.response.data.message || "Server error");
-        } else {
-          showAlert(500, `Server error: ${error.message}`);
-        }
-      } else if (error instanceof Error) {
-        showAlert(500, `Server error: ${error.message}`);
-      } else {
+      const err = error as any;
+      if (err?.response) {
+        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+      } 
+      else if (error instanceof Error) {
+        showAlert(500, error.message);
+      }
+      else {
         showAlert(500, "Unknown error");
       }
     } finally {

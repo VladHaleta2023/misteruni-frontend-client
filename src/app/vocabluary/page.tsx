@@ -134,7 +134,7 @@ export default function StoriesPage() {
 
   const fetchWords = useCallback(async () => {
     try {
-      const response = await api.post(`/subjects/${subjectId}/words`, {
+      const response = await api.post<any>(`/subjects/${subjectId}/words`, {
         topicId: topicId
       });
 
@@ -158,7 +158,7 @@ export default function StoriesPage() {
 
   const findWords = useCallback(async () => {
     try {
-      const response = await api.post(`/subjects/${subjectId}/words/find`, {
+      const response = await api.post<any>(`/subjects/${subjectId}/words/find`, {
         wordIds
       });
 
@@ -214,21 +214,17 @@ export default function StoriesPage() {
   }
 
   function handleApiError(error: unknown) {
-      if (axios.isAxiosError(error)) {
-          if (error.code === "ERR_CANCELED") return;
-
-          if (error.response) {
-              showAlert(error.response.status, error.response.data?.message || "Server error");
-          } else {
-              showAlert(500, `Server error: ${error.message}`);
-          }
-      } else if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-      } else if (error instanceof Error) {
-          showAlert(500, `Server error: ${error.message}`);
-      } else {
-          showAlert(500, "Unknown error");
-      }
+    const err = error as any;
+  
+    if (err?.response) {
+      showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+    } 
+    else if (error instanceof Error) {
+      showAlert(500, error.message);
+    }
+    else {
+      showAlert(500, "Unknown error");
+    }
   }
 
   const controllersRef = useRef<AbortController[]>([]);
@@ -263,7 +259,7 @@ export default function StoriesPage() {
         while (changed === "true" && attempt <= MAX_ATTEMPTS) {
           if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
 
-          const response = await api.post(
+          const response = await api.post<any>(
             `/subjects/${subjectId}/words/vocabluary-generate`,
             {
               sectionId,
@@ -277,7 +273,7 @@ export default function StoriesPage() {
                 words,
               },
             },
-            { signal: activeSignal }
+            { signal: activeSignal } as any
           );
 
           if (activeSignal?.aborted) return { outputText: "", outputWords: [] };
@@ -312,10 +308,10 @@ export default function StoriesPage() {
       setTextLoading("Aktualizacja słów lub wyrazów zadania");
 
       try {
-        const response = await api.put(
+        const response = await api.put<any>(
           `/subjects/${subjectId}/words/update`,
           { outputWords, wordIds: verifiedWordIds },
-          { signal }
+          { signal } as any
         );
 
         if (response.data?.statusCode === 200) {

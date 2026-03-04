@@ -117,13 +117,13 @@ export default function InteractivePlayPage() {
     const [isTyping, setIsTyping] = useState(false);
     const [isProcessingChat, setIsProcessingChat] = useState(false);
     const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
-    const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const typingIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastTypedBlockIndexRef = useRef<number>(-1);
 
     const [showFinalBlocks, setShowFinalBlocks] = useState(false);
     const [isExplanationTyping, setIsExplanationTyping] = useState(false);
     const [typedExplanation, setTypedExplanation] = useState("");
-    const explanationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const shouldScrollRef = useRef(true);
 
@@ -304,21 +304,17 @@ export default function InteractivePlayPage() {
         shouldScrollRef.current = isAtBottom;
     }, []);
 
-    function handleApiError(error: unknown) {
-        if (axios.isAxiosError(error)) {
-            if (error.code === "ERR_CANCELED") return;
-
-            if (error.response) {
-                showAlert(error.response.status, error.response.data?.message || "Server error");
-            } else {
-                showAlert(500, `Server error: ${error.message}`);
-            }
-        } else if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-        } else if (error instanceof Error) {
-            showAlert(500, `Server error: ${error.message}`);
-        } else {
-            showAlert(500, "Unknown error");
+    function handleApiError(error: any) {
+        const err = error as any;
+    
+        if (err?.response) {
+          showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+        } 
+        else if (error instanceof Error) {
+          showAlert(500, error.message);
+        }
+        else {
+          showAlert(500, "Unknown error");
         }
     }
 
@@ -348,9 +344,9 @@ export default function InteractivePlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
-            const response = await api.get(
+            const response = await api.get<any>(
                 `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
-                { signal: activeSignal }
+                { signal: activeSignal } as any
             );
 
             if (activeSignal.aborted) return null;
@@ -401,9 +397,9 @@ export default function InteractivePlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
-            const response = await api.get(
+            const response = await api.get<any>(
                 `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
-                { signal: activeSignal }
+                { signal: activeSignal } as any
             );
 
             if (activeSignal.aborted) return null;
@@ -442,10 +438,10 @@ export default function InteractivePlayPage() {
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { text: "", translate: "", outputWords: [] };
 
-                    const response = await api.post(
+                    const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/interactive-task-generate`,
                         { changed, errors, attempt, text, translate, outputWords },
-                        { signal: activeSignal }
+                        { signal: activeSignal } as any
                     );
 
                     if (activeSignal?.aborted) return { text: "", translate: "", outputWords: [] };
@@ -498,10 +494,10 @@ export default function InteractivePlayPage() {
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
 
-                    const response = await api.post(
+                    const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
                         { changed, errors, attempt, text, subtopics, solution, options, explanations, correctOptionIndex, random1, random2, randomOption },
-                        { signal: activeSignal }
+                        { signal: activeSignal } as any
                     );
 
                     if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
@@ -551,7 +547,7 @@ export default function InteractivePlayPage() {
         id?: number
     ) => {
         try {
-            const response = await api.post(
+            const response = await api.post<any>(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
                 {
                     id,
@@ -566,7 +562,7 @@ export default function InteractivePlayPage() {
                     explanation,
                     taskSubtopics
                 },
-                { signal }
+                { signal } as any
             );
 
             if (response.data?.statusCode === 200) {
@@ -595,14 +591,14 @@ export default function InteractivePlayPage() {
         try {
             setTextLoading("Generowanie audio zadania");
 
-            const response = await api.post(
+            const response = await api.post<any>(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/audio-transaction`,
                 {
                     text,
                     stage,
                     language
                 },
-                { signal }
+                { signal } as any
             );
 
             if (response.data?.statusCode === 200) {
@@ -652,10 +648,10 @@ export default function InteractivePlayPage() {
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                     if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
 
-                    const response = await api.post(
+                    const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
                         { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
-                        { signal: activeSignal }
+                        { signal: activeSignal } as any
                     );
 
                     if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
@@ -717,10 +713,10 @@ export default function InteractivePlayPage() {
             while (changed === "true" && attempt <= MAX_ATTEMPTS) {
                 if (activeSignal?.aborted) return { chat, userSolution, chatFinished };
 
-                const response = await api.post(
+                const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/chat-generate`,
                     { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption },
-                    { signal: activeSignal }
+                    { signal: activeSignal } as any
                 );
 
                 if (activeSignal?.aborted) return { chat, userSolution, chatFinished };
@@ -770,7 +766,7 @@ export default function InteractivePlayPage() {
         }
 
         try {
-            const response = await api.put(
+            const response = await api.put<any>(
                 `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat`,
                 {
                     chat,
@@ -778,7 +774,7 @@ export default function InteractivePlayPage() {
                     userSolution,
                     mode
                 },
-                { signal }
+                { signal } as any
             );
 
             if (response.data?.statusCode !== 200) {
@@ -805,13 +801,13 @@ export default function InteractivePlayPage() {
         try {
             setTextLoading("Zapisywanie Rozwiązania...");
 
-            const taskUserSolutionResponse = await api.put(
+            const taskUserSolutionResponse = await api.put<any>(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/user-solution`,
             {
                 userSolution,
                 userOptionIndex
             },
-            { signal }
+            { signal } as any
             );
 
             if (taskUserSolutionResponse.data?.statusCode !== 200) {
@@ -1268,7 +1264,7 @@ export default function InteractivePlayPage() {
 
     const splitIntoSentences = async (text: string, language = "en"): Promise<string[]> => {
         try {
-            const response = await api.post("/options/split-into-sentences", { 
+            const response = await api.post<any>("/options/split-into-sentences", { 
                 text,
                 language
             });
@@ -1371,12 +1367,12 @@ export default function InteractivePlayPage() {
         const signal = controller.signal;
 
         try {
-            const result = await api.post(
+            const result = await api.post<any>(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/words`,
             {
                 text
             },
-            { signal }
+            { signal } as any
             );
 
             if (result.data?.statusCode === 200) {
@@ -1612,7 +1608,7 @@ export default function InteractivePlayPage() {
 
     const handleDeleteTask = useCallback(async() => {
         try {
-            const response = await api.delete(`/subjects/${subjectId}/tasks/${task.id}`);
+            const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${task.id}`);
 
             setLoading(false);
             if (response.data?.statusCode === 200) {

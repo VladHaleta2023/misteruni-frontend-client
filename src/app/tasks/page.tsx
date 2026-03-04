@@ -164,7 +164,7 @@ export default function TasksPage() {
       }
 
       try {
-          const response = await api.get(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks?weekOffset=${weekOffset}`);
+          const response = await api.get<any>(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks?weekOffset=${weekOffset}`);
           setLoading(false);
 
           if (response.data?.statusCode === 200) {
@@ -179,19 +179,18 @@ export default function TasksPage() {
           }
       }
       catch (error) {
-          setLoading(false);
-          if (axios.isAxiosError(error)) {
-              if (error.response) {
-              showAlert(error.response.status, error.response.data.message || "Server error");
-              } else {
-              showAlert(500, `Server error: ${error.message}`);
-              }
-          } else if (error instanceof Error) {
-              showAlert(500, `Server error: ${error.message}`);
-          } else {
-              showAlert(500, "Unknown error");
-          }
-      }
+        setLoading(false);
+        const err = error as any;
+        if (err?.response) {
+            showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+        } 
+        else if (error instanceof Error) {
+            showAlert(500, error.message);
+        }
+        else {
+            showAlert(500, "Unknown error");
+        }
+    }
   }, [subjectId, sectionId, topicId, weekOffset]);
 
   useEffect(() => {
@@ -298,7 +297,7 @@ export default function TasksPage() {
   const handleDeleteTask = useCallback(async() => {
     try {
         setLoading(true);
-        const response = await api.delete(`/subjects/${subjectId}/tasks/${taskId}`);
+        const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${taskId}`);
 
         if (response.data?.statusCode === 200) {
             showAlert(response.data.statusCode, response.data.message);
@@ -309,15 +308,14 @@ export default function TasksPage() {
     }
     catch (error) {
         setLoading(false);
-        if (axios.isAxiosError(error)) {
-            if (error.response) {
-            showAlert(error.response.status, error.response.data.message || "Server error");
-            } else {
-            showAlert(500, `Server error: ${error.message}`);
-            }
-        } else if (error instanceof Error) {
-            showAlert(500, `Server error: ${error.message}`);
-        } else {
+        const err = error as any;
+        if (err?.response) {
+            showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
+        } 
+        else if (error instanceof Error) {
+            showAlert(500, error.message);
+        }
+        else {
             showAlert(500, "Unknown error");
         }
     }

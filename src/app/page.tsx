@@ -4,6 +4,8 @@ import Header from "@/app/components/header";
 import "@/app/styles/table.css";
 import "@/app/styles/components.css";
 import "@/app/styles/globals.css";
+import "@/app/styles/header.css";
+import "@/app/styles/play.css";
 import { LogIn, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import LoginPage from "./components/login";
@@ -26,7 +28,7 @@ export default function MainPage() {
 
   return (
     <>
-      <Header>
+      {/*<Header>
         <div className="menu-icons">
           <div
             className="menu-icon"
@@ -37,9 +39,10 @@ export default function MainPage() {
             {mode === "login" ? <UserPlus size={28} color="white" /> : <LogIn size={28} color="white" />}
           </div>
         </div>
-      </Header>
+      </Header>*/}
 
-      <main>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "12px" }}>
+        <img style={{ width: "60%" }}src="logo.png" alt="logo" />
         {mode === "login" 
           ? <LoginPage /> 
           : <RegisterPage />

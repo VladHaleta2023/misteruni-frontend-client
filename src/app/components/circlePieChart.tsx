@@ -20,8 +20,8 @@ export default function CirclePieChart({
   percents,
   prediction,
   names,
-  width = '60vw', // Уменьшено с 70vw
-  maxWidth = '280px', // Уменьшено с 280px
+  width = '60vw',
+  maxWidth = '280px',
   fontSize = '16px',
   showStatistic = true,
 }: CirclePieChartProps) {
@@ -53,7 +53,7 @@ export default function CirclePieChart({
 
     updateSize();
     
-    let resizeTimeout: NodeJS.Timeout;
+    let resizeTimeout: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(updateSize, 100);
