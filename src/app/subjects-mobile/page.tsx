@@ -160,7 +160,7 @@ export default function SubjectPage() {
         localStorage.removeItem("accessToken");
 
         setTimeout(() => {
-          window.location.reload();
+          router.push("/");
         }, 1500);
       }
 
