@@ -158,10 +158,6 @@ export default function SubjectPage() {
         localStorage.removeItem("subjectId");
         localStorage.removeItem("subjectType");
         localStorage.removeItem("accessToken");
-
-        setTimeout(() => {
-          router.push("/");
-        }, 1500);
       }
 
     } catch (error: unknown) {

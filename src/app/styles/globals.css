@@ -56,6 +56,10 @@ main {
   margin-right: auto;
 }
 
+img.logo {
+  width: 250px;
+}
+
 @media (max-width: 768px) {
   main {
     min-height: 100dvh;

@@ -1,12 +1,9 @@
 'use client';
 
-import Header from "@/app/components/header";
 import "@/app/styles/table.css";
 import "@/app/styles/components.css";
 import "@/app/styles/globals.css";
-import "@/app/styles/header.css";
 import "@/app/styles/play.css";
-import { LogIn, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import LoginPage from "./components/login";
 import RegisterPage from "./components/register";
@@ -28,21 +25,23 @@ export default function MainPage() {
 
   return (
     <>
-      {/*<Header>
-        <div className="menu-icons">
-          <div
-            className="menu-icon"
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "0px" }}>
+        <img className="logo" src="logo.png" alt="logo" />
+        <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", padding: "16px 24px", paddingBottom: "0px" }}>
+          <button
+            className="btnOption"
+            style={{
+              padding: "4px 12px",
+              backgroundColor: "#c2c2c2",
+              color: "#333333",
+              gap: "12px",
+              justifyContent: "flex-start"
+            }}
             onClick={toggleMode}
-            style={{ marginLeft: 'auto' }}
-            title={mode === "login" ? "Przełącz na rejestrację" : "Przełącz na logowanie"}
           >
-            {mode === "login" ? <UserPlus size={28} color="white" /> : <LogIn size={28} color="white" />}
-          </div>
+            {mode === "login" ? "Rejestracja" : "Logowanie"}
+          </button>
         </div>
-      </Header>*/}
-
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "12px" }}>
-        <img style={{ width: "60%" }}src="logo.png" alt="logo" />
         {mode === "login" 
           ? <LoginPage /> 
           : <RegisterPage />
