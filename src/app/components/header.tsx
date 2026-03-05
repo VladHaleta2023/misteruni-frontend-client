@@ -13,7 +13,7 @@ export default function Header({ children }: HeaderProps) {
   return (
     <div className="header-wrapper">
       <header className="header">
-        <span className="misterUniLogo">Matura Go!</span>
+        <span className="misterUniLogo">MaturaGo!</span>
         {children}
       </header>
     </div>

@@ -47,6 +47,7 @@ export default function PlayPage() {
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
     const [msgPlayVisible, setMsgPlayVisible] = useState<boolean>(false);
 
+    const [subtopicsExpanded, setSubtopicsExpanded] = useState(false);
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
     const [solutionExpanded, setSolutionExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
@@ -1738,22 +1739,42 @@ export default function PlayPage() {
                                 )}
                             </div>
                             <div className={`message human ${task.status}`}>
-                                <div className="text-title" style={{ fontWeight: "bold" }}>
+                                <div
+                                    className="text-title"
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        cursor: "pointer",
+                                        fontWeight: "bold"
+                                    }}
+                                    onClick={() => setSubtopicsExpanded(prev => !prev)}
+                                >
+                                    <div
+                                        className="btnElement"
+                                        style={{
+                                            marginRight: "4px",
+                                            fontWeight: "bold"
+                                        }}
+                                    >
+                                        {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                    </div>
                                     {task.finished ? "Ocena:" : "Podtematy:"}
                                 </div>
-                                <div style={{ marginTop: "8px" }}>
-                                    {task.subtopics.map((subtopic: Subtopic, index: number) => (
-                                    <div key={index}>
-                                        <FormatText
-                                            content={
-                                                task.finished
-                                                ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
-                                                : `${index + 1}. ${subtopic.name}`
-                                            }
-                                        />
+                                {subtopicsExpanded && (
+                                    <div style={{ marginTop: "8px" }}>
+                                        {task.subtopics.map((subtopic: Subtopic, index: number) => (
+                                            <div key={index}>
+                                                <FormatText
+                                                    content={
+                                                        task.finished
+                                                        ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
+                                                        : `${index + 1}. ${subtopic.name}`
+                                                    }
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                    ))}
-                                </div>
+                                )}
                             </div>
                             <div className="message robot">
                                 <div className="text-title">Tekst Zadania:</div>
