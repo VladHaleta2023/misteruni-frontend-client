@@ -159,8 +159,6 @@ export default function SubjectPage() {
         localStorage.removeItem("subjectType");
         localStorage.removeItem("accessToken");
 
-        showAlert(response.data.statusCode, response.data.message);
-
         setTimeout(() => {
           router.push("/");
         }, 1500);
