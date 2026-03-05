@@ -158,6 +158,10 @@ export default function SubjectPage() {
         localStorage.removeItem("subjectId");
         localStorage.removeItem("subjectType");
         localStorage.removeItem("accessToken");
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       }
 
     } catch (error: unknown) {
