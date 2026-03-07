@@ -1753,8 +1753,10 @@ export default function InteractivePlayPage() {
 
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask(task);
+                setUserOptionIndex(task.userOptionIndex ?? 0);
                 setSentences(await splitIntoSentences(task.text));
                 setWords(extractWords(task.text));
+                setChatBlocks(parseChat(task.chat));
                 localStorage.setItem("taskId", task.id);
                 
                 if (task.finished) {

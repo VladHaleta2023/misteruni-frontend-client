@@ -1247,6 +1247,9 @@ export default function PlayPage() {
 
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask(task);
+                setUserOptionIndex(task.userOptionIndex ?? 0)
+                setTask(task);
+                setChatBlocks(parseChat(task.chat));
                 localStorage.setItem("taskId", task.id);
                 
                 if (task.finished) {
