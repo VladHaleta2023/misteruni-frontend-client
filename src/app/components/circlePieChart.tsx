@@ -170,8 +170,6 @@ export default function CirclePieChart({
                     >
                       {deltaDays > 0
                         ? '+'
-                        : deltaDays < 0
-                        ? '-'
                         : ''}
                       {deltaDays}
                     </div>
