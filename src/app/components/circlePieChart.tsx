@@ -145,35 +145,33 @@ export default function CirclePieChart({
                   pointerEvents: 'none',
                 }}
               >
-                {prediction != null && deltaDays != null && (
-                  <>
-                    <div
-                      style={{
-                        fontSize: clampFont(16, 1.67, 18),
-                        fontWeight: 'bold',
-                        color: '#333',
-                      }}
-                    >
-                      {prediction}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: clampFont(16, 1.67, 18),
-                        fontWeight: 'bold',
-                        color:
-                          deltaDays > 0
-                            ? '#1b5e20'
-                            : deltaDays < 0
-                            ? '#b71c1c'
-                            : '#333',
-                      }}
-                    >
-                      {deltaDays > 0
-                        ? '+'
-                        : ''}
-                      {deltaDays}
-                    </div>
-                  </>
+                {prediction != null && (
+                  <div
+                    style={{
+                      fontSize: clampFont(16, 1.67, 18),
+                      fontWeight: 'bold',
+                      color: '#333',
+                    }}
+                  >
+                    {prediction}
+                  </div>
+                )}
+                {deltaDays != null && (
+                  <div
+                    style={{
+                      fontSize: clampFont(16, 1.67, 18),
+                      fontWeight: 'bold',
+                      color:
+                        deltaDays >= 0
+                        ? '#1b5e20'
+                        : '#b71c1c',
+                    }}
+                  >
+                    {deltaDays >= 0
+                      ? '+'
+                      : ''}
+                    {deltaDays}
+                  </div>
                 )}
               </div>
             )}

@@ -239,6 +239,7 @@ export default function SubtopicsPage() {
       ) : (
         <div style={{ minHeight: '200px' }}>
           <ChartComponent />
+          <br />
           <div style={{ 
               padding: "8px", 
               width: "100%",
