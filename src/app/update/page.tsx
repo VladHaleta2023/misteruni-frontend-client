@@ -61,9 +61,9 @@ export default function UpdatePage() {
 
     if (!minLevel || minLevel === SubjectDetailLevel.MANDATORY) {
       return [
-        { value: SubjectDetailLevel.MANDATORY, label: "Obowiązkowy" },
-        { value: SubjectDetailLevel.DESIRABLE, label: "Pożądany" },
-        { value: SubjectDetailLevel.OPTIONAL, label: "Opcjonalny" }
+        { value: SubjectDetailLevel.MANDATORY, label: "Podstawowy" },
+        { value: SubjectDetailLevel.DESIRABLE, label: "Rozszerzony" },
+        { value: SubjectDetailLevel.OPTIONAL, label: "Akademicki" }
       ];
     }
 
@@ -158,7 +158,6 @@ export default function UpdatePage() {
         }]);
 
         setThreshold(response.data.subject.threshold ?? 50);
-        // Используем detailLevel с базы
         setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
         setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
         setSelectedSubjectId(subj.id);

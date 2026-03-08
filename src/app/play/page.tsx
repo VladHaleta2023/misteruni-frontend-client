@@ -1729,13 +1729,13 @@ export default function PlayPage() {
                                             localStorage.setItem("literatures", JSON.stringify(task.literatures));
                                             router.push('/literatures');
                                         }
-                                        }}
+                                    }}
                                     >
                                         <LibraryBig size={26} />
                                     </div>) : null}
                                 </div>
                                 {topicNoteExpanded && (
-                                    <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                    <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
                                         <br />
                                         <FormatText content={task.topicNote ?? ""} />
                                     </div>
@@ -1883,7 +1883,7 @@ export default function PlayPage() {
                                             <div key={index} className="message human">
                                                 <div className="text-title">{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                                    <FormatText content={block.content} />
+                                                    {block.content}
                                                 </div>
                                             </div>
                                         ) : (

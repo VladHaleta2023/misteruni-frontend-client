@@ -2299,7 +2299,7 @@ export default function InteractivePlayPage() {
                                             <div key={index} className="message human">
                                                 <div className="text-title">{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                                    <FormatText content={block.content} />
+                                                    {block.content}
                                                 </div>
                                             </div>
                                         ) : (

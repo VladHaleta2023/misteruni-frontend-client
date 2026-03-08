@@ -6,7 +6,6 @@ import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
 import { showAlert } from "@/app/scripts/showAlert";
-import axios from "axios";
 import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
@@ -14,13 +13,11 @@ import { setMainHeight } from "@/app/scripts/mainHeight";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
-type DeltaStatus = 'completed' | 'error' | 'completed error';
 
 interface Subtopic {
   id: number;
   name: string;
   percent: number;
-  delta: number;
   status: Status;
 }
 
@@ -28,11 +25,8 @@ interface Topic {
   id: number;
   name: string;
   percent: number;
-  delta: number;
   frequency: number;
-  deltaStatus: DeltaStatus;
   status: Status;
-  repeat: boolean;
   subtopics?: Subtopic[];
 }
 
@@ -49,6 +43,7 @@ interface Section {
 interface ChartData {
   total: [number, number, number];
   prediction: string;
+  deltaDays: number;
   hasData: boolean;
 }
 
@@ -175,6 +170,7 @@ export default function SectionsPage() {
         setChartData({
           total: newTotal,
           prediction: response.data.prediction,
+          deltaDays: response.data.deltaDays,
           hasData: newTotal.some(percent => percent > 0)
         });
 
@@ -326,6 +322,7 @@ export default function SectionsPage() {
       <CirclePieChart 
         percents={chartData.total} 
         prediction={chartData.prediction}
+        deltaDays={chartData.deltaDays}
       />
     );
   }, [chartData]);
@@ -441,10 +438,6 @@ export default function SectionsPage() {
                         <FormatText content={topic.name ?? ""} />
                       </div>
                       <div className="element-options">
-                        {topic.repeat && (
-                          <AlertCircle size={24} color="#800020" />
-                        )}
-
                         <div className={`element-percent ${topic.status}`}>
                           {topic.percent}%
                         </div>
