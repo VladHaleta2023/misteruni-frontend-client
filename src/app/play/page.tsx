@@ -125,6 +125,9 @@ export default function PlayPage() {
         let currentBlockIndex = 0;
         let currentCharIndex = 0;
         const blocksToType = [...newRobotBlocks];
+        
+        const CHARS_PER_INTERVAL = 2;
+        const TYPING_INTERVAL_MS = 5;
 
         shouldScrollRef.current = true;
         
@@ -178,17 +181,23 @@ export default function PlayPage() {
             }
 
             if (currentCharIndex < currentBlock.content.length) {
+                const endIndex = Math.min(
+                    currentCharIndex + CHARS_PER_INTERVAL, 
+                    currentBlock.content.length
+                );
+                
                 setTempTypingBlocks(prev => {
                     const updated = [...prev];
                     updated[currentBlockIndex] = {
                         ...updated[currentBlockIndex],
-                        content: currentBlock.content.substring(0, currentCharIndex + 1)
+                        content: currentBlock.content.substring(0, endIndex)
                     };
                     return updated;
                 });
-                currentCharIndex++;
                 
-                if (shouldScrollRef.current && currentCharIndex % 3 === 0) {
+                currentCharIndex = endIndex;
+                
+                if (shouldScrollRef.current && currentCharIndex % 20 === 0) {
                     scrollToBottom(true);
                 }
             } else {
@@ -198,7 +207,7 @@ export default function PlayPage() {
                 shouldScrollRef.current = true;
                 scrollToBottom(true);
             }
-        }, 10);
+        }, TYPING_INTERVAL_MS);
     }, []);
 
     const simulateExplanationTyping = useCallback((explanation: string) => {
@@ -211,6 +220,9 @@ export default function PlayPage() {
         setTypedExplanation("");
         
         let currentIndex = 0;
+        
+        const CHARS_PER_INTERVAL = 3;
+        const TYPING_INTERVAL_MS = 4;
         
         explanationIntervalRef.current = setInterval(() => {
             if (currentIndex >= explanation.length) {
@@ -225,13 +237,14 @@ export default function PlayPage() {
                 return;
             }
 
-            setTypedExplanation(prev => prev + explanation[currentIndex]);
-            currentIndex++;
+            const endIndex = Math.min(currentIndex + CHARS_PER_INTERVAL, explanation.length);
+            setTypedExplanation(explanation.substring(0, endIndex));
+            currentIndex = endIndex;
             
-            if (shouldScrollRef.current && currentIndex % 3 === 0) {
+            if (shouldScrollRef.current && currentIndex % 30 === 0) {
                 scrollToBottom(true);
             }
-        }, 10);
+        }, TYPING_INTERVAL_MS);
     }, []);
 
     const scrollToBottom = useCallback((instant = false) => {

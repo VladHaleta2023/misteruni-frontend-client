@@ -658,7 +658,7 @@ export default function TasksPage() {
                       </div>
                       <div
                         className="btnOption"
-                        style={{ backgroundColor: "black" }}
+                        style={{ backgroundColor: "transparent", color: "black" }}
                         onClick={(e) => {
                             e.stopPropagation();
                             setTaskId(task.id);
