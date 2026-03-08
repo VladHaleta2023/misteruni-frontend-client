@@ -304,7 +304,7 @@ export default function SubtopicsPage() {
           <div className="table" style={{ marginTop: "12px" }}>
             {subtopics.flatMap((subtopic) => [
               <div
-                className={`element element-section`}
+                className={`element element-subtopic`}
                 style={{
                   justifyContent: "space-between"
                 }}

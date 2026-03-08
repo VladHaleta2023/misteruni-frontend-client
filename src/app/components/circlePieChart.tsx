@@ -9,7 +9,7 @@ const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb'];
 interface CirclePieChartProps {
   percents: [number, number, number];
   prediction: string | null;
-  deltaDays: number | null;
+  deltaDays?: number | null;
   names?: [string?, string?, string?, string?];
   width?: string;
   maxWidth?: string;

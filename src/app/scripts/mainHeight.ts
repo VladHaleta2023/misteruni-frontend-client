@@ -1,4 +1,4 @@
-let mainHeightTimeout: NodeJS.Timeout | null = null;
+let mainHeightTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function setMainHeight(): void {
   if (mainHeightTimeout) {

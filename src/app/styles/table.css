@@ -10,7 +10,7 @@
 }
 
 .table > .element {
-  font-size: clamp(16px, 1.67vw, 18px);
+  font-size: 18px;
   display: flex;
   border-bottom: 2px solid #bfbfbf;
   transition: background-color 0.3s ease;
@@ -33,7 +33,13 @@
 .element-section {
   background-color: #cccccc;
   color: #000000;
-  font-size: clamp(18px, 1.67vw, 20px) !important;
+  font-size: 20px !important;
+}
+
+.element-subtopic {
+  background-color: #cccccc;
+  color: #000000;
+  font-size: 18px !important;
 }
 
 .element-topic {
@@ -45,7 +51,7 @@
   padding-left: 20px; 
   margin-top: 8px;
   width: 100%;
-  font-size: clamp(16px, 1.67vw, 18px);
+  font-size: 18px;
 }
 
 .text-topic-note {
@@ -175,7 +181,7 @@
 }
 
 .date {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .element-word {
@@ -282,7 +288,7 @@
   }
 
   .button {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .text-topic-note {
@@ -290,10 +296,10 @@
   }
 
   .element-task {
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .date {
-    font-size: 14px;
+    font-size: 18px;
   }
 }
