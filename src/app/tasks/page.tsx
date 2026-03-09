@@ -430,7 +430,7 @@ export default function TasksPage() {
             />
             
             <div style={{ 
-                padding: "8px", 
+                padding: "18px", 
                 width: "100%",
             }}>
                 <div 
@@ -475,9 +475,6 @@ export default function TasksPage() {
                         >
                             <LibraryBig size={26} />
                         </div>) : null}
-                        <div className={`element-percent ${topicStatus}`}>
-                            {topicPercent}%
-                        </div>
                     </div>
                 </div>
                 {expandedTopicNote && (

@@ -3,7 +3,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef } from 'react';
 
-const DEFAULT_NAMES = ['Ukończone', 'W trakcie', 'Nierozpoczęte'];
+const DEFAULT_NAMES = ['Ukończonych', 'Trwałych', 'Nierozpoczętych'];
 const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb'];
 
 interface CirclePieChartProps {
@@ -15,6 +15,7 @@ interface CirclePieChartProps {
   maxWidth?: string;
   fontSize?: string;
   showStatistic?: boolean;
+  isCountable?: boolean
 }
 
 export default function CirclePieChart({
@@ -26,6 +27,7 @@ export default function CirclePieChart({
   maxWidth = '280px',
   fontSize = '16px',
   showStatistic = true,
+  isCountable = false
 }: CirclePieChartProps) {
   const [containerWidth, setContainerWidth] = useState(width);
   const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
@@ -187,31 +189,59 @@ export default function CirclePieChart({
             color: '#333',
           }}
         >
-          {data.slice(0, -1).map((item, index) => (
-            <div
-              key={index}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'default',
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-              }}
-            >
+          {!isCountable ? (<>
+            {data.slice(0, -1).map((item, index) => (
               <div
+                key={index}
                 style={{
-                  width: '12px', // Уменьшено с 14px
-                  height: '12px', // Уменьшено с 14px
-                  backgroundColor: COLORS[index % COLORS.length],
-                  marginRight: '8px', // Уменьшено с 10px
-                  borderRadius: '2px',
-                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'default',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
                 }}
-              />
-              <span style={{ marginRight: '5px', fontWeight: 500 }}>{item.percent}%</span>
-              <span>{item.name}</span>
-            </div>
-          ))}
+              >
+                <div
+                  style={{
+                    width: '12px', // Уменьшено с 14px
+                    height: '12px', // Уменьшено с 14px
+                    backgroundColor: COLORS[index % COLORS.length],
+                    marginRight: '8px', // Уменьшено с 10px
+                    borderRadius: '2px',
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ marginRight: '5px', fontWeight: 500 }}>{item.percent}%</span>
+                <span>{item.name}</span>
+              </div>
+            ))}
+          </>) : (<>
+            {data.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'default',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: '12px', // Уменьшено с 14px
+                    height: '12px', // Уменьшено с 14px
+                    backgroundColor: COLORS[index % COLORS.length],
+                    marginRight: '8px', // Уменьшено с 10px
+                    borderRadius: '2px',
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ marginRight: '5px', fontWeight: 500 }}>{item.percent}</span>
+                <span>{item.name}</span>
+              </div>
+            ))}
+          </>)}
         </div>
       </div>
 

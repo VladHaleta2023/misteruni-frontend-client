@@ -186,7 +186,8 @@ export default function SubtopicsPage() {
     if (!chartData || !chartData.hasData) return null;
     
     return (
-      <CirclePieChart 
+      <CirclePieChart
+        isCountable={true}
         percents={chartData.total} 
         prediction={chartData.prediction}
       />
@@ -238,10 +239,10 @@ export default function SubtopicsPage() {
         </div>
       ) : (
         <div style={{ minHeight: '200px' }}>
-          <ChartComponent />
+          <ChartComponent  />
           <br />
           <div style={{ 
-              padding: "8px", 
+              padding: "18px", 
               width: "100%",
               paddingBottom: "0px"
           }}>
@@ -287,9 +288,6 @@ export default function SubtopicsPage() {
                       >
                         <LibraryBig size={26} />
                       </div>) : null}
-                      <div className={`element-percent ${topicStatus}`}>
-                        {topicPercent}%
-                      </div>
                   </div>
               </div>
               {expandedTopicNote && (
