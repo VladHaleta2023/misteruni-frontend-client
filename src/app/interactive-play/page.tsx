@@ -171,7 +171,7 @@ export default function InteractivePlayPage() {
         const blocksToType = [...newRobotBlocks];
         
         const CHARS_PER_INTERVAL = 2;
-        const TYPING_INTERVAL_MS = 5;
+        const TYPING_INTERVAL_MS = 8;
 
         shouldScrollRef.current = true;
         
@@ -265,8 +265,8 @@ export default function InteractivePlayPage() {
         
         let currentIndex = 0;
         
-        const CHARS_PER_INTERVAL = 3;
-        const TYPING_INTERVAL_MS = 4;
+        const CHARS_PER_INTERVAL = 2;
+        const TYPING_INTERVAL_MS = 8;
         
         explanationIntervalRef.current = setInterval(() => {
             if (currentIndex >= explanation.length) {
@@ -1770,6 +1770,7 @@ export default function InteractivePlayPage() {
                 setSentences(await splitIntoSentences(task.text));
                 setWords(extractWords(task.text));
                 setChatBlocks(parseChat(task.chat));
+
                 localStorage.setItem("taskId", task.id);
                 
                 if (task.finished) {

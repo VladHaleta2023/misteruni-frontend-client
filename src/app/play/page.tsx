@@ -127,7 +127,7 @@ export default function PlayPage() {
         const blocksToType = [...newRobotBlocks];
         
         const CHARS_PER_INTERVAL = 2;
-        const TYPING_INTERVAL_MS = 5;
+        const TYPING_INTERVAL_MS = 8;
 
         shouldScrollRef.current = true;
         
@@ -221,8 +221,8 @@ export default function PlayPage() {
         
         let currentIndex = 0;
         
-        const CHARS_PER_INTERVAL = 3;
-        const TYPING_INTERVAL_MS = 4;
+        const CHARS_PER_INTERVAL = 2;
+        const TYPING_INTERVAL_MS = 8;
         
         explanationIntervalRef.current = setInterval(() => {
             if (currentIndex >= explanation.length) {
@@ -1263,6 +1263,7 @@ export default function PlayPage() {
                 setUserOptionIndex(task.userOptionIndex ?? 0)
                 setTask(task);
                 setChatBlocks(parseChat(task.chat));
+
                 localStorage.setItem("taskId", task.id);
                 
                 if (task.finished) {
@@ -1774,7 +1775,11 @@ export default function PlayPage() {
                                     >
                                         {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                     </div>
-                                    {task.finished ? "Ocena:" : "Podtematy:"}
+                                    {task.finished ? (
+                                        <div className="text-title">
+                                            <FormatText content={`Wynik: ${task.percent}%`} />
+                                        </div>
+                                    ) : "Podtematy:"}
                                 </div>
                                 {subtopicsExpanded && (
                                     <div style={{ marginTop: "8px" }}>
@@ -1999,6 +2004,7 @@ export default function PlayPage() {
                                         </div>
                                     )}
                                 </div>
+                                <br />
                                 <div className="message robot">
                                     <div
                                         className="text-title"
