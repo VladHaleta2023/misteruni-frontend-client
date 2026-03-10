@@ -433,7 +433,7 @@ export default function InteractivePlayPage() {
 
     const handleInteractiveTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-            setTextLoading("Generowanie treści zadania");
+            setTextLoading("Generowanie Treści zadania");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -2411,13 +2411,16 @@ export default function InteractivePlayPage() {
                                         Wyjaśnienie rozwiązania:
                                     </div>
                                     {(problemsExpanded || isExplanationTyping) && (
-                                        <div style={{paddingLeft: "20px", marginTop: "8px"}}>
-                                            {isExplanationTyping ? (
-                                                <FormatText content={typedExplanation} />
-                                            ) : (
-                                                <FormatText content={task.explanation ?? ""} />
-                                            )}
-                                        </div>
+                                        <>
+                                            <br />
+                                            <div style={{paddingLeft: "20px"}}>
+                                                {isExplanationTyping ? (
+                                                    <FormatText content={typedExplanation} />
+                                                ) : (
+                                                    <FormatText content={task.explanation ?? ""} />
+                                                )}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </>

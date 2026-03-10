@@ -4,19 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { setMainHeight } from "@/app/scripts/mainHeight";
-import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig, Lightbulb } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
-import axios from "axios";
 import "@/app/styles/table.css";
 import { getSubtopicTexts, ITask } from "../scripts/task";
 import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
-import { BsQuestion } from "react-icons/bs"; 
+import { BsQuestion } from "react-icons/bs";
 
 enum ChatMode {
   STUDENT_ANSWER = "STUDENT_ANSWER",
@@ -49,6 +48,7 @@ export default function PlayPage() {
 
     const [subtopicsExpanded, setSubtopicsExpanded] = useState(false);
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
+    const [solutionGuideExpanded, setSolutionGuideExpanded] = useState(false);
     const [solutionExpanded, setSolutionExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
     const [optionExplanationsExpanded, setOptionExplanationsExpanded] = useState<Record<number, boolean>>({});
@@ -56,6 +56,8 @@ export default function PlayPage() {
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
     const [textLoading, setTextLoading] = useState<string>("");
+    const [textGuideLoading, setTextGuideLoading] = useState<string>("Generowanie Poradnika Rozwiązania Zadania...");
+    const [solutionGuide, setSolutionGuide] = useState<string>("");
     const [task, setTask] = useState<ITask>(
         {
             id: 0,
@@ -818,6 +820,83 @@ export default function PlayPage() {
         }
     }
 
+    const handleSolutionGuideGenerate = useCallback(
+        async (subjectId: number, sectionId: number, topicId: number, taskId: number, signal?: AbortSignal) => {
+            setTextGuideLoading("Generowanie Poradnika Rozwiązania Zadania...");
+
+            const controller = !signal ? new AbortController() : null;
+            if (controller) controllersRef.current.push(controller);
+            const activeSignal = signal ?? controller?.signal;
+
+            try {
+                let changed = "true";
+                let attempt = 0;
+                let errors: string[] = [];
+                let solutionGuide: string = "";
+                const MAX_ATTEMPTS = 2;
+
+                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+                    if (activeSignal?.aborted) return { solutionGuide: "" };
+
+                    const response = await api.post<any>(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution-guide-generate`,
+                        { changed, errors, attempt, solutionGuide },
+                        { signal: activeSignal } as any
+                    );
+
+                    if (activeSignal?.aborted) return { text: "", outputSubtopics: [] };
+
+                    if (response.data?.statusCode === 201) {
+                        changed = response.data.changed;
+                        errors = response.data.errors;
+                        solutionGuide = response.data.solutionGuide;
+                        attempt = response.data.attempt;
+                        console.log(`Generowanie poradnika rozwiązania zadania: Próba ${attempt}`);
+                    } else {
+                        showAlert(400, "Nie udało się zgenerować treści zadania");
+                        break;
+                    }
+                }
+
+                return { solutionGuide };
+            } catch (error: unknown) {
+                if ((error as DOMException)?.name === "AbortError") return { solutionGuide: "" };
+                handleApiError(error);
+                return { solutionGuide: "" };
+            } finally {
+                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
+            }
+        }, []
+    );
+
+    const handleTaskSolutionGuideSave = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        taskId: number,
+        solutionGuide: string,
+        signal?: AbortSignal
+    ) => {
+        try {
+            setTextGuideLoading("Zapisywanie Poradnika Rozwiązania Zadania...");
+
+            const taskSolutionGuideResponse = await api.put<any>(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution-guide`,
+                {
+                    solutionGuide
+                },
+                { signal } as any
+            );
+
+            if (taskSolutionGuideResponse.data?.statusCode !== 200) {
+                showAlert(400, `Nie udało się zapisać poradnik`);
+            }
+        }
+        catch (error: unknown) {
+            handleApiError(error);
+        }
+    }, []);
+
     const loadChat = useCallback(async (
         subjectId: number,
         sectionId: number,
@@ -1142,6 +1221,7 @@ export default function PlayPage() {
 
             if (finalTask) {
                 setTask(finalTask);
+                setSolutionGuide(finalTask.solutionGuide ?? "");
                 setChatBlocks(parseChat(finalTask.chat));
                 
                 setShowFinalBlocks(true);
@@ -1226,6 +1306,7 @@ export default function PlayPage() {
 
                     setUserOptionIndex(task.userOptionIndex ?? 0)
                     setTask(task);
+                    setSolutionGuide(task.solutionGuide ?? "");
                     setChatBlocks(parseChat(task.chat));
 
                     if (task.finished || (!task.answered && stage >= 3)) {
@@ -1260,8 +1341,8 @@ export default function PlayPage() {
 
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask(task);
-                setUserOptionIndex(task.userOptionIndex ?? 0)
-                setTask(task);
+                setSolutionGuide(task.solutionGuide ?? "");
+                setUserOptionIndex(task.userOptionIndex ?? 0);
                 setChatBlocks(parseChat(task.chat));
 
                 localStorage.setItem("taskId", task.id);
@@ -1368,7 +1449,6 @@ export default function PlayPage() {
         setChatLoading(true);
         setIsProcessingChat(true);
         
-        // Сохраняем текущие значения ДО асинхронных операций
         const currentChat = task.chat;
         const currentTaskId = task.id;
         const currentSubjectId = subjectId;
@@ -1439,6 +1519,7 @@ export default function PlayPage() {
 
             if (updatedTask) {
                 setTask(updatedTask);
+                setSolutionGuide(updatedTask.solutionGuide ?? "");
             }
 
         } catch (error: unknown) {
@@ -1480,14 +1561,12 @@ export default function PlayPage() {
                 setChatLoading(true);
                 setTextLoading("Zapisywanie rozwiązania...");
 
-                // Сохраняем ID до асинхронных операций
                 const currentTaskId = task.id;
                 const currentSubjectId = subjectId;
                 const currentSectionId = sectionId;
                 const currentTopicId = topicId;
                 const currentUserOptionIndex = userOptionIndex;
 
-                // 1. Сохраняем ответ пользователя
                 await handleTaskUserSolutionSave(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1500,14 +1579,12 @@ export default function PlayPage() {
 
                 if (signal.aborted) return;
 
-                // 2. Немедленно обновляем UI
                 setTask(prev => ({
                     ...prev,
                     answered: true,
                     userOptionIndex: currentUserOptionIndex ?? 0
                 }));
 
-                // 3. Получаем обновленную задачу
                 const newTask = await fetchPendingTask(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1522,7 +1599,6 @@ export default function PlayPage() {
 
                 setTextLoading("Przetwarzanie czatu AI...");
 
-                // 4. Загружаем чат (обновит chatBlocks)
                 await loadChat(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1531,7 +1607,6 @@ export default function PlayPage() {
                     signal
                 );
 
-                // 5. Получаем полную обновленную задачу
                 const finalTask = await fetchTaskById(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1542,8 +1617,8 @@ export default function PlayPage() {
 
                 if (finalTask) {
                     setTask(finalTask);
+                    setSolutionGuide(finalTask.solutionGuide ?? "");
                 }
-
             } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 setChatLoading(false);
@@ -1777,7 +1852,7 @@ export default function PlayPage() {
                                     </div>
                                     {task.finished ? (
                                         <div className="text-title">
-                                            <FormatText content={`Wynik: ${task.percent}%`} />
+                                            <FormatText content={`Ocena: ${task.percent}%`} />
                                         </div>
                                     ) : "Podtematy:"}
                                 </div>
@@ -1798,11 +1873,77 @@ export default function PlayPage() {
                                 )}
                             </div>
                             <div className="message robot">
-                                <div className="text-title">Tekst Zadania:</div>
+                                <div className="text-title" style={{ fontSize: "20px" }}>
+                                    Zadanie:
+                                </div>
+                                <div className="text-title" style={{ fontSize: "18px" }} onClick={async () => {
+                                    setSolutionGuideExpanded(prev => !prev);
+
+                                    if (solutionGuide === "") {
+                                        if (controllerRef.current) controllerRef.current.abort();
+
+                                        const controller = new AbortController();
+                                        controllersRef.current.push(controller);
+                                        const signal = controller.signal;
+
+                                        const solutionGuideResult = await handleSolutionGuideGenerate(
+                                            subjectId ?? 0,
+                                            sectionId ?? 0,
+                                            topicId ?? 0,
+                                            task.id,
+                                            signal
+                                        );
+
+                                        const newSolutionGuide = solutionGuideResult?.solutionGuide ?? "";
+
+                                        await handleTaskSolutionGuideSave(
+                                            subjectId ?? 0,
+                                            sectionId ?? 0,
+                                            topicId ?? 0,
+                                            task.id,
+                                            newSolutionGuide,
+                                            signal
+                                        );
+
+                                        setSolutionGuide(newSolutionGuide);
+                                    }
+                                }}>
+                                    <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        margin: "8px"
+                                    }}>
+                                        <div className="btnOption" style={{
+                                            marginRight: "12px",
+                                            fontWeight: "bold",
+                                            backgroundColor: "darkgreen"
+                                        }}>
+                                            {solutionGuideExpanded ? <Minus size={26} /> : <Lightbulb size={26} />}
+                                        </div>
+                                        Poradnik Rozwiązania Zadania:
+                                    </div>
+                                </div>
+                                {solutionGuideExpanded && (<>
+                                    {solutionGuide !== "" ? (
+                                        <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                            <br />
+                                            <FormatText content={solutionGuide ?? ""} />
+                                        </div>
+                                    ) : (
+                                        <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
+                                            <br />
+                                            <StatusIndicator text={textGuideLoading} />
+                                        </div>
+                                    )}
+                                </>)}
+                                <br />
+                                <div className="text-title" style={{ fontSize: "20px" }}>
+                                    Treść:
+                                </div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task.text ?? ""} /></div>
                             </div>
                             <div className="message human">
-                                <div className="text-title">Warianty Odpowiedzi:</div>
+                                <div className="text-title" style={{ fontSize: "20px" }}>Warianty:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {(task.options ?? []).map((option, index) => (
                                         <div key={index}>
@@ -1858,7 +1999,7 @@ export default function PlayPage() {
                                                     </div>
                                                     
                                                     {optionExplanationsExpanded[index] && (
-                                                        <div style={{ marginTop: "8px", paddingLeft: "20px" }}>
+                                                        <div style={{ marginTop: "8px", paddingLeft: "32px" }}>
                                                             <FormatText content={task.explanations[index] ?? ""} />
                                                         </div>
                                                     )}
@@ -1975,7 +2116,6 @@ export default function PlayPage() {
                             
                             {(task.finished || showFinalBlocks) && (
                             <>
-                                <br />
                                 <div className="message robot">
                                     <div
                                         className="text-title"
@@ -1983,7 +2123,8 @@ export default function PlayPage() {
                                             display: "flex",
                                             alignItems: "center",
                                             cursor: "pointer",
-                                            fontWeight: "bold"
+                                            fontWeight: "bold",
+                                            fontSize: "20px"
                                         }}
                                         onClick={() => setSolutionExpanded(prev => !prev)}
                                     >
@@ -2004,7 +2145,6 @@ export default function PlayPage() {
                                         </div>
                                     )}
                                 </div>
-                                <br />
                                 <div className="message robot">
                                     <div
                                         className="text-title"
@@ -2012,7 +2152,8 @@ export default function PlayPage() {
                                             display: "flex",
                                             alignItems: "center",
                                             cursor: "pointer",
-                                            fontWeight: "bold"
+                                            fontWeight: "bold",
+                                            fontSize: "20px"
                                         }}
                                         onClick={() => setProblemsExpanded(prev => !prev)}
                                     >
@@ -2020,21 +2161,24 @@ export default function PlayPage() {
                                             className="btnElement"
                                             style={{
                                                 marginRight: "4px",
-                                                fontWeight: "bold"
+                                                fontWeight: "bold",
                                             }}
                                         >
                                             {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                         </div>
-                                        Wyjaśnienie rozwiązania:
+                                        Wyjaśnienie:
                                     </div>
                                     {(problemsExpanded || isExplanationTyping) && (
-                                        <div style={{paddingLeft: "20px", marginTop: "8px"}}>
-                                            {isExplanationTyping ? (
-                                                <FormatText content={typedExplanation} />
-                                            ) : (
-                                                <FormatText content={task.explanation ?? ""} />
-                                            )}
-                                        </div>
+                                        <>
+                                            <br />
+                                            <div style={{paddingLeft: "20px"}}>
+                                                {isExplanationTyping ? (
+                                                    <FormatText content={typedExplanation} />
+                                                ) : (
+                                                    <FormatText content={task.explanation ?? ""} />
+                                                )}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </>
