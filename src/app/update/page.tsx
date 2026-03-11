@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import "@/app/styles/components.css";
 import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -183,19 +182,12 @@ export default function UpdatePage() {
   useEffect(() => {
     const storedSubjectId = localStorage.getItem("subjectId");
     
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-    
     if (storedSubjectId) {
       const subjectId = Number(storedSubjectId) || 0;
       fetchSubjectById(subjectId);
     } else {
       fetchSubjects();
     }
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
   }, [fetchSubjectById, fetchSubjects]);
 
   function handleBackClick() {

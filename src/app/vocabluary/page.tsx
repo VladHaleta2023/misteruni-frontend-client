@@ -1,7 +1,6 @@
 'use client';
 
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import { ArrowLeft, Check, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -181,29 +180,13 @@ export default function StoriesPage() {
   }, [subjectId, sectionId, topicId, wordIds]);
 
   useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
     if (subjectId !== null) {
       setLoading(true);
       findWords();
     } else {
       setLoading(false);
     }
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
   }, [fetchWords, findWords, subjectId]);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   function handleBackClick() {
     localStorage.removeItem("wordsVerified");

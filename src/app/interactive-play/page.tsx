@@ -14,7 +14,6 @@ import api from "@/app/utils/api";
 import axios from "axios";
 import FormatText from "../components/formatText";
 import React from "react";
-import { setMainHeight } from "../scripts/mainHeight";
 import Message from "../components/message";
 import RadioMessageOK from "../components/radioMessageOK";
 import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
@@ -1659,21 +1658,6 @@ export default function InteractivePlayPage() {
     }, []);
 
     useEffect(() => {
-        setMsgVisible(false);
-        setMsgChatVisible(false);
-        setMainHeight();
-
-        const handleResize = () => {
-            setMainHeight();
-        };
-
-        window.addEventListener("resize", handleResize);
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        };
-    }, []);
-
-    useEffect(() => {
         const sId = Number(localStorage.getItem("subjectId"));
         const secId = Number(localStorage.getItem("sectionId"));
         const tId = Number(localStorage.getItem("topicId"));
@@ -1738,6 +1722,11 @@ export default function InteractivePlayPage() {
                     setSentences(await splitIntoSentences(task.text));
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
+
+                    if (task.finished || (!task.answered && stage >= 3)) {
+                        setLoading(false);
+                        return;
+                    }
                 }
 
                 if (task && task.id) {

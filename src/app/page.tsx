@@ -7,17 +7,9 @@ import "@/app/styles/play.css";
 import { useState, useEffect } from "react";
 import LoginPage from "./components/login";
 import RegisterPage from "./components/register";
-import { setMainHeight } from "./scripts/mainHeight";
 
 export default function MainPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
-
-  useEffect(() => {
-    setMainHeight();
-    const handleResize = () => setMainHeight();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const toggleMode = () => {
     setMode(mode === "login" ? "register" : "login");
@@ -25,7 +17,7 @@ export default function MainPage() {
 
   return (
     <>
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "0px" }}>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "0px", minHeight: "100dvh", height: "100dvh" }}>
         <img className="logo" src="logo.png" alt="logo" />
         <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", padding: "16px 24px", paddingBottom: "0px" }}>
           <button

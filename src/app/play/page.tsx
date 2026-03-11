@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig, Lightbulb } from 'lucide-react';
 import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
@@ -1304,6 +1303,11 @@ export default function PlayPage() {
 
                     if (signal.aborted) return;
 
+                    if (!task) {
+                        localStorage.removeItem("taskId");
+                        return;
+                    }
+
                     setUserOptionIndex(task.userOptionIndex ?? 0)
                     setTask(task);
                     setSolutionGuide(task.solutionGuide ?? "");
@@ -1394,22 +1398,6 @@ export default function PlayPage() {
             else window.scrollTo(0, scrollTop);
         }
     };
-
-    useEffect(() => {
-        setMsgChatVisible(false);
-
-        setMainHeight();
-
-        const handleResize = () => {
-            setMainHeight();
-        };
-
-        window.addEventListener("resize", handleResize);
-
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        };
-    }, []);
 
     const handleChatInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
         const target = e.target as HTMLTextAreaElement;

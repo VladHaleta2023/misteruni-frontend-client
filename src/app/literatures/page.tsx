@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import { useRouter } from "next/navigation";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import Header from "@/app/components/header";
@@ -15,15 +14,6 @@ export default function LiteraturePage() {
   const [literatures, setLiteratures] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   function handleBackClick() {
     localStorage.removeItem("literatures");
@@ -39,15 +29,6 @@ export default function LiteraturePage() {
 
     setLoading(false);
   }, [loading]);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   return (
     <>

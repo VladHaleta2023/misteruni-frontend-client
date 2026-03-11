@@ -7,7 +7,6 @@ import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
 import { ArrowLeft } from "lucide-react";
 import Header from "@/app/components/header";
@@ -22,15 +21,6 @@ export default function LiteraturePage() {
   const [note, setNote] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   function handleBackClick() {
     localStorage.removeItem("literature");
@@ -82,15 +72,6 @@ export default function LiteraturePage() {
       fetchLiterature();
     }
   }, [subjectId, sectionId, topicId]);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   return (
     <>

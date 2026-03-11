@@ -1,7 +1,6 @@
 'use client';
 
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import { ArrowLeft, BookOpen, LibraryBig, Minus, Play, Plus, Trash2 } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
@@ -205,14 +204,7 @@ export default function TasksPage() {
           }
       };
 
-      setMainHeight();
-      window.addEventListener("resize", setMainHeight);
-
       loadTasks();
-
-      return () => {
-          window.removeEventListener("resize", setMainHeight);
-      };
   }, [fetchTasksByTopicId, subjectId, sectionId, topicId, weekOffset]);
 
   const handleTaskClick = useCallback(async (
@@ -257,15 +249,6 @@ export default function TasksPage() {
       else {
         router.push("/play");
       }
-  }, []);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
   }, []);
 
   function handleBackClick() {

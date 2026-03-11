@@ -9,7 +9,6 @@ import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
@@ -79,15 +78,6 @@ export default function SectionsPage() {
             setWeekOffset(parsedWeekOffset);
         }
     }
-  }, []);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
   }, []);
 
   function handleBackClick() {

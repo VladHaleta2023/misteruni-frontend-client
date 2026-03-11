@@ -40,10 +40,10 @@ main {
   word-wrap: break-word;
   word-break: break-word;
   font-size: 18px;
-  min-height: 100dvh;
-  height: 100dvh;
-  padding-top: var(--header-height);
-  scroll-padding-top: var(--header-height); 
+  min-height: calc(100dvh - var(--header-height));
+  height: calc(100dvh - var(--header-height));
+  margin-top: var(--header-height);
+  scroll-padding-top: var(--header-height);
   background-color: #e0e0e0;
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -62,8 +62,6 @@ img.logo {
 
 @media (max-width: 768px) {
   main {
-    min-height: 100dvh;
-    height: 100dvh;
     border: none;
   }
 }

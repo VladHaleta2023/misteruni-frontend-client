@@ -1,7 +1,6 @@
 'use client';
 
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import { ArrowLeft, Minus, Play, Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -120,13 +119,8 @@ export default function StoriesPage() {
   }, [subjectId, topicId]);
 
   useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
     if (subjectId !== null) fetchWords();
     else setLoading(false);
-
-    return () => window.removeEventListener("resize", setMainHeight);
   }, [fetchWords, subjectId, topicId]);
 
   function handleBackClick() {

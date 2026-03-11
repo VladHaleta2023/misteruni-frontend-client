@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import "@/app/styles/table.css";
 import "@/app/styles/components.css";
 import api from "@/app/utils/api";
@@ -100,14 +99,7 @@ export default function SubjectPage() {
   }, [preloadImages]);
 
   useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
     fetchSubjects();
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
   }, [fetchSubjects]);
 
   const handleSubjectClick = (subjectId: number, subjectType: string) => {

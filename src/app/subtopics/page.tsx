@@ -8,7 +8,6 @@ import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
-import { setMainHeight } from "@/app/scripts/mainHeight";
 import FormatText from "@/app/components/formatText";
 import { ArrowLeft, ListCheck, Minus, Play, BookOpen, LibraryBig } from "lucide-react";
 import Header from "@/app/components/header";
@@ -47,15 +46,6 @@ export default function SubtopicsPage() {
   } | null>(null);
 
   const fetchInProgressRef = useRef(false);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -168,15 +158,6 @@ export default function SubtopicsPage() {
       fetchSubtopics();
     }
   }, [subjectId, sectionId, topicId]);
-
-  useEffect(() => {
-    setMainHeight();
-    window.addEventListener("resize", setMainHeight);
-
-    return () => {
-      window.removeEventListener("resize", setMainHeight);
-    };
-  }, []);
 
   const handleTopicNoteExpand = useCallback(() => {
     setExpandedTopicNote(prev => !prev);
