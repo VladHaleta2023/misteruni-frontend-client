@@ -1771,100 +1771,138 @@ export default function PlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            <div className="message robot">
+                            {task.finished && (<>
+                                <div className={`message human ${task.status}`}>
+                                    <div
+                                        className="text-title"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
+                                            fontWeight: "bold"
+                                        }}
+                                        onClick={() => setSubtopicsExpanded(prev => !prev)}
+                                    >
+                                        <div
+                                            className="btnElement"
+                                            style={{
+                                                marginRight: "4px",
+                                                fontWeight: "bold"
+                                            }}
+                                        >
+                                            {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        </div>
+                                        {task.finished ? (
+                                            <div className="text-title">
+                                                <FormatText content={`Ocena: ${task.percent}%`} />
+                                            </div>
+                                        ) : "Podtematy:"}
+                                    </div>
+                                    {subtopicsExpanded && (
+                                        <div style={{ marginTop: "8px" }}>
+                                            {task.subtopics.map((subtopic: Subtopic, index: number) => (
+                                                <div key={index}>
+                                                    <FormatText
+                                                        content={
+                                                            task.finished
+                                                            ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
+                                                            : `${index + 1}. ${subtopic.name}`
+                                                        }
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                </>
+                            )}
+                            <div className="message robot" style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px"
+                            }}>
                                 <div className="element-name" style={{
                                     display: "flex",
-                                    alignItems: "center",
+                                    alignItems: "flex-start",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    justifyContent: "space-between",
+                                    flexDirection: "column",
                                     gap: "6px"
-                                }}
-                                    onClick={() => setTopicNoteExpanded((prev) => !prev)}>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                    }}>
-                                        <div className="btnOption" style={{
-                                            marginRight: "12px",
-                                            fontWeight: "bold",
+                                }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "6px"
                                         }}>
+                                        <div
+                                            className="btnOption"
+                                            style={{
+                                                marginRight: "12px",
+                                                fontWeight: "bold",
+                                            }}
+                                            onClick={() => setTopicNoteExpanded((prev) => !prev)}
+                                        >
                                             {topicNoteExpanded ? <Minus size={26} /> : <BookOpen size={26} />}
                                         </div>
                                         {task.topicName ?? ""}
                                     </div>
-                                    {task.literatures.length > 0 ? (<div
-                                        className="btnOption"
-                                        onClick={(e) => {
-                                        e.stopPropagation();
-                                        
-                                        if (task.literatures.length === 1) {
-                                            localStorage.setItem("literature", task.literatures[0]);
-                                            router.push('/literature');
-                                        }
-                                        else {
-                                            localStorage.setItem("literatures", JSON.stringify(task.literatures));
-                                            router.push('/literatures');
-                                        }
-                                    }}
-                                    >
-                                        <LibraryBig size={26} />
-                                    </div>) : null}
                                 </div>
                                 {topicNoteExpanded && (
                                     <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
                                         <br />
                                         <FormatText content={task.topicNote ?? ""} />
+                                        <br />
                                     </div>
                                 )}
-                            </div>
-                            <div className={`message human ${task.status}`}>
-                                <div
-                                    className="text-title"
-                                    style={{
+                                {task.literatures.length > 0 ? (
+                                    <div className="element-name" style={{
                                         display: "flex",
-                                        alignItems: "center",
+                                        alignItems: "flex-start",
                                         cursor: "pointer",
-                                        fontWeight: "bold"
-                                    }}
-                                    onClick={() => setSubtopicsExpanded(prev => !prev)}
-                                >
-                                    <div
-                                        className="btnElement"
-                                        style={{
-                                            marginRight: "4px",
-                                            fontWeight: "bold"
-                                        }}
-                                    >
-                                        {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                    </div>
-                                    {task.finished ? (
-                                        <div className="text-title">
-                                            <FormatText content={`Ocena: ${task.percent}%`} />
-                                        </div>
-                                    ) : "Podtematy:"}
-                                </div>
-                                {subtopicsExpanded && (
-                                    <div style={{ marginTop: "8px" }}>
-                                        {task.subtopics.map((subtopic: Subtopic, index: number) => (
-                                            <div key={index}>
-                                                <FormatText
-                                                    content={
-                                                        task.finished
-                                                        ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
-                                                        : `${index + 1}. ${subtopic.name}`
+                                        fontWeight: "bold",
+                                        flexDirection: "column",
+                                        gap: "6px"
+                                    }}>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "6px"
+                                            }}
+                                        >
+                                            <div
+                                                className="btnOption"
+                                                style={{
+                                                    marginRight: "12px",
+                                                    fontWeight: "bold",
+                                                }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    
+                                                    if (task.literatures.length === 1) {
+                                                        localStorage.setItem("literature", task.literatures[0]);
+                                                        router.push('/literature');
                                                     }
-                                                />
+                                                    else {
+                                                        localStorage.setItem("literatures", JSON.stringify(task.literatures));
+                                                        router.push('/literatures');
+                                                    }
+                                                }}
+                                            >
+                                                <LibraryBig size={26} />
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="message robot">
-                                <div className="text-title" style={{ fontSize: "20px" }}>
-                                    Zadanie:
-                                </div>
-                                <div className="text-title" style={{ fontSize: "18px" }} onClick={async () => {
+                                            {"Streszczenie"}
+                                        </div>
+                                </div>) : null}
+                                <div className="element-name"  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    cursor: "pointer",
+                                    fontWeight: "bold",
+                                    flexDirection: "column",
+                                    gap: "6px"
+                                }} onClick={async () => {
                                     setSolutionGuideExpanded(prev => !prev);
 
                                     if (solutionGuide === "") {
@@ -1899,7 +1937,7 @@ export default function PlayPage() {
                                     <div style={{
                                         display: "flex",
                                         alignItems: "center",
-                                        margin: "8px"
+                                        gap: "6px"
                                     }}>
                                         <div className="btnOption" style={{
                                             marginRight: "12px",
@@ -1916,17 +1954,20 @@ export default function PlayPage() {
                                         <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
                                             <br />
                                             <FormatText content={solutionGuide ?? ""} />
+                                            <br />
                                         </div>
                                     ) : (
                                         <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
                                             <br />
                                             <StatusIndicator text={textGuideLoading} />
+                                            <br />
                                         </div>
                                     )}
                                 </>)}
-                                <br />
+                            </div>
+                            <div className="message robot">
                                 <div className="text-title" style={{ fontSize: "20px" }}>
-                                    Treść:
+                                    Zadanie:
                                 </div>
                                 <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task.text ?? ""} /></div>
                             </div>
@@ -2139,22 +2180,30 @@ export default function PlayPage() {
                                         style={{
                                             display: "flex",
                                             alignItems: "center",
+                                            justifyContent: "space-between",
                                             cursor: "pointer",
                                             fontWeight: "bold",
                                             fontSize: "20px"
                                         }}
                                         onClick={() => setProblemsExpanded(prev => !prev)}
                                     >
-                                        <div
-                                            className="btnElement"
-                                            style={{
-                                                marginRight: "4px",
-                                                fontWeight: "bold",
-                                            }}
-                                        >
-                                            {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        <div style={{
+                                            display: "flex"
+                                        }}>
+                                            <div
+                                                className="btnElement"
+                                                style={{
+                                                    marginRight: "4px",
+                                                    fontWeight: "bold",
+                                                }}
+                                            >
+                                                {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                            </div>
+                                            Wyjaśnienie:
                                         </div>
-                                        Wyjaśnienie:
+                                        <div className={`element-percent ${task.status}`}>
+                                            {task.percent}%
+                                        </div>
                                     </div>
                                     {(problemsExpanded || isExplanationTyping) && (
                                         <>

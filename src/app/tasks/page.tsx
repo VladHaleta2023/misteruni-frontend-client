@@ -438,11 +438,12 @@ export default function TasksPage() {
                                 {expandedTopicNote ? <Minus size={26} /> : <BookOpen size={26} />}
                             </div>
                         )}
-                        {topicName}
-                    </div>
-                    <div className="element-options">
                         {literatures.length > 0 ? (<div
                             className="btnOption"
+                            style={{
+                                marginRight: "16px",
+                                fontWeight: "bold"
+                            }}
                             onClick={(e) => {
                             e.stopPropagation();
                             
@@ -458,6 +459,7 @@ export default function TasksPage() {
                         >
                             <LibraryBig size={26} />
                         </div>) : null}
+                        {topicName}
                     </div>
                 </div>
                 {expandedTopicNote && (

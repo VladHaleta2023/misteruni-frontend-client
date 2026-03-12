@@ -1198,7 +1198,10 @@ export default function InteractivePlayPage() {
                 return;
             }
 
-            setTask(finalTask);
+            setTask({
+                ...finalTask,
+                explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+            });
             setSentences(await splitIntoSentences(finalTask.text));
             setWords(extractWords(finalTask.text));
         } catch (error) {
@@ -1251,7 +1254,10 @@ export default function InteractivePlayPage() {
             );
 
             if (finalTask) {
-                setTask(finalTask);
+                setTask({
+                    ...finalTask,
+                    explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                });
                 setChatBlocks(parseChat(finalTask.chat));
                 
                 setShowFinalBlocks(true);
@@ -1463,6 +1469,7 @@ export default function InteractivePlayPage() {
                 // 2. Немедленно обновляем UI
                 setTask(prev => ({
                     ...prev,
+                    explanation: prev.explanation + `\nSłownictwo: ${prev.percentWords}%`,
                     answered: true,
                     userOptionIndex: currentUserOptionIndex ?? 0
                 }));
@@ -1501,7 +1508,10 @@ export default function InteractivePlayPage() {
                 );
 
                 if (finalTask) {
-                    setTask(finalTask);
+                    setTask({
+                        ...finalTask,
+                        explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                    });
                 }
 
             } catch (error: unknown) {
@@ -1596,7 +1606,10 @@ export default function InteractivePlayPage() {
             );
 
             if (updatedTask) {
-                setTask(updatedTask);
+                setTask({
+                    ...updatedTask,
+                    explanation: updatedTask.explanation + `\nSłownictwo: ${updatedTask.percentWords}%`
+                });
             }
 
         } catch (error: unknown) {
@@ -1718,7 +1731,10 @@ export default function InteractivePlayPage() {
                     }
 
                     setUserOptionIndex(task.userOptionIndex ?? 0);
-                    setTask(task);
+                    setTask({
+                        ...task,
+                        explanation: task.explanation + `\nSłownictwo: ${task.percentWords}%`
+                    });
                     setSentences(await splitIntoSentences(task.text));
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
@@ -1754,7 +1770,10 @@ export default function InteractivePlayPage() {
                 }
 
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
-                setTask(task);
+                setTask({
+                    ...task,
+                    explanation: task.explanation + `\nSłownictwo: ${task.percentWords}%`
+                });
                 setUserOptionIndex(task.userOptionIndex ?? 0);
                 setSentences(await splitIntoSentences(task.text));
                 setWords(extractWords(task.text));
@@ -2038,7 +2057,8 @@ export default function InteractivePlayPage() {
                                     display: "flex",
                                     alignItems: "center",
                                     cursor: "pointer",
-                                    fontWeight: "bold"
+                                    fontWeight: "bold",
+                                    fontSize: "20px"
                                 }}>
                                     {task.topicName}
                                 </div>
@@ -2082,44 +2102,14 @@ export default function InteractivePlayPage() {
                                                 ))}
                                             </div>
                                         )}
+                                        <br />
                                     </>
                                 )}
-                                
+
                                 {!(audioRepeat >= 2 || task.finished) && (
                                     <div className="text-title">{audioRepeat}/2</div>
                                 )}
-                                
-                                {(audioRepeat >= 2 || task.finished) ? (
-                                    <div className="sentences context">
-                                        <div className="text-title" style={{ marginBottom: "12px" }}>Opowiadanie:</div>
-                                        <div className="text-audio">
-                                            {isSentences ? (
-                                                sentences.map((sentence, i) => (
-                                                    <span
-                                                        key={i}
-                                                        className={`sentence ${i === currentIndex ? "active" : ""}`}
-                                                    >
-                                                        {sentence}
-                                                    </span>
-                                                ))
-                                            ) : (
-                                                words.map((word, i) => {
-                                                    const isSelected = selectedWords.includes(i);
-                                                    return (
-                                                        <span
-                                                            key={i}
-                                                            className={`sentence word ${isSelected ? "active" : ""}`}
-                                                            onClick={() => handleWordClick(i)}
-                                                        >
-                                                            {word}
-                                                        </span>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
-                                    </div>
-                                ) : null}
-                                
+
                                 <div className="options">
                                     {(audioRepeat >= 2 || task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handlePrev}>
@@ -2207,6 +2197,36 @@ export default function InteractivePlayPage() {
                                         }}
                                     />
                                 </div>
+
+                                {(audioRepeat >= 2 || task.finished) ? (
+                                    <div className="sentences context">
+                                        <div className="text-audio">
+                                            {isSentences ? (
+                                                sentences.map((sentence, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className={`sentence ${i === currentIndex ? "active" : ""}`}
+                                                    >
+                                                        {sentence}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                words.map((word, i) => {
+                                                    const isSelected = selectedWords.includes(i);
+                                                    return (
+                                                        <span
+                                                            key={i}
+                                                            className={`sentence word ${isSelected ? "active" : ""}`}
+                                                            onClick={() => handleWordClick(i)}
+                                                        >
+                                                            {word}
+                                                        </span>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : null}
                             </div>
                             
                             <div className="message human">
@@ -2383,21 +2403,29 @@ export default function InteractivePlayPage() {
                                         style={{
                                             display: "flex",
                                             alignItems: "center",
+                                            justifyContent: "space-between",
                                             cursor: "pointer",
                                             fontWeight: "bold"
                                         }}
                                         onClick={() => setProblemsExpanded(prev => !prev)}
                                     >
-                                        <div
-                                            className="btnElement"
-                                            style={{
-                                                marginRight: "4px",
-                                                fontWeight: "bold"
-                                            }}
-                                        >
-                                            {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        <div style={{
+                                            display: "flex",
+                                        }}>
+                                            <div
+                                                className="btnElement"
+                                                style={{
+                                                    marginRight: "4px",
+                                                    fontWeight: "bold"
+                                                }}
+                                            >
+                                                {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                            </div>
+                                            Wyjaśnienie:
                                         </div>
-                                        Wyjaśnienie rozwiązania:
+                                        <div className={`element-percent ${task.status}`}>
+                                            {task.percent}%
+                                        </div>
                                     </div>
                                     {(problemsExpanded || isExplanationTyping) && (
                                         <>

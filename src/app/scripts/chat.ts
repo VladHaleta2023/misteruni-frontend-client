@@ -11,6 +11,43 @@ export type ParseChatResult = ChatBlock[];
 
 type TitlesMap = Record<MarkerType, string>;
 
+function removeDuplicatesFromAISolution(blocks: ChatBlock[]): ChatBlock[] {
+  const result: ChatBlock[] = [];
+  const previousFullContents: string[] = [];
+  
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    
+    if (block.type === 'AI_USER_SOLUTION') {
+      const normalizedContent = block.content.trim();
+      
+      if (!previousFullContents.includes(normalizedContent)) {
+        let uniqueContent = normalizedContent;
+        
+        const sortedPrevContents = [...previousFullContents].sort((a, b) => b.length - a.length);
+        
+        for (const prevContent of sortedPrevContents) {
+          if (uniqueContent.startsWith(prevContent)) {
+            uniqueContent = uniqueContent.substring(prevContent.length).trim();
+          }
+        }
+        
+        if (uniqueContent) {
+          result.push({
+            ...block,
+            content: uniqueContent
+          });
+          previousFullContents.push(normalizedContent);
+        }
+      }
+    } else {
+      result.push(block);
+    }
+  }
+  
+  return result;
+}
+
 export function parseChat(chatText: string): ParseChatResult {
   const blocks: ChatBlock[] = [];
   
@@ -47,7 +84,7 @@ export function parseChat(chatText: string): ParseChatResult {
     saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
   }
   
-  return blocks;
+  return removeDuplicatesFromAISolution(blocks);
 }
 
 function saveBlock(type: MarkerType, content: string, blocks: ChatBlock[]) {
@@ -68,7 +105,7 @@ function getTitle(marker: MarkerType): string {
   const titles: TitlesMap = {
     'AI_ANSWER': 'Polecenie:',
     'AI_QUESTION': 'Pytanie dodatkowe:',
-    'AI_USER_SOLUTION': 'Nowe Rozwiązanie Ucznia:',
+    'AI_USER_SOLUTION': 'Rozwiązanie Ucznia:',
     'STUDENT_ANSWER': 'Moja Odpowiedź:',
     'STUDENT_QUESTION': 'Moje Pytanie:'
   };
