@@ -1770,51 +1770,48 @@ export default function PlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            {task.finished && (<>
-                                <div className={`message human ${task.status}`}>
+                            <div className={`message human ${task.status}`}>
+                                <div
+                                    className="text-title"
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        cursor: "pointer",
+                                        fontWeight: "bold"
+                                    }}
+                                    onClick={() => setSubtopicsExpanded(prev => !prev)}
+                                >
                                     <div
-                                        className="text-title"
+                                        className="btnElement"
                                         style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            cursor: "pointer",
+                                            marginRight: "4px",
                                             fontWeight: "bold"
                                         }}
-                                        onClick={() => setSubtopicsExpanded(prev => !prev)}
                                     >
-                                        <div
-                                            className="btnElement"
-                                            style={{
-                                                marginRight: "4px",
-                                                fontWeight: "bold"
-                                            }}
-                                        >
-                                            {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                        </div>
-                                        {task.finished ? (
-                                            <div className="text-title">
-                                                <FormatText content={`Ocena: ${task.percent}%`} />
-                                            </div>
-                                        ) : "Podtematy:"}
+                                        {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                     </div>
-                                    {subtopicsExpanded && (
-                                        <div style={{ marginTop: "8px" }}>
-                                            {task.subtopics.map((subtopic: Subtopic, index: number) => (
-                                                <div key={index}>
-                                                    <FormatText
-                                                        content={
-                                                            task.finished
-                                                            ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
-                                                            : `${index + 1}. ${subtopic.name}`
-                                                        }
-                                                    />
-                                                </div>
-                                            ))}
+                                    {task.finished ? (
+                                        <div className="text-title">
+                                            <FormatText content={`Ocena: ${task.percent}%`} />
                                         </div>
-                                    )}
+                                    ) : "Podtematy:"}
                                 </div>
-                                </>
-                            )}
+                                {subtopicsExpanded && (
+                                    <div style={{ marginTop: "8px" }}>
+                                        {task.subtopics.map((subtopic: Subtopic, index: number) => (
+                                            <div key={index}>
+                                                <FormatText
+                                                    content={
+                                                        task.finished
+                                                        ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
+                                                        : `${index + 1}. ${subtopic.name}`
+                                                    }
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <div className="message robot" style={{
                                 display: "flex",
                                 flexDirection: "column",
