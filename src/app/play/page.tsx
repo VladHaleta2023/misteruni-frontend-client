@@ -48,7 +48,6 @@ export default function PlayPage() {
     const [subtopicsExpanded, setSubtopicsExpanded] = useState(false);
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
     const [solutionGuideExpanded, setSolutionGuideExpanded] = useState(false);
-    const [solutionExpanded, setSolutionExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
     const [optionExplanationsExpanded, setOptionExplanationsExpanded] = useState<Record<number, boolean>>({});
 
@@ -2145,35 +2144,6 @@ export default function PlayPage() {
                             
                             {(task.finished || showFinalBlocks) && (
                             <>
-                                <div className="message robot">
-                                    <div
-                                        className="text-title"
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            cursor: "pointer",
-                                            fontWeight: "bold",
-                                            fontSize: "20px"
-                                        }}
-                                        onClick={() => setSolutionExpanded(prev => !prev)}
-                                    >
-                                        <div
-                                            className="btnElement"
-                                            style={{
-                                                marginRight: "4px",
-                                                fontWeight: "bold"
-                                            }}
-                                        >
-                                            {solutionExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                        </div>
-                                        Prawidłowe rozwiązanie:
-                                    </div>
-                                    {solutionExpanded && (
-                                        <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
-                                            <FormatText content={task.solution} />
-                                        </div>
-                                    )}
-                                </div>
                                 <div className="message robot">
                                     <div
                                         className="text-title"

@@ -91,8 +91,6 @@ export default function TasksPage() {
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
   const [taskId, setTaskId] = useState<number | null>(null);
-  const [topicPercent, setTopicPercent] = useState<number | null>(null);
-  const [topicStatus, setTopicStatus] = useState<string | null>(null);
   const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
 
@@ -170,8 +168,6 @@ export default function TasksPage() {
               setElementResponse(new ElementResponse(response.data.elements));
               setTopicNote(response.data.topic.note);
               setTopicName(response.data.topic.name);
-              setTopicPercent(response.data.topic.percent);
-              setTopicStatus(response.data.topic.status);
               setLiteratures(response.data.topic.literatures);
           } else {
               showAlert(response.data.statusCode, response.data.message);
