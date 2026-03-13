@@ -39,10 +39,6 @@ export default function RootLayout({
       </Head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{
-          overflow: "hidden",
-          height: "100dvh",
-        }}
       >
         <div className="internal-div">{children}</div>
         <ToastProvider />

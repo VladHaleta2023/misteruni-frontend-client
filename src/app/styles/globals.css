@@ -22,18 +22,18 @@ body, html {
   height: 100%;
   margin: 0;
   background-color: #f5f5f5;
-  overflow: hidden;
+}
 
-  display: flex;
-  justify-content: center;
+body {
+  overflow: hidden;
 }
 
 main {
   display: flex;
   flex-direction: column;
-  margin-top: 64px;
-  height: calc(100dvh - 64px);
+  padding-top: 64px;
   font-size: 18px;
+  height: 100dvh;
 
   word-wrap: break-word;
   word-break: break-word;
