@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-:root {
-  --main-width: calc(100vw - var(--dropdown-width));
-  --header-height: 64px;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -26,7 +21,6 @@
 body, html {
   height: 100%;
   margin: 0;
-  /*background-color: #e0e0e0;*/
   background-color: #f5f5f5;
   overflow: hidden;
 
@@ -37,13 +31,13 @@ body, html {
 main {
   display: flex;
   flex-direction: column;
+  margin-top: 64px;
+  height: calc(100dvh - 64px);
+  font-size: 18px;
+
   word-wrap: break-word;
   word-break: break-word;
-  font-size: 18px;
-  min-height: calc(100dvh - var(--header-height));
-  height: calc(100dvh - var(--header-height));
-  margin-top: var(--header-height);
-  scroll-padding-top: var(--header-height);
+
   background-color: #e0e0e0;
   overflow-y: auto;
   scroll-behavior: smooth;

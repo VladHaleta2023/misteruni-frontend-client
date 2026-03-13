@@ -212,7 +212,7 @@ export default function SubjectPage() {
           localStorage.removeItem("subjectId");
         }}
         visible={msgDeleteSubjectVisible}
-    />
+      />
 
       <main>
         {loading ? (

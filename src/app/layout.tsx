@@ -30,7 +30,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <Head>
-        {/* Подключаем CSS KaTeX, который уже содержит все необходимые шрифты */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
@@ -42,7 +41,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{
           overflow: "hidden",
-          height: "100vh",
+          height: "100dvh",
         }}
       >
         <div className="internal-div">{children}</div>
