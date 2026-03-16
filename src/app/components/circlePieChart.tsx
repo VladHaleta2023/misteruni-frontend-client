@@ -15,7 +15,7 @@ interface CirclePieChartProps {
   maxWidth?: string;
   fontSize?: string;
   showStatistic?: boolean;
-  isCountable?: boolean
+  isCountable?: boolean;
 }
 
 export default function CirclePieChart({
@@ -23,7 +23,7 @@ export default function CirclePieChart({
   prediction,
   deltaDays,
   names,
-  width = '60vw',
+  width = '60%',
   maxWidth = '280px',
   fontSize = '16px',
   showStatistic = true,
@@ -47,8 +47,8 @@ export default function CirclePieChart({
       setIsMobile(w < 768);
 
       if (w < 768) {
-        setContainerWidth('60vw');
-        setContainerMaxWidth('220px');
+        setContainerWidth("60%");
+        setContainerMaxWidth(`${isCountable ? "180px" : "220px"}`);
       } else {
         setContainerWidth(width);
         setContainerMaxWidth(maxWidth);
@@ -91,7 +91,7 @@ export default function CirclePieChart({
           WebkitUserSelect: 'none',
           MozUserSelect: 'none',
           msUserSelect: 'none',
-          touchAction: 'manipulation',
+          touchAction: 'manipulation'
         }}
         tabIndex={-1}
       >
@@ -110,7 +110,7 @@ export default function CirclePieChart({
               width: '100%',
               aspectRatio: '1 / 1',
               flexShrink: 0,
-              position: 'relative',
+              position: 'relative'
             }}
           >
             <ResponsiveContainer width="100%" height="100%">

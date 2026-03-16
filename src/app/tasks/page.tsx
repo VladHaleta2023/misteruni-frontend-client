@@ -255,20 +255,6 @@ export default function TasksPage() {
     router.push("/topic-vocabluary");
   }
 
-  const handleUserSolutionExpand = useCallback((taskId: number) => {
-    setExpandedUserSolutions(prev => ({
-        ...prev,
-        [taskId]: !prev[taskId]
-    }));
-  }, []);
-
-  const handleExplanationExpand = useCallback((taskId: number) => {
-    setExpandedExplanations(prev => ({
-        ...prev,
-        [taskId]: !prev[taskId]
-    }));
-  }, []);
-
   const handleTopicNoteExpand = useCallback(() => {
     setExpandedTopicNote(prev => !prev);
   }, []);
@@ -505,15 +491,6 @@ export default function TasksPage() {
             ) : (<>
             {elementReponse?.getElements().map((element, index) => (
                 <div key={index} className="table">
-                  <div
-                      className="element element-section"
-                      style={{
-                          borderBottom: "2px solid #908f8f",
-                          justifyContent: "center"
-                      }}
-                  >
-                      {`${element.date.day}-${element.date.month}-${element.date.year}`}
-                  </div>
                   {element.tasks.map(task => (
                   <div
                       className={`element element-task ${!task.finished ? "not-finished" : ""}`}

@@ -171,6 +171,7 @@ export default function SubtopicsPage() {
         isCountable={true}
         percents={chartData.total} 
         prediction={chartData.prediction}
+        maxWidth="240px"
       />
     );
   }, [chartData]);
@@ -218,10 +219,8 @@ export default function SubtopicsPage() {
         <div className="spinner-wrapper">
           <Spinner noText />
         </div>
-      ) : (
-        <div style={{ minHeight: '200px' }}>
+      ) : (<>
           <ChartComponent  />
-          <br />
           <div style={{ 
               padding: "18px", 
               width: "100%",
@@ -282,7 +281,6 @@ export default function SubtopicsPage() {
                   </>
               )}
           </div>
-
           <div className="table" style={{ marginTop: "12px" }}>
             {subtopics.flatMap((subtopic) => [
               <div
@@ -305,8 +303,7 @@ export default function SubtopicsPage() {
               </div>
             ])}
           </div>
-        </div>
-      )}
+      </>)}
       </main>
     </>
   );
