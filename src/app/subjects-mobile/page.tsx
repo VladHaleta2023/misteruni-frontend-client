@@ -314,13 +314,18 @@ export default function SubjectPage() {
                         <button
                             id={String(userSubject.subject.id)}
                             className="button btnSubjectOptionsEdit"
+                            style={{
+                              backgroundColor: "transparent",
+                              borderColor: "transparent",
+                              boxShadow: "none"
+                            }}
                             onClick={(e) => {
-                            e.stopPropagation();
-                            localStorage.setItem("subjectId", String(e.currentTarget.id));
-                            setMsgDeleteTaskVisible(true);
+                              e.stopPropagation();
+                              localStorage.setItem("subjectId", String(e.currentTarget.id));
+                              setMsgDeleteTaskVisible(true);
                             }}
                         >
-                            <Trash2 size={24} color="white" />
+                            <Trash2 size={24} color="black" />
                         </button>
                         </div>
                     </div>
