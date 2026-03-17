@@ -1994,43 +1994,6 @@ export default function PlayPage() {
                                                 />
                                                 <span><FormatText content={option ?? ""} /></span>
                                             </label>
-                                            {task.finished ? (
-                                                <div>
-                                                    <div
-                                                        className="text-title"
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            cursor: "pointer",
-                                                            fontWeight: "bold"
-                                                        }}
-                                                        onClick={() => {
-                                                            setOptionExplanationsExpanded(prev => ({
-                                                                ...prev,
-                                                                [index]: !prev[index]
-                                                            }));
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="btnElement"
-                                                            style={{
-                                                                marginRight: "4px",
-                                                                fontWeight: "bold"
-                                                            }}
-                                                        >
-                                                            {optionExplanationsExpanded[index] ? <Minus size={26} /> : <Plus size={26} />}
-                                                        </div>
-                                                        Wyjaśnienie:
-                                                    </div>
-                                                    
-                                                    {optionExplanationsExpanded[index] && (
-                                                        <div style={{ marginTop: "8px", paddingLeft: "32px" }}>
-                                                            <FormatText content={task.explanations[index] ?? ""} />
-                                                        </div>
-                                                    )}
-                                                    <br />
-                                                </div>
-                                            ) : null}
                                         </div>
                                     ))}
                                 </div>
