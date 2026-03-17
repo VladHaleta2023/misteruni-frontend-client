@@ -498,7 +498,7 @@ export default function InteractivePlayPage() {
                 let options: string[] = [];
                 let correctOptionIndex: number = 0;
                 let explanations: string[] = [];
-                const MAX_ATTEMPTS = 2;
+                const MAX_ATTEMPTS = 0;
                 const random1: number = Math.floor(Math.random() * 4);
                 const randomOption: number = Math.floor(Math.random() * 4) + 1;
                 const random2 = 3 - random1;
@@ -2373,7 +2373,7 @@ export default function InteractivePlayPage() {
                                                             <BsQuestion size={28} color="white" />
                                                         </button>
                                                         <button
-                                                            className={`btnOption`}
+                                                            className={`btnOption darkgreen`}
                                                             title={`Wyślij`}
                                                             onClick={async (e) => {
                                                                 e.preventDefault();
