@@ -2166,7 +2166,7 @@ export default function PlayPage() {
                                             <div key={index} className="message human">
                                                 <div className="text-title">{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                                    {block.content}
+                                                    <FormatText content={block.content} />
                                                 </div>
                                             </div>
                                         ) : (
