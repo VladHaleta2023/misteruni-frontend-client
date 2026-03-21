@@ -77,26 +77,25 @@ export default function FormatText({ content }: FormatTextProps) {
       return `%%BRACKET_FORMULA_${bracketFormulas.length - 1}%%`;
     });
 
-    // Переносы строк для обычного текста
-    cleaned = cleaned.replace(/(?<!<\/li>)\n/g, '<br />');
+    cleaned = cleaned
+      .split(/\n\s*\n/)
+      .map(paragraph => paragraph.trim().replace(/\n/g, '<br />'))
+      .map(paragraph => `<p>${paragraph}</p>`)
+      .join('');
 
-    // Возвращаем блочные формулы $$…$$ на место
     cleaned = cleaned.replace(/%%BLOCK_FORMULA_(\d+)%%/g, (_, i) => `$$${blockFormulas[i]}$$`);
 
-    // Возвращаем блочные формулы \[…\] на место
     cleaned = cleaned.replace(/%%BRACKET_FORMULA_(\d+)%%/g, (_, i) => `\\[${bracketFormulas[i]}\\]`);
 
-    // Вставляем в DOM
     ref.current.innerHTML = cleaned;
 
-    // Рендерим KaTeX
     try {
       renderMathInElement(ref.current, {
         delimiters: [
-          { left: '$$', right: '$$', display: true },  // блочные
-          { left: '$', right: '$', display: false },   // inline
-          { left: '\\(', right: '\\)', display: false }, // inline
-          { left: '\\[', right: '\\]', display: true },  // блочные
+          { left: '$$', right: '$$', display: false },
+          { left: '$', right: '$', display: false },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '\\[', right: '\\]', display: false },
         ],
         throwOnError: false,
       });
