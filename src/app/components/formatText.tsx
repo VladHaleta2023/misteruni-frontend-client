@@ -77,11 +77,7 @@ export default function FormatText({ content }: FormatTextProps) {
       return `%%BRACKET_FORMULA_${bracketFormulas.length - 1}%%`;
     });
 
-    cleaned = cleaned
-      .split(/\n\s*\n/)
-      .map(paragraph => paragraph.trim().replace(/\n/g, '<br />'))
-      .map(paragraph => `<p>${paragraph}</p>`)
-      .join('');
+    cleaned = cleaned.replace(/\n/g, '<br />');
 
     cleaned = cleaned.replace(/%%BLOCK_FORMULA_(\d+)%%/g, (_, i) => `$$${blockFormulas[i]}$$`);
 
