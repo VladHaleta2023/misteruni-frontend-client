@@ -33,7 +33,6 @@ export interface ITask {
     explanation: string;
     solution: string;
     options: string[];
-    explanations: string[];
     audioFiles: string[];
     subtopics: ISubtopic[];
     answered: boolean;

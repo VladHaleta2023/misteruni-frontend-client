@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig, Lightbulb } from 'lucide-react';
 import "@/app/styles/play.css";
-import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import Message from "../components/message";
@@ -15,6 +14,7 @@ import { getSubtopicTexts, ITask } from "../scripts/task";
 import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
 import { BsQuestion } from "react-icons/bs";
+import Spinner from "../components/spinner";
 
 enum ChatMode {
   STUDENT_ANSWER = "STUDENT_ANSWER",
@@ -30,7 +30,7 @@ interface Subtopic {
 export default function PlayPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [chatLoading, setChatLoading] = useState(false);
+    const [spinnerLoading, setSpinnerLoading] = useState(false);
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
@@ -49,12 +49,10 @@ export default function PlayPage() {
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
     const [solutionGuideExpanded, setSolutionGuideExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
-    const [optionExplanationsExpanded, setOptionExplanationsExpanded] = useState<Record<number, boolean>>({});
-
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
-    const [textLoading, setTextLoading] = useState<string>("");
-    const [textGuideLoading, setTextGuideLoading] = useState<string>("Generowanie Poradnika Rozwiązania Zadania...");
+    const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
+    const [textGuideLoading, setTextGuideLoading] = useState<string>("Generowanie AI: Poradnika Rozwiązania Zadania...");
     const [solutionGuide, setSolutionGuide] = useState<string>("");
     const [task, setTask] = useState<ITask>(
         {
@@ -68,7 +66,6 @@ export default function PlayPage() {
             percent: 0,
             status: "started",
             options: [],
-            explanations: [],
             subtopics: [],
             answered: false,
             finished: false,
@@ -101,7 +98,13 @@ export default function PlayPage() {
     const [showFinalBlocks, setShowFinalBlocks] = useState(false);
     const [isExplanationTyping, setIsExplanationTyping] = useState(false);
     const [typedExplanation, setTypedExplanation] = useState("");
+    const [isTaskTextTyping, setIsTaskTextTyping] = useState(false);
+    const [typedTaskText, setTypedTaskText] = useState("");
+    const [isOptionsTyping, setIsOptionsTyping] = useState(false);
+    const [typedOptions, setTypedOptions] = useState<string[]>([]);
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const taskTextIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const optionsIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const getNewRobotBlocks = useCallback((allBlocks: ChatBlock[], existingBlocks: ChatBlock[]): ChatBlock[] => {
         const allRobotBlocks = allBlocks.filter(block => !block.isUser);
@@ -117,7 +120,7 @@ export default function PlayPage() {
         }
 
         setIsTyping(true);
-        setChatLoading(false);
+        setLoading(false);
         setIsProcessingChat(false);
         lastTypedBlockIndexRef.current = -1;
         setTempTypingBlocks([]);
@@ -208,6 +211,100 @@ export default function PlayPage() {
                 scrollToBottom(true);
             }
         }, TYPING_INTERVAL_MS);
+    }, []);
+
+    const simulateTaskTextTyping = useCallback((taskText: string) => {
+        return new Promise<void>((resolve) => {
+            if (taskTextIntervalRef.current) {
+                clearInterval(taskTextIntervalRef.current);
+                taskTextIntervalRef.current = null;
+            }
+
+            setIsTaskTextTyping(true);
+            setTypedTaskText("");
+            
+            let currentIndex = 0;
+            
+            const CHARS_PER_INTERVAL = 2;
+            const TYPING_INTERVAL_MS = 15;
+            
+            taskTextIntervalRef.current = setInterval(() => {
+                if (currentIndex >= taskText.length) {
+                    if (taskTextIntervalRef.current) {
+                        clearInterval(taskTextIntervalRef.current);
+                        taskTextIntervalRef.current = null;
+                    }
+                    setIsTaskTextTyping(false);
+                    shouldScrollRef.current = true;
+                    scrollToBottom(true);
+                    resolve();  // ← Promise выполняется, печать окончена
+                    return;
+                }
+
+                const endIndex = Math.min(currentIndex + CHARS_PER_INTERVAL, taskText.length);
+                setTypedTaskText(taskText.substring(0, endIndex));
+                currentIndex = endIndex;
+                
+                if (shouldScrollRef.current && currentIndex % 30 === 0) {
+                    scrollToBottom(true);
+                }
+            }, TYPING_INTERVAL_MS);
+        });
+    }, []);
+
+    const simulateOptionsTyping = useCallback((options: string[]) => {
+        return new Promise<void>((resolve) => {
+            if (optionsIntervalRef.current) {
+                clearInterval(optionsIntervalRef.current);
+                optionsIntervalRef.current = null;
+            }
+
+            setIsOptionsTyping(true);
+            setTypedOptions(new Array(options.length).fill(""));
+            
+            let currentOptionIndex = 0;
+            
+            const CHARS_PER_INTERVAL = 2;
+            const TYPING_INTERVAL_MS = 15;
+            
+            const typeNextOption = () => {
+                if (currentOptionIndex >= options.length) {
+                    setIsOptionsTyping(false);
+                    shouldScrollRef.current = true;
+                    scrollToBottom(true);
+                    resolve();  // ← Promise выполняется, все варианты напечатаны
+                    return;
+                }
+                
+                const currentOption = options[currentOptionIndex];
+                let currentCharIndex = 0;
+                
+                const typeOption = setInterval(() => {
+                    if (currentCharIndex >= currentOption.length) {
+                        clearInterval(typeOption);
+                        currentOptionIndex++;
+                        
+                        setTimeout(typeNextOption, 200);
+                        return;
+                    }
+                    
+                    const endIndex = Math.min(currentCharIndex + CHARS_PER_INTERVAL, currentOption.length);
+                    setTypedOptions(prev => {
+                        const updated = [...prev];
+                        updated[currentOptionIndex] = currentOption.substring(0, endIndex);
+                        return updated;
+                    });
+                    
+                    currentCharIndex = endIndex;
+                    
+                    if (shouldScrollRef.current && currentCharIndex % 30 === 0) {
+                        scrollToBottom(true);
+                    }
+                }, TYPING_INTERVAL_MS);
+            };
+            
+            typeNextOption();
+        });
     }, []);
 
     const simulateExplanationTyping = useCallback((explanation: string) => {
@@ -303,6 +400,7 @@ export default function PlayPage() {
 
             return null;
         } catch (error) {
+            setLoading(false);
             if ((error as DOMException)?.name === "AbortError") return null;
             handleApiError(error);
             return null;
@@ -356,6 +454,7 @@ export default function PlayPage() {
 
             return null;
         } catch (error) {
+            setLoading(false);
             if ((error as DOMException)?.name === "AbortError") return null;
             handleApiError(error);
             return null;
@@ -366,7 +465,8 @@ export default function PlayPage() {
 
     const handleTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-            setTextLoading("Generowanie Treści Zadania...");
+            setLoading(true);
+            setTextLoading("Generowanie AI: Treści Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -406,6 +506,7 @@ export default function PlayPage() {
 
                 return { text, outputSubtopics };
             } catch (error: unknown) {
+                setLoading(false);
                 if ((error as DOMException)?.name === "AbortError") return { text: "", outputSubtopics: [] };
                 handleApiError(error);
                 return { text: "", outputSubtopics: [] };
@@ -417,7 +518,8 @@ export default function PlayPage() {
 
     const handleSolutionGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, signal?: AbortSignal) => {
-            setTextLoading("Generowanie Rozwiązania Zadania...");
+            setLoading(true);
+            setTextLoading("Generowanie AI: Rozwiązania Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -456,6 +558,7 @@ export default function PlayPage() {
 
                 return solution;
             } catch (error: unknown) {
+                setLoading(false);
                 if ((error as DOMException)?.name === "AbortError") return "";
                 handleApiError(error);
                 return "";
@@ -467,7 +570,8 @@ export default function PlayPage() {
 
     const handleOptionsGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, solution: string, signal?: AbortSignal) => {
-            setTextLoading("Generowanie Wariantów Zadania...");
+            setLoading(true);
+            setTextLoading("Generowanie AI: Wariantów Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -479,22 +583,19 @@ export default function PlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let correctOptionIndex: number = 0;
-                let explanations: string[] = [];
                 const MAX_ATTEMPTS = 0;
-                const random1: number = Math.floor(Math.random() * 4);
                 const randomOption: number = Math.floor(Math.random() * 4) + 1;
-                const random2 = 3 - random1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { options: [], explanations: [] };
+                    if (activeSignal?.aborted) return { options: [] };
 
                     const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, subtopics, solution, options, explanations, correctOptionIndex, random1, random2, randomOption },
+                        { changed, errors, attempt, text, subtopics, solution, options, correctOptionIndex, randomOption },
                         { signal: activeSignal } as any
                     );
 
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -503,7 +604,6 @@ export default function PlayPage() {
                         solution = response.data.solution;
                         options = response.data.options;
                         correctOptionIndex = response.data.correctOptionIndex;
-                        explanations = response.data.explanations;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
                     } else {
@@ -512,11 +612,12 @@ export default function PlayPage() {
                     }
                 }
 
-                return { options, explanations, correctOptionIndex };
+                return { options, correctOptionIndex };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
+                setLoading(false);
+                if ((error as DOMException)?.name === "AbortError") return { options: [], correctOptionIndex: 0 };
                 handleApiError(error);
-                return { options: [], explanations: [], correctOptionIndex: 0 };
+                return { options: [], correctOptionIndex: 0 };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -532,7 +633,6 @@ export default function PlayPage() {
         solution: string,
         options: string[],
         correctOptionIndex: number,
-        explanations: string[],
         taskSubtopics: string[],
         signal?: AbortSignal,
         id?: number
@@ -547,7 +647,6 @@ export default function PlayPage() {
                     solution,
                     options,
                     correctOptionIndex,
-                    explanations,
                     taskSubtopics
                 },
                 { signal } as any
@@ -582,6 +681,7 @@ export default function PlayPage() {
             outputSubtopics: string[];
             explanation: string;
         }> => {
+            setLoading(true);
             setTextLoading("Obliczanie Wyników...");
 
             const controller = !signal ? new AbortController() : null;
@@ -623,6 +723,7 @@ export default function PlayPage() {
 
                 return { outputSubtopics, explanation };
             } catch (error: unknown) {
+                setLoading(false);
                 if ((error as DOMException)?.name === "AbortError") return { outputSubtopics: [], explanation: ""};
                 handleApiError(error);
                 return { outputSubtopics: [], explanation: "" }
@@ -690,7 +791,6 @@ export default function PlayPage() {
             return { chat, userSolution, chatFinished };
         } catch (error: unknown) {
             setLoading(false);
-            setChatLoading(false);
             if ((error as DOMException)?.name === "AbortError") return { chat, userSolution, chatFinished };
             handleApiError(error);
             return { chat, userSolution, chatFinished };
@@ -712,7 +812,6 @@ export default function PlayPage() {
     ) => {
         if (!taskId) {
             setLoading(false);
-            setChatLoading(false);
             showAlert(400, "Zadanie nie jest dostępne");
             return;
         }
@@ -731,12 +830,10 @@ export default function PlayPage() {
 
             if (response.data?.statusCode !== 200) {
                 setLoading(false);
-                setChatLoading(false);
                 showAlert(400, "Nie udało się zaktualizować czat");
             }
         } catch (error) {
             setLoading(false);
-            setChatLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -751,6 +848,7 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
+            setLoading(true);
             setTextLoading("Zapisywanie Rozwiązania...");
 
             const taskUserSolutionResponse = await api.put<any>(
@@ -763,11 +861,12 @@ export default function PlayPage() {
             );
 
             if (taskUserSolutionResponse.data?.statusCode !== 200) {
-                setChatLoading(false);
+                setLoading(false);
                 showAlert(400, `Nie udało się zapisać odpowiedź`);
             }
         }
         catch (error: unknown) {
+            setLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -820,7 +919,8 @@ export default function PlayPage() {
 
     const handleSolutionGuideGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, taskId: number, signal?: AbortSignal) => {
-            setTextGuideLoading("Generowanie Poradnika Rozwiązania Zadania...");
+            setLoading(true);
+            setTextGuideLoading("Generowanie AI: Poradnika Rozwiązania Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -858,6 +958,7 @@ export default function PlayPage() {
 
                 return { solutionGuide };
             } catch (error: unknown) {
+                setLoading(false);
                 if ((error as DOMException)?.name === "AbortError") return { solutionGuide: "" };
                 handleApiError(error);
                 return { solutionGuide: "" };
@@ -876,6 +977,7 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
+            setLoading(true);
             setTextGuideLoading("Zapisywanie Poradnika Rozwiązania Zadania...");
 
             const taskSolutionGuideResponse = await api.put<any>(
@@ -891,6 +993,7 @@ export default function PlayPage() {
             }
         }
         catch (error: unknown) {
+            setLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -1072,7 +1175,6 @@ export default function PlayPage() {
                 );
 
                 setLoading(false);
-                setChatLoading(false);
                 setIsProcessingChat(false);
                 
                 const newChatBlocks = parseChat(newChat);
@@ -1084,7 +1186,6 @@ export default function PlayPage() {
         } catch (error) {
             if ((error as DOMException)?.name === "AbortError") return;
             setLoading(false);
-            setChatLoading(false);
             setIsProcessingChat(false);
             handleApiError(error);
         }
@@ -1114,7 +1215,7 @@ export default function PlayPage() {
 
                 stage = 1;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", [], 0, [], taskSubtopics, signal);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", [], 0, taskSubtopics, signal);
             }
 
             let newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -1129,6 +1230,13 @@ export default function PlayPage() {
             text = newTask.text ?? "";
             taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
 
+            setTask(newTask);
+
+            if (text) {
+                setLoading(false);
+                await simulateTaskTextTyping(text);
+            }
+
             if (stage < 2) {
                 const solution = await handleSolutionGenerate(subjectId, sectionId, topicId, taskSubtopics, text, signal);
 
@@ -1140,7 +1248,7 @@ export default function PlayPage() {
 
                 stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], 0, [], taskSubtopics, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], 0, taskSubtopics, signal, taskId);
             }
 
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
@@ -1155,7 +1263,6 @@ export default function PlayPage() {
             if (stage < 3) {
                 const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, taskSubtopics, text, solution, signal);
                 const options = optionsResult.options ?? [];
-                const explanations = optionsResult.explanations ?? [];
                 const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                 if (!options.length || options.length != 4) {
@@ -1166,13 +1273,24 @@ export default function PlayPage() {
 
                 stage = 3;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, correctOptionIndex, explanations, taskSubtopics, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, correctOptionIndex, taskSubtopics, signal, taskId);
+            
+                setTask(prev => ({
+                    ...prev,
+                    options: options,
+                    correctOptionIndex: correctOptionIndex
+                }));
+
+                if (options) {
+                    setLoading(false);
+                    await simulateOptionsTyping(options);
+                }
             }
         } catch (error) {
             setLoading(false);
             handleApiError(error);
         }
-    }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction]);
+    }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction, simulateTaskTextTyping, simulateOptionsTyping]);
 
     const handleChatEnd = useCallback(async (
         subjectId: number,
@@ -1186,7 +1304,7 @@ export default function PlayPage() {
             shouldScrollRef.current = true;
             scrollToBottom(true);
 
-            setChatLoading(true);
+            setLoading(true);
             setTextLoading("Obliczanie Wyników...");
 
             await handleUpdateChat(
@@ -1225,19 +1343,19 @@ export default function PlayPage() {
                 setShowFinalBlocks(true);
                 
                 if (finalTask.explanation) {
+                    setLoading(false);
                     simulateExplanationTyping(finalTask.explanation);
                 }
             }
         }
         catch (error) {
             setIsProcessingChat(false);
-            setChatLoading(false);
+            setLoading(false);
             setChatTextValue("");
             handleApiError(error);
         }
         finally {
             setIsProcessingChat(false);
-            setChatLoading(false);
             setChatTextValue("");
         }
     }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping]);
@@ -1360,7 +1478,6 @@ export default function PlayPage() {
             } finally {
                 controllersRef.current = controllersRef.current.filter(c => c !== controller);
                 setLoading(false);
-                setChatLoading(false);
                 setTextLoading("");
             }
         };
@@ -1380,6 +1497,12 @@ export default function PlayPage() {
             }
             if (explanationIntervalRef.current) {
                 clearInterval(explanationIntervalRef.current);
+            }
+            if (taskTextIntervalRef.current) {
+                clearInterval(taskTextIntervalRef.current);
+            }
+            if (optionsIntervalRef.current) {
+                clearInterval(optionsIntervalRef.current);
             }
         };
     }, []);
@@ -1433,7 +1556,7 @@ export default function PlayPage() {
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
         if (isTyping || isProcessingChat) return;
 
-        setChatLoading(true);
+        setLoading(true);
         setIsProcessingChat(true);
         
         const currentChat = task.chat;
@@ -1516,11 +1639,11 @@ export default function PlayPage() {
                 ));
                 return;
             }
-            setChatLoading(false);
+            setLoading(false);
             setIsProcessingChat(false);
             handleApiError(error);
         } finally {
-            setChatLoading(false);
+            setLoading(false);
             setIsProcessingChat(false);
 
             controllersRef.current = controllersRef.current.filter(c => c !== controller);
@@ -1545,7 +1668,7 @@ export default function PlayPage() {
                 shouldScrollRef.current = true;
                 scrollToBottom(true);
 
-                setChatLoading(true);
+                setLoading(true);
                 setTextLoading("Zapisywanie rozwiązania...");
 
                 const currentTaskId = task.id;
@@ -1584,6 +1707,7 @@ export default function PlayPage() {
                     return;
                 }
 
+                setLoading(true);
                 setTextLoading("Przetwarzanie czatu AI...");
 
                 await loadChat(
@@ -1608,11 +1732,10 @@ export default function PlayPage() {
                 }
             } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
-                setChatLoading(false);
+                setLoading(false);
                 setIsProcessingChat(false);
                 handleApiError(error);
             } finally {
-                setChatLoading(false);
                 setIsProcessingChat(false);
                 setIsSubmittingAnswer(false);
 
@@ -1632,7 +1755,6 @@ export default function PlayPage() {
         try {
             const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${task.id}`);
 
-            setLoading(false);
             if (response.data?.statusCode === 200) {
                 showAlert(response.data.statusCode, response.data.message);
             } else {
@@ -1640,11 +1762,10 @@ export default function PlayPage() {
             }
         }
         catch (error) {
-            setLoading(false);
+            setSpinnerLoading(false);
             handleApiError(error);
         }
         finally {
-            setLoading(false);
             setTextLoading("");
             setMsgDeleteTaskVisible(false);
         }
@@ -1695,17 +1816,15 @@ export default function PlayPage() {
                     textCancel="Nie"
                     onConfirm={() => {
                         setMsgDeleteTaskVisible(false);
-                        setLoading(true);
+                        setSpinnerLoading(true);
 
                         if (!loading)
-                            setTextLoading("Trwa usuwanie zadania...");
+                            setTextLoading("Trwa Usuwanie Zadania...");
 
-                        setLoading(true);
+                        setSpinnerLoading(true);
                         if (task.id) {
                             handleDeleteTask().then(() => {
-                                setTimeout(() => {
-                                    handleBackClick();
-                                }, 2000);
+                                handleBackClick();
                             });
                         }
                         else
@@ -1763,55 +1882,58 @@ export default function PlayPage() {
                     visible={msgChatVisible}
                 />
 
-                {(loading) ? (
+                {spinnerLoading ? (
                     <div className="spinner-wrapper">
-                        <Spinner visible={true} text={textLoading} />
+                        <Spinner text={textLoading} />
                     </div>
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            <div className={`message human ${task.status}`}>
-                                <div
-                                    className="text-title"
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        cursor: "pointer",
-                                        fontWeight: "bold"
-                                    }}
-                                    onClick={() => setSubtopicsExpanded(prev => !prev)}
-                                >
+                            {task.subtopics.length > 0 && (
+                                <div className={`message human ${task.status}`}>
                                     <div
-                                        className="btnElement"
+                                        className="text-title"
                                         style={{
-                                            marginRight: "4px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            cursor: "pointer",
                                             fontWeight: "bold"
                                         }}
+                                        onClick={() => setSubtopicsExpanded(prev => !prev)}
                                     >
-                                        {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                    </div>
-                                    {task.finished ? (
-                                        <div className="text-title">
-                                            <FormatText content={`Ocena: ${task.percent}%`} />
+                                        <div
+                                            className="btnElement"
+                                            style={{
+                                                marginRight: "4px",
+                                                fontWeight: "bold"
+                                            }}
+                                        >
+                                            {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                         </div>
-                                    ) : "Podtematy:"}
-                                </div>
-                                {subtopicsExpanded && (
-                                    <div style={{ marginTop: "8px" }}>
-                                        {task.subtopics.map((subtopic: Subtopic, index: number) => (
-                                            <div key={index}>
-                                                <FormatText
-                                                    content={
-                                                        task.finished
-                                                        ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
-                                                        : `${index + 1}. ${subtopic.name}`
-                                                    }
-                                                />
+                                        {task.finished ? (
+                                            <div className="text-title">
+                                                <FormatText content={`Ocena: ${task.percent}%`} />
                                             </div>
-                                        ))}
+                                        ) : "Podtematy:"}
                                     </div>
-                                )}
-                            </div>
+                                    {subtopicsExpanded && (
+                                        <div style={{ marginTop: "8px" }}>
+                                            {task.subtopics.map((subtopic: Subtopic, index: number) => (
+                                                <div key={index}>
+                                                    <FormatText
+                                                        content={
+                                                            task.finished
+                                                            ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
+                                                            : `${index + 1}. ${subtopic.name}`
+                                                        }
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {task.topicNote != "" && (
                             <div className="message robot" style={{
                                 display: "flex",
                                 flexDirection: "column",
@@ -1891,7 +2013,7 @@ export default function PlayPage() {
                                             {"Streszczenie"}
                                         </div>
                                 </div>) : null}
-                                <div className="element-name"  style={{
+                                {task.text != "" && (<div className="element-name"  style={{
                                     display: "flex",
                                     alignItems: "flex-start",
                                     cursor: "pointer",
@@ -1944,7 +2066,7 @@ export default function PlayPage() {
                                         </div>
                                         Poradnik Rozwiązania Zadania:
                                     </div>
-                                </div>
+                                </div>)}
                                 {solutionGuideExpanded && (<>
                                     {solutionGuide !== "" ? (
                                         <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
@@ -1960,14 +2082,22 @@ export default function PlayPage() {
                                         </div>
                                     )}
                                 </>)}
-                            </div>
-                            <div className="message robot">
-                                <div className="text-title" style={{ fontSize: "20px" }}>
-                                    Zadanie:
+                            </div>)}
+                            {task.text != "" && (
+                                <div className="message robot">
+                                    <div className="text-title" style={{ fontSize: "20px" }}>
+                                        Zadanie:
+                                    </div>
+                                    <div style={{paddingLeft: "20px", marginTop: "8px"}}>
+                                        {isTaskTextTyping ? (
+                                            <FormatText content={typedTaskText} />
+                                        ) : (
+                                            <FormatText content={task.text ?? ""} />
+                                        )}
+                                    </div>
                                 </div>
-                                <div style={{paddingLeft: "20px", marginTop: "8px"}}><FormatText content={task.text ?? ""} /></div>
-                            </div>
-                            <div className="message human">
+                            )}
+                            {task.options.length != 0 && (<div className="message human">
                                 <div className="text-title" style={{ fontSize: "20px" }}>Warianty:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {(task.options ?? []).map((option, index) => (
@@ -1992,7 +2122,13 @@ export default function PlayPage() {
                                                     }}
                                                     disabled={task.answered}
                                                 />
-                                                <span><FormatText content={option ?? ""} /></span>
+                                                <span>
+                                                    {isOptionsTyping ? (
+                                                        <FormatText content={typedOptions[index] || ""} />
+                                                    ) : (
+                                                        <FormatText content={option ?? ""} />
+                                                    )}
+                                                </span>
                                             </label>
                                         </div>
                                     ))}
@@ -2021,9 +2157,9 @@ export default function PlayPage() {
                                             </button>
                                         </div>
                                 </div>)}
-                            </div>
+                            </div>)}
                             
-                            {task.answered && (
+                            {task.answered && allDisplayBlocks.length != 0 && (
                                 <>
                                     {allDisplayBlocks?.map((block: ChatBlock, index: number) => (
                                         block.isUser ? (
@@ -2056,7 +2192,7 @@ export default function PlayPage() {
                                                 name="userSolution"
                                                 id="userSolution"
                                             />
-                                            {!isTyping && !chatLoading && !isProcessingChat && (
+                                            {!isTyping && !loading && !isProcessingChat && (
                                                 <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>
                                                     {isEmptyString(chatTextValue) && (<button
                                                         className={`btnOption darkgreen`}
@@ -2098,7 +2234,7 @@ export default function PlayPage() {
                                 </>
                             )}
                             
-                            {chatLoading && (
+                            {loading && (
                                 <StatusIndicator text={textLoading} />
                             )}
                             

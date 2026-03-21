@@ -7,7 +7,6 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Type, Trash2, 
 import "@/app/styles/play.css";
 import "@/app/styles/message.css";
 import "@/app/styles/table.css";
-import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import { getSubtopicTexts, getWordTexts, ITask } from "../scripts/task";
 import api from "@/app/utils/api";
@@ -19,6 +18,7 @@ import RadioMessageOK from "../components/radioMessageOK";
 import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
 import { BsQuestion } from "react-icons/bs";
+import Spinner from "../components/spinner";
 
 enum PlayBackRateOption {
     Normal = 'Normal',
@@ -39,8 +39,8 @@ interface Subtopic {
 export default function InteractivePlayPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [textLoading, setTextLoading] = useState<string>("");
-    const [chatLoading, setChatLoading] = useState(false);
+    const [spinnerLoading, setSpinnerLoading] = useState(false);
+    const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
@@ -50,11 +50,10 @@ export default function InteractivePlayPage() {
 
     const [chatTextValue, setChatTextValue] = useState("");
     const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
+    const [initLoading, setInitLoading] = useState(true);
 
     const [problemsExpanded, setProblemsExpanded] = useState(true);
     const [taskWordsExpanded, setTaskWordsExpanded] = useState(false);
-    const [optionExplanationsExpanded, setOptionExplanationsExpanded] = useState<Record<number, boolean>>({});
-
     const [msgChatVisible, setMsgChatVisible] = useState<boolean>(false);
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
 
@@ -85,7 +84,6 @@ export default function InteractivePlayPage() {
         status: "started",
         solution: "",
         options: [],
-        explanations: [],
         subtopics: [],
         answered: false,
         finished: false,
@@ -104,7 +102,6 @@ export default function InteractivePlayPage() {
     const [subjectId, setSubjectId] = useState<number | null>(null);
     const [sectionId, setSectionId] = useState<number | null>(null);
     const [topicId, setTopicId] = useState<number | null>(null);
-    const [audioRepeat, setAudioRepeat] = useState<number>(0);
     const [selectedWords, setSelectedWords] = useState<number[]>([0]);
 
     const [progress, setProgress] = useState(0);
@@ -122,7 +119,10 @@ export default function InteractivePlayPage() {
     const [showFinalBlocks, setShowFinalBlocks] = useState(false);
     const [isExplanationTyping, setIsExplanationTyping] = useState(false);
     const [typedExplanation, setTypedExplanation] = useState("");
+    const [isOptionsTyping, setIsOptionsTyping] = useState(false);
+    const [typedOptions, setTypedOptions] = useState<string[]>([]);
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const optionsIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const shouldScrollRef = useRef(true);
 
@@ -160,7 +160,7 @@ export default function InteractivePlayPage() {
         }
 
         setIsTyping(true);
-        setChatLoading(false);
+        setLoading(false);
         setIsProcessingChat(false);
         lastTypedBlockIndexRef.current = -1;
         setTempTypingBlocks([]);
@@ -251,6 +251,61 @@ export default function InteractivePlayPage() {
                 scrollToBottom(true);
             }
         }, TYPING_INTERVAL_MS);
+    }, []);
+
+    const simulateOptionsTyping = useCallback((options: string[]) => {
+        return new Promise<void>((resolve) => {
+            if (optionsIntervalRef.current) {
+                clearInterval(optionsIntervalRef.current);
+                optionsIntervalRef.current = null;
+            }
+
+            setIsOptionsTyping(true);
+            setTypedOptions(new Array(options.length).fill(""));
+            
+            let currentOptionIndex = 0;
+            
+            const CHARS_PER_INTERVAL = 2;
+            const TYPING_INTERVAL_MS = 15;
+            
+            const typeNextOption = () => {
+                if (currentOptionIndex >= options.length) {
+                    setIsOptionsTyping(false);
+                    shouldScrollRef.current = true;
+                    scrollToBottom(true);
+                    resolve();  // ← Promise выполняется, все варианты напечатаны
+                    return;
+                }
+                
+                const currentOption = options[currentOptionIndex];
+                let currentCharIndex = 0;
+                
+                const typeOption = setInterval(() => {
+                    if (currentCharIndex >= currentOption.length) {
+                        clearInterval(typeOption);
+                        currentOptionIndex++;
+                        
+                        setTimeout(typeNextOption, 200);
+                        return;
+                    }
+                    
+                    const endIndex = Math.min(currentCharIndex + CHARS_PER_INTERVAL, currentOption.length);
+                    setTypedOptions(prev => {
+                        const updated = [...prev];
+                        updated[currentOptionIndex] = currentOption.substring(0, endIndex);
+                        return updated;
+                    });
+                    
+                    currentCharIndex = endIndex;
+                    
+                    if (shouldScrollRef.current && currentCharIndex % 30 === 0) {
+                        scrollToBottom(true);
+                    }
+                }, TYPING_INTERVAL_MS);
+            };
+            
+            typeNextOption();
+        });
     }, []);
 
     const simulateExplanationTyping = useCallback((explanation: string) => {
@@ -432,7 +487,7 @@ export default function InteractivePlayPage() {
 
     const handleInteractiveTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
-            setTextLoading("Generowanie Treści zadania");
+            setTextLoading("Generowanie AI: Treści Zadania");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -485,7 +540,7 @@ export default function InteractivePlayPage() {
 
     const handleOptionsGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, solution: string, signal?: AbortSignal) => {
-            setTextLoading("Generowanie Wariantów Zadania...");
+            setTextLoading("Generowanie AI: Wariantów Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -497,22 +552,19 @@ export default function InteractivePlayPage() {
                 let errors: string[] = [];
                 let options: string[] = [];
                 let correctOptionIndex: number = 0;
-                let explanations: string[] = [];
                 const MAX_ATTEMPTS = 0;
-                const random1: number = Math.floor(Math.random() * 4);
                 const randomOption: number = Math.floor(Math.random() * 4) + 1;
-                const random2 = 3 - random1;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
 
                     const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/options-generate`,
-                        { changed, errors, attempt, text, subtopics, solution, options, explanations, correctOptionIndex, random1, random2, randomOption },
+                        { changed, errors, attempt, text, subtopics, solution, options, correctOptionIndex, randomOption },
                         { signal: activeSignal } as any
                     );
 
-                    if (activeSignal?.aborted) return { options: [], explanations: [], correctOptionIndex: 0 };
+                    if (activeSignal?.aborted) return { options: [], correctOptionIndex: 0 };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -521,7 +573,6 @@ export default function InteractivePlayPage() {
                         solution = response.data.solution;
                         options = response.data.options;
                         correctOptionIndex = response.data.correctOptionIndex;
-                        explanations = response.data.explanations;
                         attempt = response.data.attempt;
                         console.log(`Generowanie wariantów zadania: Próba ${attempt}`);
                     } else {
@@ -530,11 +581,11 @@ export default function InteractivePlayPage() {
                     }
                 }
 
-                return { options, explanations, correctOptionIndex };
+                return { options, correctOptionIndex };
             } catch (error: unknown) {
-                if ((error as DOMException)?.name === "AbortError") return { options: [], explanations: [], correctOptionIndex: 0 };
+                if ((error as DOMException)?.name === "AbortError") return { options: [], correctOptionIndex: 0 };
                 handleApiError(error);
-                return { options: [], explanations: [], correctOptionIndex: 0 };
+                return { options: [], correctOptionIndex: 0 };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
@@ -551,7 +602,6 @@ export default function InteractivePlayPage() {
         words: string[],
         options: string[],
         correctOptionIndex: number,
-        explanations: string[],
         taskSubtopics: string[],
         explanation: string,
         percent: number | null,
@@ -570,7 +620,6 @@ export default function InteractivePlayPage() {
                     percent,
                     options,
                     correctOptionIndex,
-                    explanations,
                     explanation,
                     taskSubtopics
                 },
@@ -601,7 +650,7 @@ export default function InteractivePlayPage() {
         signal?: AbortSignal
     ) => {
         try {
-            setTextLoading("Generowanie audio zadania");
+            setTextLoading("Generowanie AI: Audio Zadania");
 
             const response = await api.post<any>(
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/audio-transaction`,
@@ -750,7 +799,6 @@ export default function InteractivePlayPage() {
             return { chat, userSolution, chatFinished };
         } catch (error: unknown) {
             setLoading(false);
-            setChatLoading(false);
             if ((error as DOMException)?.name === "AbortError") return { chat, userSolution, chatFinished };
             handleApiError(error);
             return { chat, userSolution, chatFinished };
@@ -772,7 +820,6 @@ export default function InteractivePlayPage() {
     ) => {
         if (!taskId) {
             setLoading(false);
-            setChatLoading(false);
             showAlert(400, "Zadanie nie jest dostępne");
             return;
         }
@@ -791,12 +838,10 @@ export default function InteractivePlayPage() {
 
             if (response.data?.statusCode !== 200) {
                 setLoading(false);
-                setChatLoading(false);
                 showAlert(400, "Nie udało się zaktualizować czat");
             }
         } catch (error) {
             setLoading(false);
-            setChatLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -823,7 +868,6 @@ export default function InteractivePlayPage() {
             );
 
             if (taskUserSolutionResponse.data?.statusCode !== 200) {
-                setChatLoading(false);
                 showAlert(400, `Nie udało się zapisać odpowiedź`);
             }
         }
@@ -891,7 +935,6 @@ export default function InteractivePlayPage() {
                     wordTexts,
                     newTask.options,
                     newTask.correctOptionIndex,
-                    newTask.explanations,
                     [],
                     data.explanation,
                     outputSubtopics[0].percent,
@@ -988,7 +1031,6 @@ export default function InteractivePlayPage() {
                         wordTexts,
                         newTask.options,
                         newTask.correctOptionIndex,
-                        newTask.explanations,
                         [],
                         data.explanation,
                         outputSubtopics[0].percent,
@@ -1019,7 +1061,6 @@ export default function InteractivePlayPage() {
                 );
 
                 setLoading(false);
-                setChatLoading(false);
                 setIsProcessingChat(false);
                 
                 const newChatBlocks = parseChat(newChat);
@@ -1032,7 +1073,6 @@ export default function InteractivePlayPage() {
         } catch (error) {
             if ((error as DOMException)?.name === "AbortError") return;
             setLoading(false);
-            setChatLoading(false);
             setIsProcessingChat(false);
             handleApiError(error);   
         }
@@ -1082,7 +1122,6 @@ export default function InteractivePlayPage() {
                     [],
                     0,
                     [],
-                    [],
                     "",
                     null, 
                     signal
@@ -1111,6 +1150,8 @@ export default function InteractivePlayPage() {
                 return;
             }
 
+            setTask(newTask);
+
             taskId = newTask.id;
             localStorage.setItem("taskId", String(taskId));
 
@@ -1120,6 +1161,31 @@ export default function InteractivePlayPage() {
             stage = newTask.stage ?? stage;
 
             if (stage < 2) {
+                await handleSaveAudioTransaction(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    taskId ?? 0,
+                    text,
+                    2,
+                    "en",
+                    signal
+                );
+            }
+
+            newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
+            if (!newTask) {
+                setLoading(false);
+                showAlert(400, "Nie udało się pobrać nowo utworzonego zadania");
+                return;
+            }
+
+            setTask(newTask);
+
+            taskId = newTask.id;
+            localStorage.setItem("taskId", String(taskId));
+
+            if (stage < 3) {
                 const optionsResult = await handleOptionsGenerate(
                     subjectId,
                     sectionId,
@@ -1131,7 +1197,6 @@ export default function InteractivePlayPage() {
                 );
 
                 const options = optionsResult.options ?? [];
-                const explanations = optionsResult.explanations ?? [];
                 const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
                 if (!options.length || options.length != 4) {
@@ -1140,7 +1205,7 @@ export default function InteractivePlayPage() {
                     return;
                 }
 
-                stage = 2;
+                stage = 3;
 
                 await handleSaveTaskTransaction(
                     subjectId, 
@@ -1152,36 +1217,23 @@ export default function InteractivePlayPage() {
                     outputWords, 
                     options, 
                     correctOptionIndex,
-                    explanations, 
                     [], 
                     "",
                     null,
                     signal,
                     newTask.id
                 );
-            }
 
-            newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
-            if (!newTask) {
-                setLoading(false);
-                showAlert(400, "Nie udało się pobrać nowo utworzonego zadania");
-                return;
-            }
+                setTask(prev => ({
+                    ...prev,
+                    options: options,
+                    correctOptionIndex: correctOptionIndex
+                }));
 
-            taskId = newTask.id;
-            localStorage.setItem("taskId", String(taskId));
-
-            if (stage < 3) {
-                await handleSaveAudioTransaction(
-                    subjectId,
-                    sectionId,
-                    topicId,
-                    taskId ?? 0,
-                    text,
-                    3,
-                    "en",
-                    signal
-                );
+                if (options) {
+                    setLoading(false);
+                    await simulateOptionsTyping(options);
+                }
             }
 
             const finalTask = await fetchTaskById(
@@ -1208,7 +1260,7 @@ export default function InteractivePlayPage() {
             setLoading(false);
             handleApiError(error);
         }
-    }, [handleInteractiveTextGenerate, handleOptionsGenerate, handleSaveTaskTransaction]);
+    }, [handleInteractiveTextGenerate, handleOptionsGenerate, handleSaveTaskTransaction, simulateOptionsTyping]);
 
     const handleChatEnd = useCallback(async (
         subjectId: number,
@@ -1222,7 +1274,7 @@ export default function InteractivePlayPage() {
             shouldScrollRef.current = true;
             scrollToBottom(true);
 
-            setChatLoading(true);
+            setLoading(true);
             setTextLoading("Obliczanie Wyników...");
 
             await handleUpdateChat(
@@ -1269,13 +1321,13 @@ export default function InteractivePlayPage() {
         }
         catch (error) {
             setIsProcessingChat(false);
-            setChatLoading(false);
+            setLoading(false);
             setChatTextValue("");
             handleApiError(error);
         }
         finally {
             setIsProcessingChat(false);
-            setChatLoading(false);
+            setLoading(false);
             setChatTextValue("");
         }
     }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping]);
@@ -1443,10 +1495,9 @@ export default function InteractivePlayPage() {
                 shouldScrollRef.current = true;
                 scrollToBottom(true);
 
-                setChatLoading(true);
+                setLoading(true);
                 setTextLoading("Zapisywanie rozwiązania...");
 
-                // Сохраняем ID до асинхронных операций
                 const currentTaskId = task.id;
                 const currentSubjectId = subjectId;
                 const currentSectionId = sectionId;
@@ -1516,11 +1567,11 @@ export default function InteractivePlayPage() {
 
             } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
-                setChatLoading(false);
+                setLoading(false);
                 setIsProcessingChat(false);
                 handleApiError(error);
             } finally {
-                setChatLoading(false);
+                setLoading(false);
                 setIsProcessingChat(false);
                 setIsSubmittingAnswer(false);
 
@@ -1533,10 +1584,9 @@ export default function InteractivePlayPage() {
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
         if (isTyping || isProcessingChat) return;
 
-        setChatLoading(true);
+        setLoading(true);
         setIsProcessingChat(true);
         
-        // Сохраняем текущие значения ДО асинхронных операций
         const currentChat = task.chat;
         const currentTaskId = task.id;
         const currentSubjectId = subjectId;
@@ -1619,11 +1669,11 @@ export default function InteractivePlayPage() {
                 ));
                 return;
             }
-            setChatLoading(false);
+            setLoading(false);
             setIsProcessingChat(false);
             handleApiError(error);
         } finally {
-            setChatLoading(false);
+            setLoading(false);
             setIsProcessingChat(false);
 
             controllersRef.current = controllersRef.current.filter(c => c !== controller);
@@ -1635,17 +1685,17 @@ export default function InteractivePlayPage() {
         try {
             const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${task.id}`);
 
-            setLoading(false);
             if (response.data?.statusCode === 200) {
                 showAlert(response.data.statusCode, response.data.message);
             } else {
                 showAlert(response.data.statusCode, response.data.message);
             }
-        } catch (error) {
-            setLoading(false);
+        }
+        catch (error) {
+            setSpinnerLoading(false);
             handleApiError(error);
-        } finally {
-            setLoading(false);
+        }
+        finally {
             setTextLoading("");
             setMsgDeleteTaskVisible(false);
         }
@@ -1682,19 +1732,12 @@ export default function InteractivePlayPage() {
         } else {
             showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
         }
-
-        const audioRepeatNum = Number(localStorage.getItem("audioRepeat"));
-        if (audioRepeatNum) {
-            setAudioRepeat(audioRepeatNum);
-        } else {
-            setAudioRepeat(0);
-            localStorage.setItem("audioRepeat", String(0));
-        }
     }, []);
 
     useEffect(() => {
         if (!subjectId || !sectionId || !topicId) return;
 
+        setInitLoading(true);
         setLoading(true);
 
         if (controllerRef.current) controllerRef.current.abort();
@@ -1791,7 +1834,7 @@ export default function InteractivePlayPage() {
             } finally {
                 controllersRef.current = controllersRef.current.filter(c => c !== controller);
                 setLoading(false);
-                setChatLoading(false);
+                setInitLoading(false);
                 setTextLoading("");
             }
         };
@@ -1966,17 +2009,19 @@ export default function InteractivePlayPage() {
                     textCancel="Nie"
                     onConfirm={() => {
                         setMsgDeleteTaskVisible(false);
-                        setTextLoading("Trwa usuwanie zadania");
-                        setLoading(true);
+                        setSpinnerLoading(true);
+
+                        if (!loading)
+                            setTextLoading("Trwa Usuwanie Zadania...");
+
+                        setSpinnerLoading(true);
                         if (task.id) {
                             handleDeleteTask().then(() => {
-                                setTimeout(() => {
-                                    handleBackClick();
-                                }, 2000);
+                                handleBackClick();
                             });
-                        } else {
-                            showAlert(400, "Błąd usuwania zadania");
                         }
+                        else
+                            showAlert(400, "Błąd usuwania zadania");
                     }}
                     onClose={() => setMsgDeleteTaskVisible(false)}
                     visible={msgDeleteTaskVisible}
@@ -2011,25 +2056,14 @@ export default function InteractivePlayPage() {
                     visible={msgChatVisible}
                 />
 
-                {loading ? (
+                {spinnerLoading ? (
                     <div className="spinner-wrapper">
-                        <Spinner visible={true} text={textLoading} />
+                        <Spinner text={textLoading} />
                     </div>
-                ) : !task.wordsCompleted ? (
+                ) : (<>
+                {!task.wordsCompleted && !initLoading ? (
                     <>
                         <div className="play-container" ref={containerRef}>
-                            <div className="chat">
-                                <div className="message robot">
-                                    <div className="element-name" style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        cursor: "pointer",
-                                        fontWeight: "bold"
-                                    }}>
-                                        {task.topicName}
-                                    </div>
-                                </div>
-                            </div>
                             <div style={{
                                 color: "#514e4e",
                                 display: "flex",
@@ -2052,7 +2086,7 @@ export default function InteractivePlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            <div className="message robot">
+                            {task.topicName && (<div className="message robot">
                                 <div className="element-name" style={{
                                     display: "flex",
                                     alignItems: "center",
@@ -2062,7 +2096,7 @@ export default function InteractivePlayPage() {
                                 }}>
                                     {task.topicName}
                                 </div>
-                            </div>
+                            </div>)}
                             
                             {task.finished && (
                                 <div className={`message human ${task.status}`}>
@@ -2076,8 +2110,8 @@ export default function InteractivePlayPage() {
                                 </div>
                             )}
                             
-                            <div className="message robot">
-                                {task.words.length > 0 && (
+                            {task.text && (<div className="message robot">
+                                {task.words.length != 0 && (
                                     <>
                                         <div
                                             className="text-title"
@@ -2106,12 +2140,8 @@ export default function InteractivePlayPage() {
                                     </>
                                 )}
 
-                                {!(audioRepeat >= 2 || task.finished) && (
-                                    <div className="text-title">{audioRepeat}/2</div>
-                                )}
-
-                                <div className="options">
-                                    {(audioRepeat >= 2 || task.finished) && isSentences && (
+                                {task.audioFiles.length != 0 && (<div className="options">
+                                    {(task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handlePrev}>
                                             <ChevronLeft size={24} />
                                         </button>
@@ -2132,14 +2162,14 @@ export default function InteractivePlayPage() {
                                         </button>
                                     )}
                                     
-                                    {(audioRepeat >= 2 || task.finished) && isSentences && (
+                                    {(task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handleNext}>
                                             <ChevronRight size={24} />
                                         </button>
                                     )}
                                     
                                     <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
-                                        {(audioRepeat >= 2 || task.finished) && (
+                                        {(task.finished) && (
                                             <button
                                                 className={isSentences ? "btnOption disabled" : "btnOption"}
                                                 onClick={handleTextOptionСlick}
@@ -2148,7 +2178,7 @@ export default function InteractivePlayPage() {
                                             </button>
                                         )}
                                         
-                                        {(audioRepeat >= 2 || task.finished) && isSentences && (
+                                        {(task.finished) && isSentences && (
                                             <button
                                                 className="btnOption"
                                                 style={{ minWidth: "48px" }}
@@ -2165,7 +2195,7 @@ export default function InteractivePlayPage() {
                                         )}
                                     </div>
                                     
-                                    {!(audioRepeat >= 2 || task.finished) && (
+                                    {!(task.finished) && (
                                         <div style={{ marginLeft: "8px", flexGrow: 1 }}>
                                             <progress
                                                 value={progress}
@@ -2186,8 +2216,6 @@ export default function InteractivePlayPage() {
                                             setCurrentIndex(prev => {
                                                 if (!task.audioFiles || prev + 1 >= task.audioFiles.length) {
                                                     setIsPlaying(false);
-                                                    setAudioRepeat(audioRepeat + 1);
-                                                    localStorage.setItem("audioRepeat", String(audioRepeat + 1));
                                                     return 0;
                                                 } else {
                                                     setIsPlaying(true);
@@ -2196,9 +2224,9 @@ export default function InteractivePlayPage() {
                                             });
                                         }}
                                     />
-                                </div>
+                                </div>)}
 
-                                {(audioRepeat >= 2 || task.finished) ? (
+                                {task.finished ? (
                                     <div className="sentences context">
                                         <div className="text-audio">
                                             {isSentences ? (
@@ -2227,10 +2255,10 @@ export default function InteractivePlayPage() {
                                         </div>
                                     </div>
                                 ) : null}
-                            </div>
+                            </div>)}
                             
-                            <div className="message human">
-                                <div className="text-title">O czym chodzi:</div>
+                            {task.options.length != 0 && (<div className="message human">
+                                <div className="text-title" style={{ fontSize: "20px" }}>O czym chodzi:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {(task.options ?? []).map((option, index) => (
                                         <div key={index}>
@@ -2249,71 +2277,47 @@ export default function InteractivePlayPage() {
                                                     value={index}
                                                     checked={userOptionIndex === index}
                                                     onChange={() => setUserOptionIndex(index)}
-                                                    disabled={task.answered}
                                                     style={{
                                                         marginTop: "0.75px"
                                                     }}
+                                                    disabled={task.answered}
                                                 />
-                                                <span><FormatText content={option ?? ""} /></span>
-                                            </label>
-                                            {task.finished ? (
-                                                <div>
-                                                    <div
-                                                        className="text-title"
-                                                        style={{
-                                                            display: "flex",
-                                                            alignItems: "center",
-                                                            cursor: "pointer",
-                                                            fontWeight: "bold"
-                                                        }}
-                                                        onClick={() => {
-                                                            setOptionExplanationsExpanded(prev => ({
-                                                                ...prev,
-                                                                [index]: !prev[index]
-                                                            }));
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="btnElement"
-                                                            style={{
-                                                                marginRight: "4px",
-                                                                fontWeight: "bold"
-                                                            }}
-                                                        >
-                                                            {optionExplanationsExpanded[index] ? <Minus size={26} /> : <Plus size={26} />}
-                                                        </div>
-                                                        Wyjaśnienie:
-                                                    </div>
-                                                    
-                                                    {optionExplanationsExpanded[index] && (
-                                                        <div style={{ marginTop: "8px", paddingLeft: "20px" }}>
-                                                            <FormatText content={task.explanations[index] ?? ""} />
-                                                        </div>
+                                                <span>
+                                                    {isOptionsTyping ? (
+                                                        <FormatText content={typedOptions[index] || ""} />
+                                                    ) : (
+                                                        <FormatText content={option ?? ""} />
                                                     )}
-                                                    <br />
-                                                </div>
-                                            ) : null}
+                                                </span>
+                                            </label>
                                         </div>
                                     ))}
                                 </div>
-                                
                                 {!task.answered && !isSubmittingAnswer && (
-                                    <div className="options" style={{ display: "flex", justifyContent: "flex-end", cursor: "pointer" }}>
-                                        <button
-                                            style={{ width: "64px" }}
-                                            className="btnOption"
-                                            title="Wysłać Odpowiedź"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                handleSubmitTaskClick();
-                                            }}
-                                            disabled={isSubmittingAnswer}
-                                        >
-                                            <Check size={28} color="white" />
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                                    <div className="options" style={{
+                                        display: "flex",
+                                        cursor: "pointer",
+                                    }}>
+                                        <div style={{
+                                            display: "flex",
+                                            gap: "6px",
+                                            marginLeft: "auto",
+                                            cursor: "pointer"
+                                        }}>
+                                            <button
+                                                className="btnOption"
+                                                title={"Wysłać Odpowiedź"}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleSubmitTaskClick();
+                                                }}
+                                                disabled={isSubmittingAnswer}
+                                            >
+                                                <Check size={28} color="white" />
+                                            </button>
+                                        </div>
+                                </div>)}
+                            </div>)}
                             
                             {task.answered && (
                                 <>
@@ -2348,7 +2352,7 @@ export default function InteractivePlayPage() {
                                                 name="userSolution"
                                                 id="userSolution"
                                             />
-                                            {!isTyping && !chatLoading && !isProcessingChat && (
+                                            {!isTyping && !loading && !isProcessingChat && (
                                                 <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>
                                                     {isEmptyString(chatTextValue) && (<button
                                                         className={`btnOption darkgreen`}
@@ -2390,7 +2394,7 @@ export default function InteractivePlayPage() {
                                 </>
                             )}
                             
-                            {chatLoading && (
+                            {loading && (
                                 <StatusIndicator text={textLoading} />
                             )}
                             
@@ -2445,6 +2449,7 @@ export default function InteractivePlayPage() {
                         </div>
                     </div>
                 )}
+                </>)}
             </main>
         </>
     );

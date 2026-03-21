@@ -349,7 +349,7 @@ export default function TasksPage() {
             setMsgDeleteTaskVisible(false);
 
             if (!loading)
-                setTextLoading("Trwa usuwanie zadania...");
+                setTextLoading("Trwa Usuwanie Zadania...");
 
             setLoading(true);
             if (taskId) {
