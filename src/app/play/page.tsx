@@ -2051,6 +2051,8 @@ export default function PlayPage() {
 
                                         setSolutionGuide(newSolutionGuide);
                                     }
+
+                                    setLoading(false);
                                 }}>
                                     <div style={{
                                         display: "flex",
