@@ -18,7 +18,8 @@ export default function ExamplePage() {
     width: "100%",
     boxSizing: "border-box",
   }}>
-{`Na podstawie danych firmy Hurtownia TRENCZ sp. z o.o., wykonaj audyt księgowy oraz zaproponuj optymalizację procesów w zakresie ewidencji i rozliczenia niedoborów zawinionych. Analizuj zgodność operacji z planem kont i przepisami ustawy o rachunkowości oraz z zasadami rozliczania niedoborów w cenie zakupu, cenie sprzedaży i marży. Wskaż błędy w księgowaniu i niedobory oraz podaj poprawne księgowania.
+{`Chciałbym porozmawiać z tobą w ogóle o nowym zadaniu.
+Na podstawie danych firmy Hurtownia ŻABA sp. z o.o., wykonaj audyt księgowy oraz zaproponuj optymalizację procesów w zakresie ewidencji i rozliczenia niedoborów zawinionych. Analizuj zgodność operacji z planem kont i przepisami ustawy o rachunkowości oraz z zasadami rozliczania niedoborów w cenie zakupu, cenie sprzedaży i marży. Wskaż błędy w księgowaniu i niedobory oraz podaj poprawne księgowania.
 
 Salda Początkowe Wybranych Kont
 Materiały (310) – 20 000 zł
