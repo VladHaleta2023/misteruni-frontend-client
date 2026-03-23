@@ -317,27 +317,6 @@ export default function TasksPage() {
                     <Text size={28} color="white" />
                 </div>
             )}
-            <div className="menu-icon" title="Play" style={{
-                marginLeft: "auto",
-                backgroundColor: "darkgreen",
-                padding: "8px 24px" }}
-                onClick={async (e) => {
-                    e.stopPropagation();
-
-                    if (!subjectId || !sectionId || !topicId) return;
-
-                    localStorage.removeItem("taskId");
-                    localStorage.removeItem("answerText");
-
-                    if (sectionType == "Stories") {
-                        router.push("/interactive-play");
-                    }
-                    else {
-                        router.push("/play");
-                    }
-                }}>
-                <Play size={28} color="white" />
-            </div>
         </div>
       </Header>
 

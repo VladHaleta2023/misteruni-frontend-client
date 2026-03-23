@@ -196,11 +196,7 @@ export default function SubtopicsPage() {
             <ListCheck size={28} color="white" />
           </div>
 
-          <div className="menu-icon" title="Play" style={{
-            marginLeft: "auto",
-            backgroundColor: "darkgreen",
-            padding: "8px 24px"
-          }}
+          <div className="menu-icon" title="Play" style={{ marginLeft: "auto" }}
             onClick={async (e) => {
                 e.stopPropagation();
 

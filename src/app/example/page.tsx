@@ -19,7 +19,7 @@ export default function ExamplePage() {
     boxSizing: "border-box",
   }}>
 {`Chciałbym porozmawiać z tobą w ogóle o nowym zadaniu.
-Na podstawie danych firmy Hurtownia ŻABA sp. z o.o., wykonaj audyt księgowy oraz zaproponuj optymalizację procesów w zakresie ewidencji i rozliczenia niedoborów zawinionych. Analizuj zgodność operacji z planem kont i przepisami ustawy o rachunkowości oraz z zasadami rozliczania niedoborów w cenie zakupu, cenie sprzedaży i marży. Wskaż błędy w księgowaniu i niedobory oraz podaj poprawne księgowania.
+Na podstawie danych firmy Hurtownia ŻABA sp. z o.o., mamy następujące dane:
 
 Salda Początkowe Wybranych Kont
 Materiały (310) – 20 000 zł
@@ -89,7 +89,7 @@ Ma 234 – Pozostałe rozrachunki z pracownikami
 Wn 642 – Rozliczenia międzyokresowe kosztów zakupu
 Ma 761 – Pozostałe koszty operacyjne
 
-Wykonaj audyt księgowy wszystkich operacji?`}
+Wykonaj analizę błędów dekretacji księgowej wszystkich operacji?`}
         </pre>
       </main>
     </>
