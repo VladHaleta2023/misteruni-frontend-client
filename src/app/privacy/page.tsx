@@ -11,6 +11,7 @@ export default function PrivacyPage() {
     <>
       <Header />
       <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "0px", minHeight: "100dvh", height: "100dvh" }}>
+        <br />
         <div>Polityka prywatności</div>
       </main>
     </>
