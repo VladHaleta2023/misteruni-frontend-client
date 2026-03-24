@@ -146,10 +146,11 @@ export default function SubjectPage() {
       const response = await api.post<any>("/auth/logout");
 
       if (response.data?.statusCode === 200) {
-        localStorage.removeItem("weekOffset");
-        localStorage.removeItem("subjectId");
-        localStorage.removeItem("subjectType");
-        localStorage.removeItem("accessToken");
+        localStorage.clear();
+        
+        if ((window as any).logoutFromApp) {
+          (window as any).logoutFromApp();
+        }
 
         setTimeout(() => {
           router.push("/");
