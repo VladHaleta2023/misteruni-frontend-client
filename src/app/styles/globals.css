@@ -54,6 +54,16 @@ img.logo {
   width: 250px;
 }
 
+.custom-link {
+    color: #555555;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.custom-link:hover {
+    color: #000000;
+}
+
 @media (max-width: 768px) {
   main {
     border: none;

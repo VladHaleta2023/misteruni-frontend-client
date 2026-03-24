@@ -71,7 +71,7 @@ export default function RegisterPage() {
 
   return (
   <>
-    <div className="form-container" style={{ maxWidth: "600px", padding: "16px 24px" }}>
+    <div className="form-container" style={{ maxWidth: "600px", padding: "0px 24px" }}>
         <div className="options-container">
         <label htmlFor="email" className="label">Email:</label>
         <input

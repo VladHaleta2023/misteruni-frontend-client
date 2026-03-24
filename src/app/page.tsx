@@ -4,7 +4,7 @@ import "@/app/styles/table.css";
 import "@/app/styles/components.css";
 import "@/app/styles/globals.css";
 import "@/app/styles/play.css";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import LoginPage from "./components/login";
 import RegisterPage from "./components/register";
 
@@ -17,9 +17,16 @@ export default function MainPage() {
 
   return (
     <>
-      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "0px", minHeight: "100dvh", height: "100dvh" }}>
+      <main style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: "0px", minHeight: "100dvh", height: "100dvh" }}>
         <img className="logo" src="logo.png" alt="logo" />
-        <div style={{ display: "flex", justifyContent: "flex-end", width: "100%", padding: "16px 24px", paddingBottom: "0px" }}>
+        <div style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          width: "100%",
+          padding: "0px 24px",
+          maxWidth: "600px",
+          margin: "0 auto"
+        }}>
           <button
             className="btnOption"
             style={{
@@ -38,6 +45,18 @@ export default function MainPage() {
           ? <LoginPage /> 
           : <RegisterPage />
         }
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          padding: "16px 24px",
+          fontSize: "16px",
+          maxWidth: "600px",
+          margin: "0 auto"
+        }}>
+          <a href="/privacy" target="_blank" className="custom-link">- Polityka prywatności</a>
+          <a href="/terms" target="_blank" className="custom-link">- Regulamin</a>
+        </div>
       </main>
     </>
   );
