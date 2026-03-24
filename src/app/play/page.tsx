@@ -757,6 +757,8 @@ export default function PlayPage() {
         if (controller) controllersRef.current.push(controller);
         const activeSignal = signal ?? controller?.signal;
 
+        const style = localStorage.getItem('style') === 'true' ? true : false;
+
         try {
             let changed = "true";
             let attempt = 0;
@@ -768,7 +770,7 @@ export default function PlayPage() {
 
                 const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/chat-generate`,
-                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption },
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption, style },
                     { signal: activeSignal } as any
                 );
 

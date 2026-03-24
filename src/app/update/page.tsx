@@ -21,6 +21,7 @@ type Subject = {
   id: number;
   name: string;
   minDetailLevel: string;
+  style: boolean
 }
 
 type OptionType = {
@@ -45,6 +46,8 @@ export default function UpdatePage() {
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+
+  const [style, setStyle] = useState(false);
 
   const subjectOptions = useMemo<OptionType[]>(() => 
     subjects.map(subject => ({
@@ -117,11 +120,14 @@ export default function UpdatePage() {
           const firstSubject = subjectsData[0];
           setSelectedSubjectId(firstSubject.id);
           setDetailLevel(firstSubject.minDetailLevel as SubjectDetailLevel);
+          setStyle(firstSubject.style);
         } else {
           setSelectedSubjectId(null);
           setDetailLevel(SubjectDetailLevel.MANDATORY);
+          setStyle(false);
         }
 
+        setStyle(false);
         setDailyStudyMinutes(60);
         setThreshold(50);
       }
@@ -154,8 +160,10 @@ export default function UpdatePage() {
           id: subj.id,
           name: subj.name,
           minDetailLevel: subj.minDetailLevel,
+          style: subj.style
         }]);
 
+        setStyle(response.data.subject.style ?? false);
         setThreshold(response.data.subject.threshold ?? 50);
         setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
         setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
@@ -208,7 +216,8 @@ export default function UpdatePage() {
       const response = await api.put<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
-        dailyStudyMinutes
+        dailyStudyMinutes,
+        style
       });
 
       setLoading(false);
@@ -254,7 +263,8 @@ export default function UpdatePage() {
       const response = await api.post<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
-        dailyStudyMinutes
+        dailyStudyMinutes,
+        style
       });
 
       setLoading(false);
@@ -388,6 +398,16 @@ export default function UpdatePage() {
                 isSearchable={false}
                 isClearable={false}
               />
+            </div>
+            <div className="options-container" style={{ marginTop: "12px", display: "flex", alignItems: "center" }}>
+              <input
+                id="style"
+                type="checkbox"
+                checked={style}
+                onChange={() => setStyle(!style)}
+                style={{ accentColor: "#6a1b9a", width: "24px", height: "24px", marginRight: "4px" }}
+              />
+              <label htmlFor="style" className="label">Coś:</label>
             </div>
             <div style={{ display: "flex", marginTop: "24px" }}>
               <button
