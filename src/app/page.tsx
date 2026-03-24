@@ -57,6 +57,13 @@ export default function MainPage() {
           <a href="/privacy" target="_blank" className="custom-link">- Polityka prywatności</a>
           <a href="/terms" target="_blank" className="custom-link">- Regulamin</a>
         </div>
+        <h1 className="visually-hidden">MaturaGo</h1>
+        <p className="visually-hidden">
+          Witaj w aplikacji MaturaGo! Nasza platforma pomaga w przygotowaniu do matury.
+        </p>
+        <p className="visually-hidden">
+          Kontakt: <a href="mailto:vladhaleta2023@gmail.com">vladhaleta2023@gmail.com</a>
+        </p>
       </main>
     </>
   );

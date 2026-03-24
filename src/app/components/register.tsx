@@ -146,7 +146,7 @@ export default function RegisterPage() {
         </div>
         </div>
 
-        <div className="options-container" style={{ marginTop: "32px", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div className="options-container" style={{ marginTop: "16px", display: "flex", justifyContent: "center", alignItems: "center" }}>
         <button
             className="btnOption"
             style={{ width: "180px" }}

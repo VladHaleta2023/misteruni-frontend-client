@@ -96,7 +96,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="options-container" style={{ marginTop: "32px", display: "flex", justifyContent: "center" }}>
+        <div className="options-container" style={{ marginTop: "16px", display: "flex", justifyContent: "center" }}>
           <button
             className="btnOption"
             onClick={handleLogin}
