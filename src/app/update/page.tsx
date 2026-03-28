@@ -323,12 +323,10 @@ export default function UpdatePage() {
                   const selectedSubject = subjects.find(s => s.id === newSubjectId);
 
                   if (subjectId === null && selectedSubject) {
-                    // создание нового предмета — дефолт minDetailLevel
                     setDetailLevel(selectedSubject.minDetailLevel as SubjectDetailLevel);
                     setDailyStudyMinutes(60);
                     setThreshold(50);
                   }
-                  // редактирование — оставляем detailLevel с базы
                 }}
                 classNamePrefix="react-select"
                 options={subjectOptions}
@@ -398,16 +396,6 @@ export default function UpdatePage() {
                 isSearchable={false}
                 isClearable={false}
               />
-            </div>
-            <div className="options-container" style={{ marginTop: "12px", display: "flex", alignItems: "center" }}>
-              <input
-                id="style"
-                type="checkbox"
-                checked={style}
-                onChange={() => setStyle(!style)}
-                style={{ accentColor: "#6a1b9a", width: "24px", height: "24px", marginRight: "4px" }}
-              />
-              <label htmlFor="style" className="label">Coś:</label>
             </div>
             <div style={{ display: "flex", marginTop: "24px" }}>
               <button
