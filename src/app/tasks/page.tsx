@@ -451,7 +451,7 @@ export default function TasksPage() {
                         </>) : (
                             <div>
                                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                                    <span>Brak ukończonych zadań</span>
+                                    <span>Brak zadań</span>
                                 </div>
                             </div>
                         )}
