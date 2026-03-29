@@ -444,14 +444,6 @@ export default function TasksPage() {
                             <div>
                                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                                     <span>Naciśnij</span>
-                                    <Play strokeWidth={4} />
-                                </div>
-                                <span>aby zgenerować nowe nagranie</span>
-                            </div>
-                            <br />
-                            <div>
-                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                                    <span>Naciśnij</span>
                                     <Text strokeWidth={4} />
                                 </div>
                                 <span>aby ćwiczyć słowy tematyczne</span>
@@ -459,10 +451,8 @@ export default function TasksPage() {
                         </>) : (
                             <div>
                                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                                    <span>Naciśnij</span>
-                                    <Play strokeWidth={4} />
+                                    <span>Brak ukończonych zadań</span>
                                 </div>
-                                <span>aby zgenerować nowe zadanie</span>
                             </div>
                         )}
                     </div>
