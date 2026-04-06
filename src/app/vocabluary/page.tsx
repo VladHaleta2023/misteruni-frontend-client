@@ -66,12 +66,29 @@ export default function StoriesPage() {
   };
 
   const adjustTextareaRows = (textarea: HTMLTextAreaElement) => {
-    textarea.rows = 2;
-    const fontSize = 20;
-    const lineHeight = fontSize * 1.4;
-    const lines = Math.ceil(textarea.scrollHeight / lineHeight);
-    textarea.rows = lines;
+    const main = document.querySelector("main");
+    const scrollTop = main?.scrollTop ?? window.scrollY;
+
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+
+    if (main) main.scrollTop = scrollTop;
+    else window.scrollTo(0, scrollTop);
   };
+
+  useEffect(() => {
+    if (words.length > 0 && textareaRefs.current.length === words.length) {
+      const timeoutId = setTimeout(() => {
+        textareaRefs.current.forEach((textarea) => {
+          if (textarea) {
+            adjustTextareaRows(textarea);
+          }
+        });
+      }, 0);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [words]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -479,7 +496,9 @@ export default function StoriesPage() {
                         }}
                       >
                         <div style={{
-                          marginRight: "8px"
+                          marginRight: "8px",
+                          display: "flex",
+                          alignItems: "center"
                         }}>{word.text}</div>
                       </div>
                       <div className="element-word" style={{ width: "50%" }}>
@@ -493,10 +512,10 @@ export default function StoriesPage() {
                           }
                           className="answer-block"
                           style={{
-                            margin: "0px"
+                            margin: "0px",
                           }}
+                          rows={1}
                           value={getValueById(word.id)}
-                          rows={2}
                           name={`userSolution-${word.id}`}
                           id={`userSolution-${word.id}`}
                           disabled={verificationCompleted && getValueById(word.id).trim() !== "" ? true : false}
@@ -507,7 +526,12 @@ export default function StoriesPage() {
                           <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
                         </div>
                       </div>
-                      <div className="element-word" style={{ maxWidth: "38px", minWidth: "38px" }}>
+                      <div className="element-word" style={{
+                        maxWidth: "38px",
+                        minWidth: "38px",
+                        display: "flex",
+                        alignItems: "center"
+                      }}>
                         {verificationCompleted && getValueById(word.id).trim() !== "" ? (
                           word.finished ? (
                             <Check size={28} strokeWidth={3} style={{ color: "#556b4f" }} />

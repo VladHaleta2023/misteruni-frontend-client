@@ -6,10 +6,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "@/app/styles/table.css";
 import "@/app/styles/play.css";
+import "@/app/styles/components.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
-import axios from "axios";
 import React from "react";
 import Message from "../components/message";
 import { Status } from "../scripts/task";
@@ -42,6 +42,8 @@ export default function StoriesPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
+  const [textLoading, setTextLoading] = useState<string>("");
+  const [wordText, setWordText] = useState<string>("");
 
   const [words, setWords] = useState<Word[]>([]);
   const [wordId, setWordId] = useState<number | null>(null);
@@ -96,16 +98,26 @@ export default function StoriesPage() {
   const handleDeleteWord = useCallback(async () => {
     if (!wordId || !subjectId) return;
 
+    setLoading(true);
+    setTextLoading("Usuwanie słowa lub wyrazu do słownika");
+
+    const controller = new AbortController();
+    controllersRef.current.push(controller);
+    const signal = controller.signal;
+
     try {
-        const response = await api.delete<any>(`/subjects/${subjectId}/words/${wordId}`);
+        const response = await api.delete<any>(`/subjects/${subjectId}/words/${wordId}`, { signal } as any);
 
         if (response.data?.statusCode === 200) {
-            showAlert(response.data.statusCode, response.data.message);
+          showAlert(response.data.statusCode, response.data.message);
         } else {
-            showAlert(response.data?.statusCode ?? 500, response.data?.message ?? "Błąd serwera");
+          showAlert(response.data?.statusCode ?? 500, response.data?.message ?? "Błąd serwera");
         }
     } catch (error) {
-        handleApiError(error);
+      handleApiError(error);
+    }
+    finally {
+      setTextLoading("");
     }
   }, [subjectId, wordId]);
 
@@ -122,6 +134,39 @@ export default function StoriesPage() {
     localStorage.removeItem("wordIds");
     router.back();
   }
+
+  const handleAddWord = useCallback(async () => {
+      if (!subjectId) return;
+
+      setLoading(true);
+      setTextLoading("Dodawanie słowa lub wyrazu do słownika");
+
+      const controller = new AbortController();
+      controllersRef.current.push(controller);
+      const signal = controller.signal;
+
+      try {
+        const response = await api.post<any>(
+          `/subjects/${subjectId}/words/create`,
+          {
+            text: wordText
+          },
+          { signal } as any
+        );
+
+        if (response.data?.statusCode === 200) {
+          showAlert(response.data.statusCode, response.data.message);
+        } else {
+          showAlert(response.data?.statusCode ?? 500, response.data?.message ?? "Błąd serwera");
+        }
+      } catch (error: unknown) {
+        handleApiError(error);
+      }
+      finally {
+        setTextLoading("");
+        setWordText("");
+      }
+    }, [subjectId, wordText]);
 
   function handleApiError(error: unknown) {
     const err = error as any;
@@ -231,10 +276,10 @@ export default function StoriesPage() {
             setMsgDeleteVisible(false);
 
             try {
-                await handleDeleteWord();
-                await fetchWords();
+              await handleDeleteWord();
+              await fetchWords();
             } catch (error) {
-                console.error(error);
+              console.error(error);
             }
         }}
         onClose={() => setMsgDeleteVisible(false)}
@@ -244,7 +289,7 @@ export default function StoriesPage() {
       <main>
         {loading ? (
           <div className="spinner-wrapper">
-              <Spinner noText />
+              <Spinner text={textLoading} />
           </div>
         ) : (
         <>
@@ -267,6 +312,32 @@ export default function StoriesPage() {
                         </div>
                     </div>
                 </div>
+            </div>
+            <div style={{
+              display: "flex",
+              gap: "6px",
+              marginBottom: "12px"
+            }}>
+              <input
+                type="text"
+                id="threshold"
+                name="text-container"
+                value={wordText}
+                onChange={(e) => setWordText(e.target.value)}
+                className="input-container"
+                style={{ fontSize: "18px", padding: "6px 12px", borderRadius: "6px" }}
+                placeholder="Wpisz nowy wyraz..."
+              />
+              <button className="btnOption" onClick={async () => {
+                try {
+                  await handleAddWord();
+                  await fetchWords();
+                } catch (error) {
+                  console.error(error);
+                }
+              }}>
+                <Plus size={24} />
+              </button>
             </div>
             <div className="table" style={{ border: "none" }}>
               {words.map((word) => {
