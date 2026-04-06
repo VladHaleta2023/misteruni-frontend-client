@@ -2134,7 +2134,7 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                {task.answered ? (
+                                {!task.answered ? (
                                     <>
                                         <div className="text-title">Rozwiązanie:</div>
                                         <textarea
