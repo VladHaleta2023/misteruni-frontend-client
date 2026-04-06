@@ -1514,20 +1514,18 @@ export default function InteractivePlayPage() {
                 const currentTopicId = topicId;
                 const currentUserOptionIndex = userOptionIndex;
 
-                // 1. Сохраняем ответ пользователя
                 await handleTaskUserSolutionSave(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
-                    "",
+                    task.userSolution,
                     currentUserOptionIndex ?? 0,
                     signal
                 );
 
                 if (signal.aborted) return;
 
-                // 2. Немедленно обновляем UI
                 setTask(prev => ({
                     ...prev,
                     explanation: prev.explanation + `\nSłownictwo: ${prev.percentWords}%`,
@@ -1535,7 +1533,6 @@ export default function InteractivePlayPage() {
                     userOptionIndex: currentUserOptionIndex ?? 0
                 }));
 
-                // 3. Получаем обновленную задачу
                 const newTask = await fetchPendingTask(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1558,7 +1555,6 @@ export default function InteractivePlayPage() {
                     signal
                 );
 
-                // 5. Получаем полную обновленную задачу
                 const finalTask = await fetchTaskById(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1588,7 +1584,7 @@ export default function InteractivePlayPage() {
                 controllerRef.current = null;
             }
         }
-    }, [task.id, task.answered, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
+    }, [task.id, task.answered, task.userSolution, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
         if (isTyping || isProcessingChat) return;

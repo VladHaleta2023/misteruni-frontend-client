@@ -1681,7 +1681,7 @@ export default function PlayPage() {
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
-                    "",
+                    task.userSolution,
                     currentUserOptionIndex ?? 0,
                     signal
                 );
@@ -1742,7 +1742,7 @@ export default function PlayPage() {
                 controllerRef.current = null;
             }
         }
-    }, [task.id, task.answered, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
+    }, [task.id, task.answered, task.userSolution, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     useEffect(() => {
         if (task?.options.length > 0 && task?.answered === false && task?.finished === false) {
