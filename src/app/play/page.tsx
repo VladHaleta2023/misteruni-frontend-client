@@ -30,11 +30,13 @@ interface Subtopic {
 export default function PlayPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [poradnikLoading, setPoradnikLoading] = useState(true);
     const [spinnerLoading, setSpinnerLoading] = useState(false);
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
     const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mainRef = useRef<HTMLDivElement>(null);
 
@@ -307,41 +309,44 @@ export default function PlayPage() {
         });
     }, []);
 
-    const simulateExplanationTyping = useCallback((explanation: string) => {
-        if (explanationIntervalRef.current) {
-            clearInterval(explanationIntervalRef.current);
-            explanationIntervalRef.current = null;
-        }
-
-        setIsExplanationTyping(true);
-        setTypedExplanation("");
-        
-        let currentIndex = 0;
-        
-        const CHARS_PER_INTERVAL = 2;
-        const TYPING_INTERVAL_MS = 8;
-        
-        explanationIntervalRef.current = setInterval(() => {
-            if (currentIndex >= explanation.length) {
-                if (explanationIntervalRef.current) {
-                    clearInterval(explanationIntervalRef.current);
-                    explanationIntervalRef.current = null;
-                }
-                setIsExplanationTyping(false);
-                
-                shouldScrollRef.current = true;
-                scrollToBottom(true);
-                return;
+    const simulateExplanationTyping = useCallback((explanation: string): Promise<void> => {
+        return new Promise((resolve) => {
+            if (explanationIntervalRef.current) {
+                clearInterval(explanationIntervalRef.current);
+                explanationIntervalRef.current = null;
             }
 
-            const endIndex = Math.min(currentIndex + CHARS_PER_INTERVAL, explanation.length);
-            setTypedExplanation(explanation.substring(0, endIndex));
-            currentIndex = endIndex;
+            setIsExplanationTyping(true);
+            setTypedExplanation("");
             
-            if (shouldScrollRef.current && currentIndex % 30 === 0) {
-                scrollToBottom(true);
-            }
-        }, TYPING_INTERVAL_MS);
+            let currentIndex = 0;
+            
+            const CHARS_PER_INTERVAL = 2;
+            const TYPING_INTERVAL_MS = 8;
+            
+            explanationIntervalRef.current = setInterval(() => {
+                if (currentIndex >= explanation.length) {
+                    if (explanationIntervalRef.current) {
+                        clearInterval(explanationIntervalRef.current);
+                        explanationIntervalRef.current = null;
+                    }
+                    setIsExplanationTyping(false);
+                    
+                    shouldScrollRef.current = true;
+                    scrollToBottom(true);
+                    resolve();
+                    return;
+                }
+
+                const endIndex = Math.min(currentIndex + CHARS_PER_INTERVAL, explanation.length);
+                setTypedExplanation(explanation.substring(0, endIndex));
+                currentIndex = endIndex;
+                
+                if (shouldScrollRef.current && currentIndex % 30 === 0) {
+                    scrollToBottom(true);
+                }
+            }, TYPING_INTERVAL_MS);
+        });
     }, []);
 
     const scrollToBottom = useCallback((instant = false) => {
@@ -737,6 +742,7 @@ export default function PlayPage() {
         subjectId: number,
         sectionId: number,
         topicId: number,
+        taskId: number,
         text: string,
         solution: string,
         userSolution: string,
@@ -769,7 +775,7 @@ export default function PlayPage() {
                 if (activeSignal?.aborted) return { chat, userSolution, chatFinished };
 
                 const response = await api.post<any>(
-                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/chat-generate`,
+                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat-generate`,
                     { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption, style },
                     { signal: activeSignal } as any
                 );
@@ -905,6 +911,28 @@ export default function PlayPage() {
         }
     }, []);
 
+    const handleTaskFinishedTransaction = useCallback(async (
+        subjectId: number,
+        sectionId: number,
+        topicId: number,
+        id: number,
+        signal?: AbortSignal
+    ) => {
+        try {
+            const response = await api.put<any>(
+            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${id}/finished`, { signal } as any);
+
+            if (response.data?.statusCode !== 200) {
+                setLoading(false);
+                showAlert(400, "Nie udało się zakończyć zadanie");
+            }
+        }
+        catch (error: unknown) {
+            setLoading(false);
+            handleApiError(error);
+        }
+    }, []);
+
     function handleApiError(error: any) {
         const err = error as any;
     
@@ -921,7 +949,7 @@ export default function PlayPage() {
 
     const handleSolutionGuideGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, taskId: number, signal?: AbortSignal) => {
-            setLoading(true);
+            setPoradnikLoading(true);
             setTextGuideLoading("Generowanie AI: Poradnika Rozwiązania Zadania...");
 
             const controller = !signal ? new AbortController() : null;
@@ -960,7 +988,7 @@ export default function PlayPage() {
 
                 return { solutionGuide };
             } catch (error: unknown) {
-                setLoading(false);
+                setPoradnikLoading(false);
                 if ((error as DOMException)?.name === "AbortError") return { solutionGuide: "" };
                 handleApiError(error);
                 return { solutionGuide: "" };
@@ -979,7 +1007,7 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
-            setLoading(true);
+            setPoradnikLoading(true);
             setTextGuideLoading("Zapisywanie Poradnika Rozwiązania Zadania...");
 
             const taskSolutionGuideResponse = await api.put<any>(
@@ -995,7 +1023,7 @@ export default function PlayPage() {
             }
         }
         catch (error: unknown) {
-            setLoading(false);
+            setPoradnikLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -1013,7 +1041,58 @@ export default function PlayPage() {
             let newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
             if (!newTask || signal?.aborted) return;
 
-            if (newTask.answered && newTask.chatFinished && !newTask.finished) {
+            const isEmptyChat = isEmptyString(newTask.chat);
+
+            const shouldGenerateChat =
+                getLastMarker(newTask.chat) === "STUDENT_ANSWER" ||
+                getLastMarker(newTask.chat) === "STUDENT_QUESTION" ||
+                isEmptyChat;
+
+            if (shouldGenerateChat) {
+                const mode = getLastMarker(newTask.chat) === "STUDENT_ANSWER"
+                    ? ChatMode.STUDENT_ANSWER
+                    : getLastMarker(newTask.chat) === "STUDENT_QUESTION"
+                    ? ChatMode.STUDENT_QUESTION
+                    : newTask.mode;
+
+                const result = await handleChatGenerate(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    newTask.id,
+                    newTask.text,
+                    newTask.solution,
+                    newTask.userSolution,
+                    newTask.options,
+                    newTask.options[newTask.correctOptionIndex],
+                    newTask.options[newTask.userOptionIndex],
+                    newTask.chat,
+                    newTask.chatFinished,
+                    mode,
+                    getSubtopicTexts(newTask.subtopics),
+                    signal
+                );
+
+                if (signal?.aborted || !result) return;
+
+                const { chat, chatFinished, userSolution } = result;
+
+                let newChat = chat;
+                if (!isEmptyChat)
+                    newChat = newTask.chat + `\n${chat}`;
+
+                await handleUpdateChat(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    taskId,
+                    newChat,
+                    chatFinished,
+                    userSolution,
+                    mode,
+                    signal
+                );
+
                 const data = await handleProblemsGenerate(
                     subjectId,
                     sectionId,
@@ -1024,7 +1103,7 @@ export default function PlayPage() {
                     newTask.options ?? [],
                     newTask.options[newTask.correctOptionIndex] ?? "",
                     newTask.options[newTask.userOptionIndex] ?? "",
-                    newTask.userSolution ?? "",
+                    userSolution,
                     signal
                 );
 
@@ -1051,131 +1130,6 @@ export default function PlayPage() {
 
                 if (signal?.aborted) return;
 
-                newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
-
-                await handleUpdateChat(
-                    subjectId,
-                    sectionId,
-                    topicId,
-                    newTask.id,
-                    newTask.chat,
-                    newTask.chatFinished,
-                    newTask.userSolution,
-                    ChatMode.STUDENT_ANSWER,
-                    signal
-                );
-
-                return;
-            }
-
-            const isEmptyChat = isEmptyString(newTask.chat);
-
-            const shouldGenerateChat =
-                getLastMarker(newTask.chat) === "STUDENT_ANSWER" ||
-                getLastMarker(newTask.chat) === "STUDENT_QUESTION" ||
-                isEmptyChat;
-
-            if (shouldGenerateChat) {
-                const mode = getLastMarker(newTask.chat) === "STUDENT_ANSWER"
-                    ? ChatMode.STUDENT_ANSWER
-                    : getLastMarker(newTask.chat) === "STUDENT_QUESTION"
-                    ? ChatMode.STUDENT_QUESTION
-                    : newTask.mode;
-
-                const result = await handleChatGenerate(
-                    subjectId,
-                    sectionId,
-                    topicId,
-                    newTask.text,
-                    newTask.solution,
-                    newTask.userSolution,
-                    newTask.options,
-                    newTask.options[newTask.correctOptionIndex],
-                    newTask.options[newTask.userOptionIndex],
-                    newTask.chat,
-                    newTask.chatFinished,
-                    mode,
-                    getSubtopicTexts(newTask.subtopics),
-                    signal
-                );
-
-                if (signal?.aborted || !result) return;
-
-                const { chat, chatFinished, userSolution } = result;
-
-                if (chatFinished) {
-                    newTask.chatFinished = chatFinished;
-
-                    const data = await handleProblemsGenerate(
-                        subjectId,
-                        sectionId,
-                        topicId,
-                        newTask.text ?? "",
-                        newTask.subtopics ?? [],
-                        newTask.solution ?? "",
-                        newTask.options ?? [],
-                        newTask.options[newTask.correctOptionIndex] ?? "",
-                        newTask.options[newTask.userOptionIndex] ?? "",
-                        newTask.userSolution ?? "",
-                        signal
-                    );
-
-                    if (!data || signal?.aborted) return;
-
-                    const outputSubtopics = subtractPercents(
-                        newTask.subtopics ?? [],
-                        newTask.correctOptionIndex ?? 0,
-                        newTask.userOptionIndex ?? 0,
-                        data.outputSubtopics.map(([name, percent]) => ({
-                            name,
-                            percent: Number(percent)
-                        }))
-                    );
-
-                    await handleSaveSubtopicsProgressTransaction(
-                        subjectId,
-                        sectionId,
-                        topicId,
-                        taskId,
-                        outputSubtopics,
-                        data.explanation ?? ""
-                    );
-
-                    if (signal?.aborted) return;
-
-                    newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
-
-                    await handleUpdateChat(
-                        subjectId,
-                        sectionId,
-                        topicId,
-                        newTask.id,
-                        newTask.chat,
-                        chatFinished,
-                        newTask.userSolution,
-                        ChatMode.STUDENT_ANSWER,
-                        signal
-                    );
-
-                    return;
-                }
-
-                let newChat = chat;
-                if (!isEmptyChat)
-                    newChat = newTask.chat + `\n${chat}`;
-
-                await handleUpdateChat(
-                    subjectId,
-                    sectionId,
-                    topicId,
-                    taskId,
-                    newChat,
-                    chatFinished,
-                    userSolution,
-                    mode,
-                    signal
-                );
-
                 setLoading(false);
                 setIsProcessingChat(false);
                 
@@ -1184,6 +1138,25 @@ export default function PlayPage() {
                 
                 if (newRobotBlocks.length > 0)
                     simulateTypingForRobotBlocks(newRobotBlocks);
+
+                newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
+                setTask(prev => ({
+                    ...prev,
+                    explanation: newTask.explanation,
+                    percent: newTask.percent,
+                    subtopics: newTask.subtopics
+                }));
+            }
+            
+            if (newTask.chatFinished) {
+                await handleTaskFinishedTransaction(subjectId, sectionId, topicId, newTask.id);
+
+                if (signal?.aborted) return;
+        
+                newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
+                setTask(newTask);
+
+                return;
             }
         } catch (error) {
             if ((error as DOMException)?.name === "AbortError") return;
@@ -1346,7 +1319,7 @@ export default function PlayPage() {
                 
                 if (finalTask.explanation) {
                     setLoading(false);
-                    simulateExplanationTyping(finalTask.explanation);
+                    await simulateExplanationTyping(finalTask.explanation);
                 }
             }
         }
@@ -1357,6 +1330,7 @@ export default function PlayPage() {
             handleApiError(error);
         }
         finally {
+            setLoading(false);
             setIsProcessingChat(false);
             setChatTextValue("");
         }
@@ -1523,10 +1497,33 @@ export default function PlayPage() {
         }
     };
 
+    const adjustTextareaRows = () => {
+        if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            const main = document.querySelector("main");
+            const scrollTop = main?.scrollTop ?? window.scrollY;
+
+            textarea.style.height = "auto";
+            textarea.style.height = textarea.scrollHeight + "px";
+
+            if (main) main.scrollTop = scrollTop;
+            else window.scrollTo(0, scrollTop);
+        }
+    };
+
     const handleChatInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
         const target = e.target as HTMLTextAreaElement;
         setChatTextValue(target.value);
         adjustChatTextareaRows();
+    };
+
+    const handleUserSolutionInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+        const target = e.target as HTMLTextAreaElement;
+        setTask(prev => ({
+            ...prev,
+            userSolution: target.value
+        }));
+        adjustTextareaRows();
     };
 
     const handleBackClick = () => {
@@ -1710,7 +1707,7 @@ export default function PlayPage() {
                 }
 
                 setLoading(true);
-                setTextLoading("Przetwarzanie czatu AI...");
+                setTextLoading("Przetwarzanie Czatu AI...");
 
                 await loadChat(
                     currentSubjectId ?? 0,
@@ -2054,7 +2051,7 @@ export default function PlayPage() {
                                         setSolutionGuide(newSolutionGuide);
                                     }
 
-                                    setLoading(false);
+                                    setPoradnikLoading(false);
                                 }}>
                                     <div style={{
                                         display: "flex",
@@ -2137,6 +2134,27 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
+                                {task.answered ? (
+                                    <>
+                                        <div className="text-title">Rozwiązanie:</div>
+                                        <textarea
+                                            ref={textareaRef}
+                                            placeholder={`Napisz rozwiązanie...`}
+                                            className="answer-block"
+                                            style={{ marginTop: "0px" }}
+                                            value={task.userSolution}
+                                            onInput={handleUserSolutionInput}
+                                            rows={1}
+                                            name="userSolution"
+                                            id="userSolution"
+                                        />
+                                    </>
+                                ) : !isEmptyString(task.userSolution) && (<>
+                                    <div className="text-title">Rozwiązanie:</div>
+                                    <div className="answer-block readonly" style={{ marginTop: "8px" }}>
+                                        <FormatText content={task.userSolution} />
+                                    </div>
+                                </>)}
                                 {!task.answered && !isSubmittingAnswer && (
                                     <div className="options" style={{
                                         display: "flex",
@@ -2197,17 +2215,21 @@ export default function PlayPage() {
                                                 id="userSolution"
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (
-                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>
+                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>                            
                                                     {isEmptyString(chatTextValue) && (<button
-                                                        className={`btnOption darkgreen`}
-                                                        style={{ height: "44px" }}
+                                                        className={`btnOption ${task.status == "completed" ? "completed" : "progress"}`}
+                                                        style={{
+                                                            height: "44px",
+                                                            fontSize: "16px",
+                                                            border: "1px solid black"
+                                                        }}
                                                         title={`Zakończ`}
                                                         onClick={async (e) => {
                                                             e.preventDefault();
                                                             setMsgChatVisible(true);
                                                         }}
                                                     >
-                                                        Zakończ
+                                                        {`Zakończ ${Math.round(task.percent)}%`}
                                                     </button>)}
                                                     <div style={{ display: "flex", gap: "6px", cursor: "pointer", marginLeft: "auto" }}>
                                                         <button
