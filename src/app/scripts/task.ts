@@ -46,6 +46,7 @@ export interface ITask {
     userOptionIndex: number;
     correctOptionIndex: number;
     userSolution: string;
+    originalSolution: string;
     words: IWord[];
     literatures: string[];
     wordsCompleted: boolean;

@@ -32,6 +32,9 @@ function removeDuplicatesFromAISolution(blocks: ChatBlock[]): ChatBlock[] {
           }
         }
         
+        uniqueContent = uniqueContent.replace(/^[\s,;:.!?\-–—]+/, '');
+        uniqueContent = uniqueContent.replace(/[\s,;:.!?\-–—]+$/, '');
+        
         if (uniqueContent) {
           result.push({
             ...block,
@@ -46,6 +49,10 @@ function removeDuplicatesFromAISolution(blocks: ChatBlock[]): ChatBlock[] {
   }
   
   return result;
+}
+
+function removeAllAISolutionBlocks(blocks: ChatBlock[]): ChatBlock[] {
+  return blocks.filter(block => block.type !== 'AI_USER_SOLUTION');
 }
 
 export function parseChat(chatText: string): ParseChatResult {
@@ -84,7 +91,7 @@ export function parseChat(chatText: string): ParseChatResult {
     saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
   }
   
-  return removeDuplicatesFromAISolution(blocks);
+  return removeAllAISolutionBlocks(blocks);
 }
 
 function saveBlock(type: MarkerType, content: string, blocks: ChatBlock[]) {

@@ -77,6 +77,7 @@ export default function PlayPage() {
             userOptionIndex: 0,
             correctOptionIndex: 0,
             userSolution: "",
+            originalSolution: "",
             audioFiles: [],
             words: [],
             literatures: [],
@@ -115,104 +116,108 @@ export default function PlayPage() {
         return allRobotBlocks.slice(existingRobotBlocks.length);
     }, []);
 
-    const simulateTypingForRobotBlocks = useCallback((newRobotBlocks: ChatBlock[]) => {
-        if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-        }
-
-        setIsTyping(true);
-        setLoading(false);
-        setIsProcessingChat(false);
-        lastTypedBlockIndexRef.current = -1;
-        setTempTypingBlocks([]);
-
-        let currentBlockIndex = 0;
-        let currentCharIndex = 0;
-        const blocksToType = [...newRobotBlocks];
-        
-        const CHARS_PER_INTERVAL = 2;
-        const TYPING_INTERVAL_MS = 8;
-
-        shouldScrollRef.current = true;
-        
-        requestAnimationFrame(() => {
-            scrollToBottom(true);
-        });
-
-        typingIntervalRef.current = setInterval(() => {
-            if (currentBlockIndex >= blocksToType.length) {
-                if (typingIntervalRef.current) {
-                    clearInterval(typingIntervalRef.current);
-                    typingIntervalRef.current = null;
-                }
-                
-                setChatBlocks(prev => {
-                    const updatedBlocks = [...prev];
-                    
-                    let lastHumanIndex = -1;
-                    for (let i = updatedBlocks.length - 1; i >= 0; i--) {
-                        if (updatedBlocks[i].isUser) {
-                            lastHumanIndex = i;
-                            break;
-                        }
-                    }
-                    
-                    if (lastHumanIndex >= 0) {
-                        updatedBlocks.splice(lastHumanIndex + 1, 0, ...blocksToType);
-                    } else {
-                        updatedBlocks.push(...blocksToType);
-                    }
-                    
-                    return updatedBlocks;
-                });
-                
-                setTempTypingBlocks([]);
-                setIsTyping(false);
-                
-                shouldScrollRef.current = true;
-                scrollToBottom(true);
-                return;
+    const simulateTypingForRobotBlocks = useCallback((newRobotBlocks: ChatBlock[]): Promise<void> => {
+        return new Promise((resolve) => {
+            if (typingIntervalRef.current) {
+                clearInterval(typingIntervalRef.current);
+                typingIntervalRef.current = null;
             }
 
-            const currentBlock = blocksToType[currentBlockIndex];
+            setIsTyping(true);
+            setLoading(false);
+            setIsProcessingChat(false);
+            lastTypedBlockIndexRef.current = -1;
+            setTempTypingBlocks([]);
+
+            let currentBlockIndex = 0;
+            let currentCharIndex = 0;
+            const blocksToType = [...newRobotBlocks];
             
-            if (currentCharIndex === 0 && currentBlockIndex > lastTypedBlockIndexRef.current) {
-                lastTypedBlockIndexRef.current = currentBlockIndex;
-                setTempTypingBlocks(prev => [...prev, {
-                    ...currentBlock,
-                    content: ""
-                }]);
-            }
+            const CHARS_PER_INTERVAL = 2;
+            const TYPING_INTERVAL_MS = 8;
 
-            if (currentCharIndex < currentBlock.content.length) {
-                const endIndex = Math.min(
-                    currentCharIndex + CHARS_PER_INTERVAL, 
-                    currentBlock.content.length
-                );
+            shouldScrollRef.current = true;
+            
+            requestAnimationFrame(() => {
+                scrollToBottom(true);
+            });
+
+            typingIntervalRef.current = setInterval(() => {
+                if (currentBlockIndex >= blocksToType.length) {
+                    if (typingIntervalRef.current) {
+                        clearInterval(typingIntervalRef.current);
+                        typingIntervalRef.current = null;
+                    }
+                    
+                    setChatBlocks(prev => {
+                        const updatedBlocks = [...prev];
+                        
+                        let lastHumanIndex = -1;
+                        for (let i = updatedBlocks.length - 1; i >= 0; i--) {
+                            if (updatedBlocks[i].isUser) {
+                                lastHumanIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        if (lastHumanIndex >= 0) {
+                            updatedBlocks.splice(lastHumanIndex + 1, 0, ...blocksToType);
+                        } else {
+                            updatedBlocks.push(...blocksToType);
+                        }
+                        
+                        return updatedBlocks;
+                    });
+                    
+                    setTempTypingBlocks([]);
+                    setIsTyping(false);
+                    
+                    shouldScrollRef.current = true;
+                    scrollToBottom(true);
+                    
+                    resolve();
+                    return;
+                }
+
+                const currentBlock = blocksToType[currentBlockIndex];
                 
-                setTempTypingBlocks(prev => {
-                    const updated = [...prev];
-                    updated[currentBlockIndex] = {
-                        ...updated[currentBlockIndex],
-                        content: currentBlock.content.substring(0, endIndex)
-                    };
-                    return updated;
-                });
-                
-                currentCharIndex = endIndex;
-                
-                if (shouldScrollRef.current && currentCharIndex % 20 === 0) {
+                if (currentCharIndex === 0 && currentBlockIndex > lastTypedBlockIndexRef.current) {
+                    lastTypedBlockIndexRef.current = currentBlockIndex;
+                    setTempTypingBlocks(prev => [...prev, {
+                        ...currentBlock,
+                        content: ""
+                    }]);
+                }
+
+                if (currentCharIndex < currentBlock.content.length) {
+                    const endIndex = Math.min(
+                        currentCharIndex + CHARS_PER_INTERVAL, 
+                        currentBlock.content.length
+                    );
+                    
+                    setTempTypingBlocks(prev => {
+                        const updated = [...prev];
+                        updated[currentBlockIndex] = {
+                            ...updated[currentBlockIndex],
+                            content: currentBlock.content.substring(0, endIndex)
+                        };
+                        return updated;
+                    });
+                    
+                    currentCharIndex = endIndex;
+                    
+                    if (shouldScrollRef.current && currentCharIndex % 20 === 0) {
+                        scrollToBottom(true);
+                    }
+                } else {
+                    currentBlockIndex++;
+                    currentCharIndex = 0;
+                    
+                    shouldScrollRef.current = true;
                     scrollToBottom(true);
                 }
-            } else {
-                currentBlockIndex++;
-                currentCharIndex = 0;
-                
-                shouldScrollRef.current = true;
-                scrollToBottom(true);
-            }
-        }, TYPING_INTERVAL_MS);
+            }, TYPING_INTERVAL_MS);
+        });
     }, []);
 
     const simulateTaskTextTyping = useCallback((taskText: string) => {
@@ -1136,16 +1141,12 @@ export default function PlayPage() {
                 const newChatBlocks = parseChat(newChat);
                 const newRobotBlocks = getNewRobotBlocks(newChatBlocks, parseChat(newTask.chat));
                 
-                if (newRobotBlocks.length > 0)
-                    simulateTypingForRobotBlocks(newRobotBlocks);
+                if (newRobotBlocks.length > 0) {
+                    await simulateTypingForRobotBlocks(newRobotBlocks);
+                }
 
                 newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
-                setTask(prev => ({
-                    ...prev,
-                    explanation: newTask.explanation,
-                    percent: newTask.percent,
-                    subtopics: newTask.subtopics
-                }));
+                setTask(newTask);
             }
             
             if (newTask.chatFinished) {
@@ -1521,6 +1522,7 @@ export default function PlayPage() {
         const target = e.target as HTMLTextAreaElement;
         setTask(prev => ({
             ...prev,
+            originalSolution: target.value,
             userSolution: target.value
         }));
         adjustTextareaRows();
@@ -1909,7 +1911,7 @@ export default function PlayPage() {
                                         >
                                             {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                         </div>
-                                        {task.finished ? (
+                                        {task.answered ? (
                                             <div className="text-title">
                                                 <FormatText content={`Ocena: ${task.percent}%`} />
                                             </div>
@@ -1921,7 +1923,7 @@ export default function PlayPage() {
                                                 <div key={index}>
                                                     <FormatText
                                                         content={
-                                                            task.finished
+                                                            task.answered
                                                             ? `${index + 1}. ${subtopic.name}: <strong>${subtopic.percent}%</strong>`
                                                             : `${index + 1}. ${subtopic.name}`
                                                         }
@@ -2136,23 +2138,23 @@ export default function PlayPage() {
                                 </div>
                                 {!task.answered ? (
                                     <>
-                                        <div className="text-title">Rozwiązanie:</div>
+                                        <div className="text-title">Moje Rozwiązanie:</div>
                                         <textarea
                                             ref={textareaRef}
                                             placeholder={`Napisz rozwiązanie...`}
                                             className="answer-block"
                                             style={{ marginTop: "0px" }}
-                                            value={task.userSolution}
+                                            value={task.originalSolution}
                                             onInput={handleUserSolutionInput}
                                             rows={1}
                                             name="userSolution"
                                             id="userSolution"
                                         />
                                     </>
-                                ) : !isEmptyString(task.userSolution) && (<>
-                                    <div className="text-title">Rozwiązanie:</div>
+                                ) : !isEmptyString(task.originalSolution) && (<>
+                                    <div className="text-title">Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} />
+                                        {task.originalSolution}
                                     </div>
                                 </>)}
                                 {!task.answered && !isSubmittingAnswer && (
