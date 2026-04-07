@@ -252,19 +252,6 @@ export default function StoriesPage() {
           >
             <ArrowLeft size={28} color="white" />
           </div>
-          {words.length != 0 && (<div 
-            className="menu-icon" 
-            title="Play" 
-            style={{
-              marginLeft: "auto",
-              cursor: "pointer",
-              backgroundColor: "darkgreen",
-              padding: "8px 24px"
-            }}
-            onClick={handlePlayClick}
-          >
-            <Play size={28} color="white" />
-          </div>)}
         </div>
       </Header>
 
@@ -310,6 +297,14 @@ export default function StoriesPage() {
                         <div className={`element-percent ${wordsStatus}`}>
                             {wordsPercent}%
                         </div>
+                        {words.length != 0 && (<button 
+                          className="btnElement" 
+                          title="Play"
+                          style={{ backgroundColor: "#b0b0b0", border: "1px solid grey", padding: "6px" }}
+                          onClick={handlePlayClick}
+                        >
+                          <Play size={28} color="black" />
+                        </button>)}
                     </div>
                 </div>
             </div>

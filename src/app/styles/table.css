@@ -94,7 +94,7 @@
 
 .message.human.started,
 .message.robot.started {
-  background-color: #c0c0c0;
+  background-color: #c8c8c8;
   color: #000000;
 }
 
@@ -106,7 +106,7 @@
 .message.human.completed,
 .message.robot.completed,
 .completed {
-  background-color: #8aa887;
+  background-color: #b5d0b2;
   color: #000000;
 }
 
@@ -133,12 +133,8 @@
 .message.human.progress,
 .message.robot.progress,
 .progress {
-  background-color: #cbbf7f;
+  background-color: #d6cc95;
   color: #000000;
-}
-
-.completed.error {
-  background: linear-gradient(to right, #8aa887 50%, #d98d8d 50%);
 }
 
 .element-subject-options {

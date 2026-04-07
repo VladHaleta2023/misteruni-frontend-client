@@ -126,12 +126,12 @@ textarea:focus {
 }
 
 .btnOption.completed {
-  background-color: #8aa887;
+  background-color: #b5d0b2;
   color: black;
 }
 
 .btnOption.progress {
-  background-color: #cbbf7f;
+  background-color: #d6cc95;
   color: black;
 }
 
@@ -153,7 +153,7 @@ textarea:focus {
 }
 
 .message.human {
-  background-color: #c0c0c0;
+  background-color: #c8c8c8;
   color: black;
   align-self: flex-end;
 }

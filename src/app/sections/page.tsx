@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Minus, Play, AlertCircle, ArrowLeft, Text } from "lucide-react";
+import { Plus, Minus, Play, AlertCircle, ArrowLeft, Globe, SquareChartGantt, UserPen, AudioLines } from "lucide-react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
@@ -10,6 +10,9 @@ import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
 import Header from "@/app/components/header";
+import { GrLineChart } from "react-icons/gr";
+import { IoSchoolSharp } from "react-icons/io5";
+import { GrTooltip } from "react-icons/gr";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -300,10 +303,7 @@ export default function SectionsPage() {
     localStorage.setItem("topicPercent", String(topic.percent));
     localStorage.setItem("topicStatus", String(topic.status));
 
-    if (sectionType === "Stories")
-      router.push("/tasks");
-    else
-      router.push("/subtopics");
+    router.push("/tasks");
   };
 
   const ChartComponent = useCallback(() => {
@@ -331,14 +331,7 @@ export default function SectionsPage() {
           <ArrowLeft size={28} color="white" />
         </div>
 
-        {subjectType === "Language" && weekOffset === 0 ? (<div
-          className="menu-icon"
-          title={"Przełącz do listy słów"}
-          onClick={handleTopicVocabluaryClick}
-        >
-          <Text size={28} color="white" />
-        </div>) : null}
-
+        {/*
         <div className="menu-icon" title="Play" style={{
           marginLeft: "auto",
           backgroundColor: "darkgreen",
@@ -353,10 +346,11 @@ export default function SectionsPage() {
           }}>
             <Play size={28} color="white" />
         </div>
+        */}
       </div>
     </Header>
     
-    <main>
+    <main style={{ gap: "12px" }}>
       {loading ? (
         <div className="spinner-wrapper">
           <Spinner noText />
@@ -364,9 +358,43 @@ export default function SectionsPage() {
       ) : (
         <>
           <ChartComponent />
-          <div className="table" style={{
-            marginTop: "12px"
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            margin: "0px 12px"
           }}>
+            {subjectType === "Language" && weekOffset === 0 && (<div 
+              className="btnOption"
+              title={"Przełącz do listy słów"}
+              onClick={handleTopicVocabluaryClick}
+            >
+              {/*<span style={{
+                fontSize: 20,
+                fontWeight: "bold",
+                fontFamily: "system-ui",
+                letterSpacing: "1px"
+              }}>
+                [Abc]
+              </span>*/}
+              <Globe size={28} color="white" />
+            </div>)}
+            <div
+              className="btnOption" 
+              title={"Tests"}
+              onClick={() => { console.log("Tests") }}
+            >
+              <IoSchoolSharp size={28} color="white" />
+            </div>
+            <div
+              className="btnOption" 
+              title={"Ranking"}
+              onClick={() => { console.log("Ranking") }}
+            >
+              <GrLineChart size={28} color="white" />
+            </div>
+          </div>
+          <div className="table">
             {sections
               .flatMap((section) => [
               <div
@@ -378,7 +406,7 @@ export default function SectionsPage() {
                   handleTopicsExpand(section.id);
                 }}
               >
-                <div className="element-options" style={{ width: "40px", maxWidth: "40px", justifyContent: "center" }}>
+                <div className="element-options" style={{ justifyContent: "center", width: "40px", maxWidth: "40px" }}>
                   {Array.isArray(section.topics) && section.topics.length > 0 && (
                     <button
                       className="btnElement"
@@ -396,7 +424,7 @@ export default function SectionsPage() {
                   )}
                 </div>
 
-                <div className="element-name" style={{ marginLeft: "0px" }}>
+                <div className="element-name">
                   <FormatText content={section.name ?? ""} />
                 </div>
 
@@ -407,6 +435,18 @@ export default function SectionsPage() {
                   <div className={`element-percent ${section.status}`}>
                     {section.percent}%
                   </div>
+                  <button
+                    className="btnElement"
+                    style={{ padding: "5px" }}
+                  >
+                    {section.type == "Stories" ? (
+                      <AudioLines size={28} color="grey" />
+                    ) : section.type == "Writing" ? (
+                      <UserPen size={28} color="grey" />
+                    ) : (
+                      <SquareChartGantt size={28} color="grey" />
+                    )}
+                  </button>
                 </div>
               </div>,
 
@@ -434,6 +474,7 @@ export default function SectionsPage() {
                         </div>
                         <button
                           className="btnElement"
+                          style={{ backgroundColor: "#d4d4d4", border: "1px solid grey", padding: "5px" }}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleTopicPlayClick(section.id, topic, section.type);

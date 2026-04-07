@@ -172,7 +172,7 @@ export default function CirclePieChart({
                     {deltaDays >= 0
                       ? '+'
                       : ''}
-                    {deltaDays}
+                    {deltaDays} {Math.abs(deltaDays) == 1 ? "dzień" : "dni"}
                   </div>
                 )}
               </div>

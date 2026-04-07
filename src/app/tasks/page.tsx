@@ -1,7 +1,7 @@
 'use client';
 
 import Header from "@/app/components/header";
-import { ArrowLeft, BookOpen, LibraryBig, Minus, Play, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Globe, LibraryBig, Minus, SearchCheck } from 'lucide-react';
 import "@/app/styles/table.css";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,11 +9,10 @@ import "@/app/styles/play.css";
 import "@/app/styles/components.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
-import axios from "axios";
 import api from "@/app/utils/api";
 import FormatText from "@/app/components/formatText";
-import { Text } from "lucide-react";
 import Message from "@/app/components/message";
+import { FaSearchPlus } from "react-icons/fa";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -93,6 +92,8 @@ export default function TasksPage() {
   const [taskId, setTaskId] = useState<number | null>(null);
   const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
+  const [topicPercent, setTopicPercent] = useState<number | null>(null);
+  const [topicStatus, setTopicStatus] = useState<string | null>(null);
 
   const [literatures, setLiteratures] = useState<string[]>([]);
 
@@ -108,8 +109,6 @@ export default function TasksPage() {
 
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
-  const [expandedUserSolutions, setExpandedUserSolutions] = useState<{[key: number]: boolean}>({});
-  const [expandedExplanations, setExpandedExplanations] = useState<{[key: number]: boolean}>({});
   const [expandedTopicNote, setExpandedTopicNote] = useState(false);
 
   const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
@@ -168,6 +167,8 @@ export default function TasksPage() {
               setElementResponse(new ElementResponse(response.data.elements));
               setTopicNote(response.data.topic.note);
               setTopicName(response.data.topic.name);
+              setTopicPercent(response.data.topic.percent);
+              setTopicStatus(response.data.topic.status);
               setLiteratures(response.data.topic.literatures);
           } else {
               showAlert(response.data.statusCode, response.data.message);
@@ -292,6 +293,10 @@ export default function TasksPage() {
     }
   }, [subjectId, taskId, fetchTasksByTopicId]);
 
+  function handleSubtopicsClick() {
+    router.push("/subtopics");
+  }
+
   return (
     <>
       <Header>
@@ -304,19 +309,6 @@ export default function TasksPage() {
             >
                 <ArrowLeft size={28} color="white" />
             </div>
-            {sectionType === "Stories" && (
-                <div
-                    className="menu-icon"
-                    title={"Przełącz do listy słów"}
-                    onClick={async (e) => {
-                        e.stopPropagation();
-                        handleTopicVocabluaryClick();
-                    }}
-                    style={{ cursor: "pointer" }}
-                >
-                    <Text size={28} color="white" />
-                </div>
-            )}
         </div>
       </Header>
 
@@ -373,12 +365,17 @@ export default function TasksPage() {
                 visible={msgPlayVisible}
             />
             
-            <div style={{ 
-                padding: "18px", 
+            <div style={{
                 width: "100%",
+                padding: "0px 8px",
+                margin: "12px 0px"
             }}>
                 <div 
                     className="text-title text-topic-note"
+                    style={{
+                        flexDirection: "column",
+                        alignItems: "flex-start"
+                    }}
                     onClick={(e) => {
                         if (!topicNote || sectionType === "Stories")
                             return;
@@ -387,9 +384,33 @@ export default function TasksPage() {
                         handleTopicNoteExpand();
                     }}
                 >
-                    <div className="element-name" style={{ margin: "0px" }}>
-                        {topicNote && sectionType !== "Stories" && (
-                            <div 
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                        <div className="element-name" style={{ fontSize: "20px" }}>
+                            <div
+                                className="btnOption"
+                                style={{
+                                    fontWeight: "bold",
+                                    marginRight: "12px"
+                                }}
+                                title={"Przełącz do listy słów"}
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    handleTopicVocabluaryClick();
+                                }}
+                            >
+                                <Globe size={28} color="white" />
+                            </div>
+                            <FormatText content={topicName} />
+                        </div>
+                        <div className="element-options">
+                            <div
+                                className={`element-percent ${topicStatus}`}
+                            >{topicPercent}%</div>
+                        </div>
+                    </div>
+                    <div className="element-name" style={{ margin: "0px 8px" }}>
+                        {topicNote && sectionType !== "Stories" && (<>
+                            <div
                                 className="btnOption" 
                                 style={{
                                     marginRight: "12px",
@@ -398,11 +419,12 @@ export default function TasksPage() {
                             >
                                 {expandedTopicNote ? <Minus size={26} /> : <BookOpen size={26} />}
                             </div>
-                        )}
+                        </>)}
+
                         {literatures.length > 0 ? (<div
                             className="btnOption"
                             style={{
-                                marginRight: "16px",
+                                marginRight: "12px",
                                 fontWeight: "bold"
                             }}
                             onClick={(e) => {
@@ -416,11 +438,26 @@ export default function TasksPage() {
                                 localStorage.setItem("literatures", JSON.stringify(literatures));
                                 router.push('/literatures');
                             }
-                            }}
-                        >
+                        }}>
                             <LibraryBig size={26} />
                         </div>) : null}
-                        {topicName}
+
+                        {topicNote && sectionType !== "Stories" && (<>
+                            <div 
+                                className="btnOption" 
+                                style={{
+                                    fontWeight: "bold"
+                                }}
+                                title={"Przełącz do zadań"}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    
+                                    handleSubtopicsClick();
+                                }}
+                                >
+                                <SearchCheck size={28} color="white" />
+                            </div>
+                        </>)}
                     </div>
                 </div>
                 {expandedTopicNote && (
@@ -444,7 +481,7 @@ export default function TasksPage() {
                             <div>
                                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                                     <span>Naciśnij</span>
-                                    <Text strokeWidth={4} />
+                                    <Globe size={28} color="black" />
                                 </div>
                                 <span>aby ćwiczyć słowy tematyczne</span>
                             </div>
@@ -500,7 +537,7 @@ export default function TasksPage() {
                       <div className={`element-percent ${task.status}`}>
                           {task.finished ? Math.round(task.percent) : 0}%
                       </div>
-                      <div
+                      {/*<div
                         className="btnOption"
                         style={{ backgroundColor: "transparent", color: "black" }}
                         onClick={(e) => {
@@ -509,7 +546,7 @@ export default function TasksPage() {
                             setMsgDeleteTaskVisible(true);
                         }}>
                           <Trash2 size={26} />
-                        </div>
+                        </div>*/}
                   </div>
               </div>))}
               

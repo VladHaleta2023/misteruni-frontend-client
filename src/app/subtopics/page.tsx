@@ -5,11 +5,10 @@ import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
 import { showAlert } from "@/app/scripts/showAlert";
-import axios from "axios";
 import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
-import { ArrowLeft, ListCheck, Minus, Play, BookOpen, LibraryBig } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Header from "@/app/components/header";
 
 type Status = 'started' | 'progress' | 'completed';
@@ -27,12 +26,10 @@ export default function SubtopicsPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
-  const [sectionType, setSectionType] = useState<string | null>(null);
   const [topicPercent, setTopicPercent] = useState<number | null>(null);
   const [topicStatus, setTopicStatus] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
   const [topicNote, setTopicNote] = useState<string>("");
-  const [literatures, setLiteratures] = useState<string[]>([]);
 
   const [expandedTopicNote, setExpandedTopicNote] = useState(false);
 
@@ -47,19 +44,8 @@ export default function SubtopicsPage() {
 
   const fetchInProgressRef = useRef(false);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-        const storedSectionType = localStorage.getItem("sectionType");
-        setSectionType(storedSectionType ? String(storedSectionType) : null);
-    }
-  }, []);
-
   function handleBackClick() {
     router.back();
-  }
-
-  function handleTasksClick() {
-    router.push("/tasks");
   }
 
   useEffect(() => {
@@ -74,8 +60,6 @@ export default function SubtopicsPage() {
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
       const storedTopicId = localStorage.getItem("topicId");
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
-      const storedSectionType = localStorage.getItem("sectionType");
-      setSectionType(storedSectionType ? String(storedSectionType) : null);
     }
   }, []);
 
@@ -114,7 +98,6 @@ export default function SubtopicsPage() {
         setTopicPercent(response.data.topic.percent);
         setTopicStatus(response.data.topic.status);
         setTopicNote(response.data.topic.note);
-        setLiteratures(response.data.topic.literatures);
         
         const newTotal: [number, number, number] = [
           Number(response.data.total.completed),
@@ -188,15 +171,8 @@ export default function SubtopicsPage() {
           >
             <ArrowLeft size={28} color="white" />
           </div>
-          <div
-            className="menu-icon"
-            title={"Przełącz do zadań"}
-            onClick={handleTasksClick}
-          >
-            <ListCheck size={28} color="white" />
-          </div>
 
-          <div className="menu-icon" title="Play" style={{ marginLeft: "auto" }}
+          {/*<div className="menu-icon" title="Play" style={{ marginLeft: "auto" }}
             onClick={async (e) => {
                 e.stopPropagation();
 
@@ -206,7 +182,7 @@ export default function SubtopicsPage() {
                 router.push("/play");
             }}>
               <Play size={28} color="white" />
-          </div>
+          </div>*/}
         </div>
       </Header>
 
@@ -217,55 +193,21 @@ export default function SubtopicsPage() {
         </div>
       ) : (<>
           <ChartComponent  />
-          <div style={{ 
-              padding: "18px", 
+          <div style={{
               width: "100%",
-              paddingBottom: "0px"
+              padding: "0px 8px",
+              margin: "12px 0px"
           }}>
               <div 
-                  className="text-title text-topic-note"
-                  onClick={(e) => {
-                      if (!topicNote || sectionType === "Stories")
-                          return;
-                      
-                      e.stopPropagation();
-                      handleTopicNoteExpand();
-                  }}
+                className="text-title text-topic-note"
               >
-                  <div className="element-name" style={{ margin: "0px" }}>
-                      {topicNote && sectionType !== "Stories" && (
-                          <div 
-                              className="btnOption" 
-                              style={{
-                                  marginRight: "12px",
-                                  fontWeight: "bold"
-                              }}
-                          >
-                              {expandedTopicNote ? <Minus size={26} /> : <BookOpen size={26} />}
-                          </div>
-                      )}
-                      {literatures.length > 0 ? (<div
-                        className="btnOption"
-                        style={{
-                          marginRight: "16px",
-                          fontWeight: "bold"
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          
-                          if (literatures.length === 1) {
-                            localStorage.setItem("literature", literatures[0]);
-                            router.push('/literature');
-                          }
-                          else {
-                            localStorage.setItem("literatures", JSON.stringify(literatures));
-                            router.push('/literatures');
-                          }
-                        }}
-                      >
-                        <LibraryBig size={26} />
-                      </div>) : null}
-                      {topicName}
+                  <div className="element-name" style={{ fontSize: "20px" }}>
+                    <FormatText content={topicName} />
+                  </div>
+                  <div className="element-options">
+                    <div
+                      className={`element-percent ${topicStatus}`}
+                    >{topicPercent}%</div>
                   </div>
               </div>
               {expandedTopicNote && (
@@ -277,7 +219,7 @@ export default function SubtopicsPage() {
                   </>
               )}
           </div>
-          <div className="table" style={{ marginTop: "12px" }}>
+          <div className="table">
             {subtopics.flatMap((subtopic) => [
               <div
                 className={`element element-subtopic`}

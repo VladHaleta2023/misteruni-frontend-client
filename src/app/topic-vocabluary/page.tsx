@@ -183,14 +183,6 @@ export default function StoriesPage() {
           <div className="menu-icon" title="Wrócić" onClick={handleBackClick} style={{ cursor: "pointer" }}>
             <ArrowLeft size={28} color="white" />
           </div>
-          <div className="menu-icon" title="Play"  style={{
-            marginLeft: "auto",
-            cursor: "pointer",
-            backgroundColor: "darkgreen",
-            padding: "8px 24px"
-          }} onClick={handlePlayClick}>
-            <Play size={28} color="white" />
-          </div>
         </div>
       </Header>
 
@@ -209,6 +201,16 @@ export default function StoriesPage() {
                 {!localStorage.getItem("fetchWordIds") && (<div className="element-options">
                   <div className={`element-percent ${wordsStatus}`}>{wordsPercent}%</div>
                 </div>)}
+                <button
+                  className="btnElement"
+                  style={{ backgroundColor: "#b0b0b0", border: "1px solid grey", padding: "6px" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePlayClick();
+                  }}
+                >
+                  <Play size={28} color="black" />
+                </button>
               </div>
             </div>
 

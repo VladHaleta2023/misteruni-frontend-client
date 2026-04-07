@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Type, Trash2, Text, Check, Minus } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Pause, Play, Plus, Type, Trash2, Text, Check, Minus, Globe } from 'lucide-react';
 import "@/app/styles/play.css";
 import "@/app/styles/message.css";
 import "@/app/styles/table.css";
@@ -1960,14 +1960,6 @@ export default function InteractivePlayPage() {
                     }} style={{ cursor: "pointer" }}>
                         <Trash2 size={28} color="white" />
                     </div>
-                    <div
-                        className="menu-icon"
-                        title="Przełącz do listy słów"
-                        onClick={handleVocabluaryClick}
-                        style={{ marginLeft: "auto", cursor: "pointer" }}
-                    >
-                        <Text size={28} color="white" />
-                    </div>
                 </div>
             </Header>
 
@@ -2035,6 +2027,30 @@ export default function InteractivePlayPage() {
                 {!task.wordsCompleted && !initLoading ? (
                     <>
                         <div className="play-container" ref={containerRef}>
+                            <div className="chat">
+                                {task.topicName && (<div className="message robot">
+                                    <div className="element-name" style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        cursor: "pointer",
+                                        fontWeight: "bold",
+                                        fontSize: "20px"
+                                    }}>
+                                        <div
+                                            className="btnOption"
+                                            style={{
+                                                fontWeight: "bold",
+                                                marginRight: "12px"
+                                            }}
+                                            title={"Przełącz do listy słów"}
+                                            onClick={handleVocabluaryClick}
+                                        >
+                                            <Globe size={28} color="white" />
+                                        </div>
+                                        {task.topicName}
+                                    </div>
+                                </div>)}
+                            </div>
                             <div style={{
                                 color: "#514e4e",
                                 display: "flex",
@@ -2046,7 +2062,7 @@ export default function InteractivePlayPage() {
 
                                     <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                                         <span>Naciśnij</span>
-                                        <Text strokeWidth={4} />
+                                        <Globe size={28} color="black" />
                                     </div>
 
                                     <span>aby ćwiczyć słowa tematyczne</span>
@@ -2065,6 +2081,17 @@ export default function InteractivePlayPage() {
                                     fontWeight: "bold",
                                     fontSize: "20px"
                                 }}>
+                                    <div
+                                        className="btnOption"
+                                        style={{
+                                            fontWeight: "bold",
+                                            marginRight: "12px"
+                                        }}
+                                        title={"Przełącz do listy słów"}
+                                        onClick={handleVocabluaryClick}
+                                    >
+                                        <Globe size={28} color="white" />
+                                    </div>
                                     {task.topicName}
                                 </div>
                             </div>)}
