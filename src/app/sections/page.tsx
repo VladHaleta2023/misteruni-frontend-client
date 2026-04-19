@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Plus, Minus, Play, AlertCircle, ArrowLeft, Globe, SquareChartGantt, UserPen, AudioLines } from "lucide-react";
+import { Plus, Minus, Play, AlertCircle, ArrowLeft, Globe, SquareChartGantt, UserPen, AudioLines, LibraryBig } from "lucide-react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import CirclePieChart from "@/app/components/circlePieChart";
@@ -60,6 +60,7 @@ export default function SectionsPage() {
   const [topicId, setTopicId] = useState<number | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
+  const [literatures, setLiteratures] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
 
   const fetchInProgressRef = useRef(false);
@@ -167,6 +168,8 @@ export default function SectionsPage() {
           deltaDays: response.data.deltaDays,
           hasData: newTotal.some(percent => percent > 0)
         });
+
+        setLiteratures(response.data.literatures);
 
         setLoading(false);
       } else {
@@ -369,30 +372,38 @@ export default function SectionsPage() {
               title={"Przełącz do listy słów"}
               onClick={handleTopicVocabluaryClick}
             >
-              {/*<span style={{
-                fontSize: 20,
-                fontWeight: "bold",
-                fontFamily: "system-ui",
-                letterSpacing: "1px"
-              }}>
-                [Abc]
-              </span>*/}
               <Globe size={28} color="white" />
             </div>)}
-            <div
-              className="btnOption" 
-              title={"Tests"}
-              onClick={() => { console.log("Tests") }}
-            >
-              <IoSchoolSharp size={28} color="white" />
-            </div>
-            <div
-              className="btnOption" 
-              title={"Ranking"}
-              onClick={() => { console.log("Ranking") }}
-            >
-              <GrLineChart size={28} color="white" />
-            </div>
+            {literatures.length > 0 ? (<div
+              className="btnOption"
+              onClick={(e) => {
+              e.stopPropagation();
+              
+              if (literatures.length === 1) {
+                  localStorage.setItem("literature", literatures[0]);
+                  router.push('/literature');
+              }
+              else {
+                  localStorage.setItem("literatures", JSON.stringify(literatures));
+                  router.push('/literatures');
+              }
+          }}>
+              <LibraryBig size={26} />
+          </div>) : null}
+          {/*<div
+            className="btnOption" 
+            title={"Tests"}
+            onClick={() => { console.log("Tests") }}
+          >
+            <IoSchoolSharp size={28} color="white" />
+          </div>
+          <div
+            className="btnOption" 
+            title={"Ranking"}
+            onClick={() => { console.log("Ranking") }}
+          >
+            <GrLineChart size={28} color="white" />
+          </div>*/}
           </div>
           <div className="table">
             {sections

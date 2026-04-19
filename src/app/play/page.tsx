@@ -526,58 +526,6 @@ export default function PlayPage() {
         }, []
     );
 
-    const handleSolutionGenerate = useCallback(
-        async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, signal?: AbortSignal) => {
-            setLoading(true);
-            setTextLoading("Generowanie AI: Rozwiązania Zadania...");
-
-            const controller = !signal ? new AbortController() : null;
-            if (controller) controllersRef.current.push(controller);
-            const activeSignal = signal ?? controller?.signal;
-
-            try {
-                let changed = "true";
-                let attempt = 0;
-                let errors: string[] = [];
-                let solution = "";
-                const MAX_ATTEMPTS = 2;
-
-                while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return "";
-
-                    const response = await api.post<any>(
-                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/solution-generate`,
-                        { changed, errors, attempt, subtopics, text, solution },
-                        { signal: activeSignal } as any
-                    );
-
-                    if (activeSignal?.aborted) return "";
-
-                    if (response.data?.statusCode === 201) {
-                        changed = response.data.changed;
-                        errors = response.data.errors;
-                        text = response.data.text;
-                        solution = response.data.solution;
-                        attempt = response.data.attempt;
-                        console.log(`Generowanie rozwiązania zadania: Próba ${attempt}`);
-                    } else {
-                        showAlert(400, "Nie udało się zgenerować rozwiązania zadania");
-                        break;
-                    }
-                }
-
-                return solution;
-            } catch (error: unknown) {
-                setLoading(false);
-                if ((error as DOMException)?.name === "AbortError") return "";
-                handleApiError(error);
-                return "";
-            } finally {
-                if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
-            }
-        }, []
-    );
-
     const handleOptionsGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, subtopics: string[], text: string, solution: string, signal?: AbortSignal) => {
             setLoading(true);
@@ -1213,20 +1161,6 @@ export default function PlayPage() {
                 await simulateTaskTextTyping(text);
             }
 
-            if (stage < 2) {
-                const solution = await handleSolutionGenerate(subjectId, sectionId, topicId, taskSubtopics, text, signal);
-
-                if (!solution) {
-                    setLoading(false);
-                    showAlert(400, "Nie udało się wygenerować rozwiązania");
-                    return;
-                }
-
-                stage = 2;
-
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, [], 0, taskSubtopics, signal, taskId);
-            }
-
             newTask = await fetchPendingTask(subjectId, sectionId, topicId, signal);
             if (!newTask) {
                 return;
@@ -1234,10 +1168,9 @@ export default function PlayPage() {
 
             text = newTask.text ?? "";
             taskSubtopics = newTask.subtopics?.map((sub: Subtopic) => sub.name) ?? [];
-            const solution = newTask.solution ?? "";
 
-            if (stage < 3) {
-                const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, taskSubtopics, text, solution, signal);
+            if (stage < 2) {
+                const optionsResult = await handleOptionsGenerate(subjectId, sectionId, topicId, taskSubtopics, text, "", signal);
                 const options = optionsResult.options ?? [];
                 const correctOptionIndex = optionsResult.correctOptionIndex ?? 0;
 
@@ -1247,9 +1180,9 @@ export default function PlayPage() {
                     return;
                 }
 
-                stage = 3;
+                stage = 2;
 
-                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, solution, options, correctOptionIndex, taskSubtopics, signal, taskId);
+                await handleSaveTaskTransaction(subjectId, sectionId, topicId, stage, text, "", options, correctOptionIndex, taskSubtopics, signal, taskId);
             
                 setTask(prev => ({
                     ...prev,
@@ -1266,7 +1199,7 @@ export default function PlayPage() {
             setLoading(false);
             handleApiError(error);
         }
-    }, [handleTextGenerate, handleSolutionGenerate, handleOptionsGenerate, handleSaveTaskTransaction, simulateTaskTextTyping, simulateOptionsTyping]);
+    }, [handleTextGenerate, handleOptionsGenerate, handleSaveTaskTransaction, simulateTaskTextTyping, simulateOptionsTyping]);
 
     const handleChatEnd = useCallback(async (
         subjectId: number,
@@ -1417,7 +1350,7 @@ export default function PlayPage() {
                     localStorage.setItem("taskId", task.id);
                 }
 
-                if (!task || stage < 3) {
+                if (!task || stage < 2) {
                     await loadTask(subjectId, sectionId, topicId, stage, signal);
                     if (signal.aborted) return;
                 }

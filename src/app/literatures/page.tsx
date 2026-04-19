@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import "@/app/styles/table.css";
+import "@/app/styles/components.css";
 import Spinner from "@/app/components/spinner";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
@@ -12,6 +13,11 @@ export default function LiteraturePage() {
   const router = useRouter();
 
   const [literatures, setLiteratures] = useState<string[]>([]);
+  const [literatureText, setLiteratureText] = useState<string>("");
+
+  const filteredLiteratures = literatures.filter(literature =>
+    literature.toLowerCase().includes(literatureText.toLowerCase())
+  );
 
   const [loading, setLoading] = useState(true);
 
@@ -45,55 +51,66 @@ export default function LiteraturePage() {
         </div>
       </Header>
 
-      <main style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center"
-      }}>
+      <main>
       {loading ? (
         <div className="spinner-wrapper">
           <Spinner noText />
         </div>
       ) : (
-        <div className="table" style={{
-            width: "80%"
-        }}>
-            {literatures.flatMap((literature) => [
-                <div
-                    className={`element element-section`}
-                    style={{
-                        justifyContent: "space-between"
-                    }}
-                    key={`subtopic-${literature}`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-
-                        localStorage.setItem("literature", literature);
-                        router.push("/literature");
-                    }}
-                >
-                    <div className="element-options">
-                        <div
-                        className="btnOption"
-                        onClick={(e) => {
+        <div style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "12px",
+            margin: "12px"
+          }}>
+            <input
+              type="text"
+              id="threshold"
+              name="text-container"
+              value={literatureText}
+              onChange={(e) => setLiteratureText(e.target.value)}
+              className="input-container"
+              style={{ fontSize: "18px", padding: "6px 12px", borderRadius: "6px" }}
+              placeholder="Szukaj literaturę..."
+            />
+            <div className="table">
+              {filteredLiteratures.flatMap((literature) => [
+                  <div
+                      className={`element element-section`}
+                      style={{
+                          justifyContent: "space-between"
+                      }}
+                      key={`subtopic-${literature}`}
+                      onClick={(e) => {
                           e.stopPropagation();
 
                           localStorage.setItem("literature", literature);
                           router.push("/literature");
-                        }}
-                      >
-                        <BookOpen size={26} />
+                      }}
+                  >
+                      <div className="element-options">
+                          <div
+                          className="btnOption"
+                          onClick={(e) => {
+                            e.stopPropagation();
+
+                            localStorage.setItem("literature", literature);
+                            router.push("/literature");
+                          }}
+                        >
+                          <BookOpen size={26} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="element-name" style={{ fontSize: "20px" }}>
-                        <FormatText
-                        content={`${literature}`}
-                        />
-                    </div>
-                </div>
-            ])}
+                      <div className="element-name" style={{ fontSize: "20px" }}>
+                          <FormatText
+                          content={`${literature}`}
+                          />
+                      </div>
+                  </div>
+              ])}
             </div>
+        </div>
       )}
       </main>
     </>

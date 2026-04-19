@@ -386,20 +386,22 @@ export default function TasksPage() {
                 >
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                         <div className="element-name" style={{ fontSize: "20px" }}>
-                            <div
-                                className="btnOption"
-                                style={{
-                                    fontWeight: "bold",
-                                    marginRight: "12px"
-                                }}
-                                title={"Przełącz do listy słów"}
-                                onClick={async (e) => {
-                                    e.stopPropagation();
-                                    handleTopicVocabluaryClick();
-                                }}
-                            >
-                                <Globe size={28} color="white" />
-                            </div>
+                            {topicName && sectionType === "Stories" && (
+                                <div
+                                    className="btnOption"
+                                    style={{
+                                        fontWeight: "bold",
+                                        marginRight: "12px"
+                                    }}
+                                    title={"Przełącz do listy słów"}
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        handleTopicVocabluaryClick();
+                                    }}
+                                >
+                                    <Globe size={28} color="white" />
+                                </div>
+                            )}
                             <FormatText content={topicName} />
                         </div>
                         <div className="element-options">

@@ -13,6 +13,8 @@ import api from "../utils/api";
 import React from "react";
 import Message from "../components/message";
 import { Status } from "../scripts/task";
+import FormatText from "../components/formatText";
+import StatusIndicator from "../components/statusIndicator";
 
 type Topic = {
   id: number;
@@ -29,6 +31,7 @@ type Task = {
 type Word = {
   id: number;
   text: string;
+  translate: string;
   finished: boolean;
   frequency: number;
   percent: number;
@@ -58,6 +61,8 @@ export default function StoriesPage() {
 
   const [expandedWords, setExpandedWords] = useState<Record<number, boolean>>({});
   const [msgDeleteVisible, setMsgDeleteVisible] = useState<boolean>(false);
+  
+  const [translatingWordIds, setTranslatingWordIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -217,6 +222,92 @@ export default function StoriesPage() {
     }
  };
 
+  const generateTranslation = useCallback(async (word: Word) => {
+    if (word.translate) return;
+    if (translatingWordIds.has(word.id)) return;
+    
+    setTranslatingWordIds(prev => new Set(prev).add(word.id));
+    
+    const controller = new AbortController();
+    controllersRef.current.push(controller);
+    const signal = controller.signal;
+    
+    try {
+        let changed = "true";
+        let attempt = 0;
+        let errors: string[] = [];
+        let translate = "";
+        const MAX_ATTEMPTS = 2;
+        
+        while (changed === "true" && attempt <= MAX_ATTEMPTS) {
+            if (signal.aborted) return;
+            
+            const response = await api.post<any>(
+              `/subjects/${subjectId}/words/vocabluary-guide-generate`,
+              {
+                data: {
+                  text: word.text,
+                  translate: translate,
+                  changed: changed,
+                  attempt: attempt,
+                  errors: errors,
+                  prompt: null
+                },
+                topicId: null,
+                sectionId: null,
+              },
+              { signal } as any
+            );
+            
+            if (signal.aborted) return;
+            
+            if (response.data?.statusCode === 200 || response.data?.statusCode === 201) {
+              changed = response.data.changed;
+              errors = response.data.errors;
+              translate = response.data.translate;
+              attempt = response.data.attempt;
+              console.log(`Generowanie tłumaczenia: Próba ${attempt}`);
+            } else {
+              showAlert(400, "Nie udało się zgenerować tłumaczenia");
+              break;
+            }
+        }
+        
+        if (translate && translate !== "") {
+          await api.put(
+            `/subjects/${subjectId}/words/${word.id}/translate`,
+            { translate: translate },
+            { signal } as any
+          );
+          
+          if (!signal.aborted) {
+            setWords(prev => prev.map(w =>
+              w.id === word.id ? { ...w, translate: translate } : w
+            ));
+          }
+        }
+    } catch (error) {
+        if ((error as DOMException)?.name !== "AbortError") {
+          console.error(`Błąd generowania tłumaczenia dla ${word.text}:`, error);
+        }
+    } finally {
+      setTranslatingWordIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(word.id);
+        return newSet;
+      });
+      controllersRef.current = controllersRef.current.filter(c => c !== controller);
+    }
+  }, [subjectId, translatingWordIds]);
+
+  const handleExpandWord = useCallback(async (word: Word) => {
+    setExpandedWords(prev => ({ ...prev, [word.id]: !prev[word.id] }));
+    
+    if (!expandedWords[word.id] && !word.translate && !translatingWordIds.has(word.id)) {
+      await generateTranslation(word);
+    }
+  }, [expandedWords, generateTranslation, translatingWordIds]);
+
   const controllersRef = useRef<AbortController[]>([]);
   
   useEffect(() => {
@@ -361,21 +452,18 @@ export default function StoriesPage() {
                             width: "32px"
                           }}
                           >
-                          {word.tasks.length > 0 && (<button
+                          <button
                             className="btnElement"
                             onClick={(e) => {
                             e.stopPropagation();
-                            setExpandedWords(prev => ({
-                                ...prev,
-                                [word.id]: !prev[word.id]
-                            }));
+                            handleExpandWord(word);
                           }}>
                             {expandedWords[word.id] ? (
                             <Minus size={24} />
                             ) : (
                             <Plus size={24} />
                             )}
-                          </button>)}
+                          </button>
                         </div>
                         <div className="element-word">
                             {word.text}
@@ -407,31 +495,16 @@ export default function StoriesPage() {
                         </div>
                       </div>
                       {expandedWords[word.id] && (
-                        <div
-                          className="element"
-                          style={{
-                            alignItems: "start",
-                            border: "1px solid rgb(191, 191, 191)",
-                            borderBottom: "none",
-                          }}
-                          key={`${word.id}-details`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleWordClick(word.id, !isSelected);
-                          }}
-                        >
-                          {word.tasks.map((task) => (
-                            <div
-                              key={task.id}
-                              style={{ display: "block", padding: "8px 12px" }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStoryClick(task.topic.sectionId, task.topic.id, task.id);
-                              }}
-                            >
-                              {task.text}
+                        <div className="element" style={{ alignItems: "start", border: "1px solid rgb(191, 191, 191)", borderBottom: "none", padding: "0px" }} key={`${word.id}-details`}>
+                          {word.translate !== "" ? (
+                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
+                              <FormatText content={word.translate} />
                             </div>
-                          ))}
+                          ) : (
+                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
+                              <StatusIndicator text="Przetwarzanie tłumaczenia..." />
+                            </div>
+                          )}
                         </div>
                       )}
                   </React.Fragment>
@@ -440,7 +513,6 @@ export default function StoriesPage() {
             </div>
           </div>
           </>)}
-
         </>
         )}
       </main>
