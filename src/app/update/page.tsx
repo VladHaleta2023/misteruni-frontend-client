@@ -12,9 +12,9 @@ import { ArrowLeft } from "lucide-react";
 import Select from "react-select";
 
 enum SubjectDetailLevel {
-  MANDATORY = "MANDATORY",
-  DESIRABLE = "DESIRABLE",
-  OPTIONAL = "OPTIONAL"
+  BASIC = "BASIC",
+  EXPANDED = "EXPANDED",
+  ACADEMIC = "ACADEMIC"
 }
 
 type Subject = {
@@ -41,7 +41,7 @@ export default function UpdatePage() {
   const router = useRouter();
 
   const [threshold, setThreshold] = useState(50);
-  const [detailLevel, setDetailLevel] = useState<SubjectDetailLevel>(SubjectDetailLevel.MANDATORY);
+  const [detailLevel, setDetailLevel] = useState<SubjectDetailLevel>(SubjectDetailLevel.BASIC);
   const [dailyStudyMinutes, setDailyStudyMinutes] = useState<number>(60);
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -61,11 +61,11 @@ export default function UpdatePage() {
     const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
     const minLevel = selectedSubject?.minDetailLevel as SubjectDetailLevel | undefined;
 
-    if (!minLevel || minLevel === SubjectDetailLevel.MANDATORY) {
+    if (!minLevel || minLevel === SubjectDetailLevel.BASIC) {
       return [
-        { value: SubjectDetailLevel.MANDATORY, label: "Podstawowy" },
-        { value: SubjectDetailLevel.DESIRABLE, label: "Rozszerzony" },
-        { value: SubjectDetailLevel.OPTIONAL, label: "Akademicki" }
+        { value: SubjectDetailLevel.BASIC, label: "Podstawowy" },
+        { value: SubjectDetailLevel.EXPANDED, label: "Rozszerzony" },
+        { value: SubjectDetailLevel.ACADEMIC, label: "Akademicki" }
       ];
     }
 
@@ -123,7 +123,7 @@ export default function UpdatePage() {
           setStyle(firstSubject.style);
         } else {
           setSelectedSubjectId(null);
-          setDetailLevel(SubjectDetailLevel.MANDATORY);
+          setDetailLevel(SubjectDetailLevel.BASIC);
           setStyle(false);
         }
 
@@ -215,7 +215,7 @@ export default function UpdatePage() {
     try {
       const response = await api.put<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
-        detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
+        detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
         style
       });
@@ -262,7 +262,7 @@ export default function UpdatePage() {
     try {
       const response = await api.post<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
-        detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.MANDATORY,
+        detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
         style
       });
@@ -378,7 +378,7 @@ export default function UpdatePage() {
               <Select
                 id="detail-level"
                 value={selectedDetailLevelOption}
-                onChange={(selectedOption) => setDetailLevel(selectedOption?.value || SubjectDetailLevel.MANDATORY)}
+                onChange={(selectedOption) => setDetailLevel(selectedOption?.value || SubjectDetailLevel.BASIC)}
                 classNamePrefix="react-select"
                 options={detailLevelOptions}
                 isSearchable={false}

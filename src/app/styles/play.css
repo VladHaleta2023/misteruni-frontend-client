@@ -71,6 +71,22 @@ textarea::placeholder {
   user-select: text;
   resize: none;
   overflow: hidden;
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+.answer-block[contenteditable="true"]:empty::before {
+  content: attr(data-placeholder);
+  color: #darkgray;
+  pointer-events: none;
+  font-style: normal;
+  display: inline-block;
+  width: 100%;
+}
+
+.answer-block[contenteditable="true"]:focus:empty::before {
+    opacity: 0.5;
 }
 
 textarea {

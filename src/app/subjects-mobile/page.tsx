@@ -13,9 +13,9 @@ import { LogOut, Plus, Settings, Trash2 } from "lucide-react";
 import Message from "../components/message";
 
 enum SubjectDetailLevel {
-  MANDATORY = "MANDATORY",
-  DESIRABLE = "DESIRABLE",
-  OPTIONAL = "OPTIONAL"
+  BASIC = "BASIC",
+  EXPANDED = "EXPANDED",
+  ACADEMIC = "ACADEMIC"
 }
 
 interface Subject {

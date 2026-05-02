@@ -243,6 +243,9 @@ export default function TasksPage() {
       if (sectionType == "Stories") {
         router.push("/interactive-play");
       }
+      else if (sectionType == "Writing") {
+        router.push("/writing-play");
+      }
       else {
         router.push("/play");
       }
@@ -444,8 +447,8 @@ export default function TasksPage() {
                             <LibraryBig size={26} />
                         </div>) : null}
 
-                        {topicNote && sectionType !== "Stories" && (<>
-                            <div 
+                        {sectionType !== "Stories" && (<>
+                            <div
                                 className="btnOption" 
                                 style={{
                                     fontWeight: "bold"

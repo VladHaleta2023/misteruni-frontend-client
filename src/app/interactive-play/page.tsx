@@ -85,7 +85,6 @@ export default function InteractivePlayPage() {
         userOptionIndex: 0,
         correctOptionIndex: 0,
         userSolution: "",
-        originalSolution: "",
         audioFiles: [],
         words: [],
         literatures: [],
@@ -648,9 +647,7 @@ export default function InteractivePlayPage() {
                 { signal } as any
             );
 
-            if (response.data?.statusCode === 200) {
-                showAlert(200, "Zadanie zapisane pomyślnie");
-            } else {
+            if (response.data?.statusCode !== 200) {
                 setLoading(false);
                 showAlert(400, "Nie udało się zapisać zadanie");
             }
@@ -684,9 +681,7 @@ export default function InteractivePlayPage() {
                 { signal } as any
             );
 
-            if (response.data?.statusCode === 200) {
-                showAlert(200, "Audio zapisane pomyślnie");
-            } else {
+            if (response.data?.statusCode !== 200) {
                 setLoading(false);
                 showAlert(400, "Nie udało się zapisać audio");
             }
@@ -1033,6 +1028,29 @@ export default function InteractivePlayPage() {
 
                 if (signal?.aborted) return;
 
+                if (data.explanation === "") {
+                    setIsChatEnd(true);
+                    const newChat = removeLastBlockOptimal(task.chat)
+                    setChatBlocks(parseChat(newChat));
+
+                    if (controllerRef.current) controllerRef.current.abort();
+
+                    const controller = new AbortController();
+                    controllersRef.current.push(controller);
+                    const signal = controller.signal;
+
+                    await handleChatEnd(
+                        subjectId ?? 0,
+                        sectionId ?? 0,
+                        topicId ?? 0,
+                        task,
+                        newChat,
+                        signal
+                    );
+
+                    return;
+                }
+
                 setLoading(false);
                 setIsProcessingChat(false);
                 
@@ -1339,44 +1357,6 @@ export default function InteractivePlayPage() {
         }
     };
 
-    const adjustChatTextareaRows = () => {
-        if (chatTextareaRef.current) {
-            const textarea = chatTextareaRef.current;
-            textarea.style.height = "auto";
-            textarea.style.height = textarea.scrollHeight + "px";
-        }
-    };
-
-    const adjustTextareaRows = () => {
-        if (textareaRef.current) {
-            const textarea = textareaRef.current;
-            const main = document.querySelector("main");
-            const scrollTop = main?.scrollTop ?? window.scrollY;
-
-            textarea.style.height = "auto";
-            textarea.style.height = textarea.scrollHeight + "px";
-
-            if (main) main.scrollTop = scrollTop;
-            else window.scrollTo(0, scrollTop);
-        }
-    };
-
-    const handleChatInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-        const target = e.target as HTMLTextAreaElement;
-        setChatTextValue(target.value);
-        adjustChatTextareaRows();
-    };
-
-    const handleUserSolutionInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-        const target = e.target as HTMLTextAreaElement;
-        setTask(prev => ({
-            ...prev,
-            originalSolution: target.value,
-            userSolution: target.value
-        }));
-        adjustTextareaRows();
-    };
-
     function extractWords(text: string): string[] {
         return text.match(/\p{L}+/gu) || []; 
     }
@@ -1457,10 +1437,7 @@ export default function InteractivePlayPage() {
             { signal } as any
             );
 
-            if (result.data?.statusCode === 200) {
-                setLoading(false);
-                showAlert(200, `Dodawanie słowa lub wyrazu udane`);
-            } else {
+            if (result.data?.statusCode !== 200) {
                 setLoading(false);
                 showAlert(400, `Nie udało się dodać słowo lub wyraz`);
             }
@@ -1692,9 +1669,7 @@ export default function InteractivePlayPage() {
         try {
             const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${task.id}`);
 
-            if (response.data?.statusCode === 200) {
-                showAlert(response.data.statusCode, response.data.message);
-            } else {
+            if (response.data?.statusCode !== 200) {
                 showAlert(response.data.statusCode, response.data.message);
             }
         }
@@ -2287,28 +2262,40 @@ export default function InteractivePlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                {!task.answered ? (
+                                {!task.answered && task.stage >= 3 ? (
                                     <>
                                         <div className="text-title">Moje Rozwiązanie:</div>
-                                        <textarea
-                                            ref={textareaRef}
-                                            placeholder={`Napisz rozwiązanie...`}
+                                        <div
+                                            ref={textareaRef as any}
+                                            data-placeholder="Napisz rozwiązanie..."
+                                            contentEditable={!task.answered}
+                                            suppressContentEditableWarning
                                             className="answer-block"
-                                            style={{ marginTop: "0px" }}
-                                            value={task.originalSolution}
-                                            onInput={handleUserSolutionInput}
-                                            rows={1}
-                                            name="userSolution"
-                                            id="userSolution"
+                                            onInput={(e) => {
+                                                const el = e.currentTarget;
+
+                                                const value = el.innerText;
+
+                                                setTask(prev => ({
+                                                    ...prev,
+                                                    originalSolution: value,
+                                                    userSolution: value
+                                                }));
+
+                                                requestAnimationFrame(() => {
+                                                    el.style.height = "auto";
+                                                    el.style.height = `${el.scrollHeight}px`;
+                                                });
+                                            }}
                                         />
                                     </>
-                                ) : !isEmptyString(task.originalSolution) && (<>
+                                ) : !isEmptyString(task.userSolution) && task.stage >= 3 && (<>
                                     <div className="text-title">Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        {task.originalSolution}
+                                        <FormatText content={task.userSolution} />
                                     </div>
                                 </>)}
-                                {!task.answered && !isSubmittingAnswer && (
+                                {!task.answered && task.stage >= 3 && !isSubmittingAnswer && (
                                     <div className="options" style={{
                                         display: "flex",
                                         cursor: "pointer",
@@ -2356,19 +2343,26 @@ export default function InteractivePlayPage() {
                                     
                                     {(getLastMarker(task.chat) === "AI_QUESTION" && !isChatEnd && !task.chatFinished && chatBlocks.length > 0 && !isTyping && !isProcessingChat) && (
                                         <div className="message human">
-                                            <textarea
-                                                ref={chatTextareaRef}
-                                                placeholder={`Zakończ, zapytaj, daj odpowiedź...`}
+                                            <div
+                                                ref={chatTextareaRef as any}
+                                                contentEditable
+                                                suppressContentEditableWarning
                                                 className="answer-block"
-                                                style={{ marginTop: "0px" }}
-                                                value={chatTextValue}
-                                                onInput={handleChatInput}
-                                                rows={2}
-                                                name="userSolution"
-                                                id="userSolution"
+                                                data-placeholder="Daj odpowiedź..."
+                                                onInput={(e) => {
+                                                    const el = e.currentTarget;
+                                                    const value = el.innerText;
+
+                                                    setChatTextValue(value);
+
+                                                    requestAnimationFrame(() => {
+                                                        el.style.height = "auto";
+                                                        el.style.height = `${el.scrollHeight}px`;
+                                                    });
+                                                }}
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (
-                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>
+                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
                                                     {isEmptyString(chatTextValue) && (<button
                                                         className={`btnOption ${task.status == "completed" ? "completed" : "progress"}`}
                                                         style={{
@@ -2385,7 +2379,7 @@ export default function InteractivePlayPage() {
                                                         {`Zakończ ${Math.round(task.percent)}%`}
                                                     </button>)}
                                                     <div style={{ display: "flex", gap: "6px", cursor: "pointer", marginLeft: "auto" }}>
-                                                        <button
+                                                        {/*<button
                                                             className="btnOption"
                                                             title="Zadaj Pytanie"
                                                             onClick={async (e) => {
@@ -2394,9 +2388,12 @@ export default function InteractivePlayPage() {
                                                             }}
                                                         >
                                                             <BsQuestion size={28} color="white" />
-                                                        </button>
+                                                        </button>*/}
                                                         <button
                                                             className={`btnOption darkgreen`}
+                                                            style={{
+                                                                width: "76px"
+                                                            }}
                                                             title={`Wyślij`}
                                                             onClick={async (e) => {
                                                                 e.preventDefault();

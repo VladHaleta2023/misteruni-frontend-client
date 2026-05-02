@@ -11,9 +11,8 @@ import Message from "../components/message";
 import FormatText from "../components/formatText";
 import "@/app/styles/table.css";
 import { getSubtopicTexts, ITask } from "../scripts/task";
-import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
+import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal, extractLastQAChunk } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
-import { BsQuestion } from "react-icons/bs";
 import Spinner from "../components/spinner";
 
 enum ChatMode {
@@ -31,6 +30,7 @@ export default function PlayPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [poradnikLoading, setPoradnikLoading] = useState(true);
+    const [userSolutionText, setUserSolutionText] = useState("");
     const [spinnerLoading, setSpinnerLoading] = useState(false);
 
     const [isChatEnd, setIsChatEnd] = useState(false);
@@ -77,7 +77,6 @@ export default function PlayPage() {
             userOptionIndex: 0,
             correctOptionIndex: 0,
             userSolution: "",
-            originalSolution: "",
             audioFiles: [],
             words: [],
             literatures: [],
@@ -244,7 +243,7 @@ export default function PlayPage() {
                     setIsTaskTextTyping(false);
                     shouldScrollRef.current = true;
                     scrollToBottom(true);
-                    resolve();  // ← Promise выполняется, печать окончена
+                    resolve();
                     return;
                 }
 
@@ -610,9 +609,7 @@ export default function PlayPage() {
                 { signal } as any
             );
 
-            if (response.data?.statusCode === 200) {
-                showAlert(200, "Zadanie zapisane pomyślnie");
-            } else {
+            if (response.data?.statusCode !== 200) {
                 setLoading(false);
                 showAlert(400, "Nie udało się zapisać zadania");
             }
@@ -634,6 +631,7 @@ export default function PlayPage() {
             correctOption: string,
             userOption: string,
             userSolution: string,
+            chat: string,
             signal?: AbortSignal
         ): Promise<{
             outputSubtopics: string[];
@@ -656,15 +654,15 @@ export default function PlayPage() {
                 const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
+                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: "" };
 
                     const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
+                        { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation, chat },
                         { signal: activeSignal } as any
                     );
 
-                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: ""};
+                    if (activeSignal?.aborted) return { outputSubtopics: [], explanation: "" };
 
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
@@ -682,7 +680,7 @@ export default function PlayPage() {
                 return { outputSubtopics, explanation };
             } catch (error: unknown) {
                 setLoading(false);
-                if ((error as DOMException)?.name === "AbortError") return { outputSubtopics: [], explanation: ""};
+                if ((error as DOMException)?.name === "AbortError") return { outputSubtopics: [], explanation: "" };
                 handleApiError(error);
                 return { outputSubtopics: [], explanation: "" }
             } finally {
@@ -851,9 +849,7 @@ export default function PlayPage() {
                 { signal } as any
             );
 
-            if (response.data?.statusCode === 200) {
-                showAlert(200, "Podtematy zostały zapisane pomyślnie");
-            } else {
+            if (response.data?.statusCode !== 200) {
                 setLoading(false);
                 showAlert(400, "Nie udało się zapisać podtematy zadania");
             }
@@ -1008,6 +1004,33 @@ export default function PlayPage() {
                     ? ChatMode.STUDENT_QUESTION
                     : newTask.mode;
 
+                /*
+                const lastLearningStep: string = extractLastQAChunk(newTask.chat ?? "");
+
+                const dataLastLearningStep = await handleProblemsGenerate(
+                    subjectId,
+                    sectionId,
+                    topicId,
+                    newTask.text ?? "",
+                    newTask.subtopics ?? [],
+                    newTask.solution ?? "",
+                    newTask.options ?? [],
+                    newTask.options[newTask.correctOptionIndex] ?? "",
+                    newTask.options[newTask.userOptionIndex] ?? "",
+                    newTask.userSolution,
+                    lastLearningStep ?? "",
+                    signal
+                );
+
+                const { chat } = dataLastLearningStep;
+
+                let newChat = chat;
+                if (!isEmptyChat)
+                    newChat = newTask.chat + `\n${chat}`;
+                */
+
+                console.log(newTask);
+
                 const result = await handleChatGenerate(
                     subjectId,
                     sectionId,
@@ -1028,7 +1051,7 @@ export default function PlayPage() {
 
                 if (signal?.aborted || !result) return;
 
-                const { chat, chatFinished, userSolution } = result;
+                const { chat, userSolution } = result;
 
                 let newChat = chat;
                 if (!isEmptyChat)
@@ -1040,7 +1063,7 @@ export default function PlayPage() {
                     topicId,
                     taskId,
                     newChat,
-                    chatFinished,
+                    false,
                     userSolution,
                     mode,
                     signal
@@ -1056,7 +1079,8 @@ export default function PlayPage() {
                     newTask.options ?? [],
                     newTask.options[newTask.correctOptionIndex] ?? "",
                     newTask.options[newTask.userOptionIndex] ?? "",
-                    userSolution,
+                    newTask.userSolution,
+                    newChat,
                     signal
                 );
 
@@ -1082,9 +1106,6 @@ export default function PlayPage() {
                 );
 
                 if (signal?.aborted) return;
-
-                setLoading(false);
-                setIsProcessingChat(false);
                 
                 const newChatBlocks = parseChat(newChat);
                 const newRobotBlocks = getNewRobotBlocks(newChatBlocks, parseChat(newTask.chat));
@@ -1112,6 +1133,9 @@ export default function PlayPage() {
             setLoading(false);
             setIsProcessingChat(false);
             handleApiError(error);
+        } finally {
+            setLoading(false);
+            setIsProcessingChat(false);
         }
     }, [handleChatGenerate, handleUpdateChat, handleSaveSubtopicsProgressTransaction, handleProblemsGenerate, getNewRobotBlocks, simulateTypingForRobotBlocks]);
 
@@ -1340,7 +1364,7 @@ export default function PlayPage() {
                     setSolutionGuide(task.solutionGuide ?? "");
                     setChatBlocks(parseChat(task.chat));
 
-                    if (task.finished || (!task.answered && stage >= 3)) {
+                    if (task.finished || (!task.answered && stage >= 2)) {
                         setLoading(false);
                         return;
                     }
@@ -1417,50 +1441,6 @@ export default function PlayPage() {
         };
     }, []);
 
-    const adjustChatTextareaRows = () => {
-        if (chatTextareaRef.current) {
-            const textarea = chatTextareaRef.current;
-            const main = document.querySelector("main");
-            const scrollTop = main?.scrollTop ?? window.scrollY;
-
-            textarea.style.height = "auto";
-            textarea.style.height = textarea.scrollHeight + "px";
-
-            if (main) main.scrollTop = scrollTop;
-            else window.scrollTo(0, scrollTop);
-        }
-    };
-
-    const adjustTextareaRows = () => {
-        if (textareaRef.current) {
-            const textarea = textareaRef.current;
-            const main = document.querySelector("main");
-            const scrollTop = main?.scrollTop ?? window.scrollY;
-
-            textarea.style.height = "auto";
-            textarea.style.height = textarea.scrollHeight + "px";
-
-            if (main) main.scrollTop = scrollTop;
-            else window.scrollTo(0, scrollTop);
-        }
-    };
-
-    const handleChatInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-        const target = e.target as HTMLTextAreaElement;
-        setChatTextValue(target.value);
-        adjustChatTextareaRows();
-    };
-
-    const handleUserSolutionInput = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-        const target = e.target as HTMLTextAreaElement;
-        setTask(prev => ({
-            ...prev,
-            originalSolution: target.value,
-            userSolution: target.value
-        }));
-        adjustTextareaRows();
-    };
-
     const handleBackClick = () => {
         localStorage.removeItem("taskId");
 
@@ -1480,6 +1460,25 @@ export default function PlayPage() {
                 name: item.name,
                 percent: (100 - subtractValue) * 0.80 + bonus
             };
+        });
+    }
+
+    function getPreviousErrorPercents(
+        subtopics: Subtopic[], 
+        correctOptionIndex: number, 
+        userOptionIndex: number
+    ): [string, number][] {
+        const bonus = userOptionIndex === correctOptionIndex ? 20 : 0;
+        
+        return subtopics.map(item => {
+            let errorPercent = 100 - (item.percent - bonus) / 0.8;
+            
+            errorPercent = Math.round(errorPercent);
+            
+            if (errorPercent < 0) errorPercent = 0;
+            if (errorPercent > 100) errorPercent = 100;
+            
+            return [item.name, errorPercent];
         });
     }
 
@@ -1616,7 +1615,7 @@ export default function PlayPage() {
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
-                    task.userSolution,
+                    userSolutionText,
                     currentUserOptionIndex ?? 0,
                     signal
                 );
@@ -1626,7 +1625,9 @@ export default function PlayPage() {
                 setTask(prev => ({
                     ...prev,
                     answered: true,
-                    userOptionIndex: currentUserOptionIndex ?? 0
+                    userOptionIndex: currentUserOptionIndex ?? 0,
+                    originalSolution: userSolutionText,
+                    userSolution: userSolutionText
                 }));
 
                 const newTask = await fetchPendingTask(
@@ -1677,7 +1678,7 @@ export default function PlayPage() {
                 controllerRef.current = null;
             }
         }
-    }, [task.id, task.answered, task.userSolution, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
+    }, [task.id, task.answered, userSolutionText, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     useEffect(() => {
         if (task?.options.length > 0 && task?.answered === false && task?.finished === false) {
@@ -1689,9 +1690,7 @@ export default function PlayPage() {
         try {
             const response = await api.delete<any>(`/subjects/${subjectId}/tasks/${task.id}`);
 
-            if (response.data?.statusCode === 200) {
-                showAlert(response.data.statusCode, response.data.message);
-            } else {
+            if (response.data?.statusCode !== 200) {
                 showAlert(response.data.statusCode, response.data.message);
             }
         }
@@ -1726,6 +1725,21 @@ export default function PlayPage() {
         
         return result;
     }, [chatBlocks, tempTypingBlocks]);
+
+    const updatePlaceholder = () => {
+        const el = chatTextareaRef.current;
+        if (!el) return;
+        
+        const isEmpty = el.innerText.trim() === "";
+        const hasPlaceholder = el.hasAttribute("data-placeholder-active");
+        
+        if (isEmpty && !hasPlaceholder) {
+            el.setAttribute("data-placeholder-active", "true");
+            el.innerText = "";
+        } else if (!isEmpty && hasPlaceholder) {
+            el.removeAttribute("data-placeholder-active");
+        }
+    };
 
     return (
         <>
@@ -1823,7 +1837,7 @@ export default function PlayPage() {
                 ) : (
                     <div className="play-container" ref={containerRef}>
                         <div className="chat">
-                            {task.subtopics.length > 0 && (
+                            {task.answered && (
                                 <div className={`message human ${task.status}`}>
                                     <div
                                         className="text-title"
@@ -1844,11 +1858,9 @@ export default function PlayPage() {
                                         >
                                             {subtopicsExpanded ? <Minus size={26} /> : <Plus size={26} />}
                                         </div>
-                                        {task.answered ? (
-                                            <div className="text-title">
-                                                <FormatText content={`Ocena: ${task.percent}%`} />
-                                            </div>
-                                        ) : "Podtematy:"}
+                                        <div className="text-title">
+                                            <FormatText content={`Ocena: ${task.percent}%`} />
+                                        </div>
                                     </div>
                                     {subtopicsExpanded && (
                                         <div style={{ marginTop: "8px" }}>
@@ -2069,28 +2081,44 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                {!task.answered ? (
+                                {!task.answered && task.stage >= 2 ? (
                                     <>
                                         <div className="text-title">Moje Rozwiązanie:</div>
-                                        <textarea
-                                            ref={textareaRef}
-                                            placeholder={`Napisz rozwiązanie...`}
+                                        <div
+                                            ref={textareaRef as any}
+                                            data-placeholder="Napisz rozwiązanie..."
+                                            contentEditable={!task.answered}
+                                            suppressContentEditableWarning
                                             className="answer-block"
-                                            style={{ marginTop: "0px" }}
-                                            value={task.originalSolution}
-                                            onInput={handleUserSolutionInput}
-                                            rows={1}
-                                            name="userSolution"
-                                            id="userSolution"
+                                            onInput={(e) => {
+                                                const el = e.currentTarget;
+                                                
+                                                if (el.hasAttribute("data-placeholder-active")) {
+                                                    el.removeAttribute("data-placeholder-active");
+                                                }
+                                                
+                                                setUserSolutionText(el.innerText);
+                                                
+                                                requestAnimationFrame(() => {
+                                                    el.style.height = "auto";
+                                                    el.style.height = `${el.scrollHeight}px`;
+                                                });
+                                            }}
+                                            onBlur={() => updatePlaceholder()}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Backspace" || e.key === "Delete") {
+                                                    setTimeout(() => updatePlaceholder(), 0);
+                                                }
+                                            }}
                                         />
                                     </>
-                                ) : !isEmptyString(task.originalSolution) && (<>
+                                ) : task.stage >= 2 && !isEmptyString(task.userSolution) && (<>
                                     <div className="text-title">Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        {task.originalSolution}
+                                        <FormatText content={task.userSolution} />
                                     </div>
                                 </>)}
-                                {!task.answered && !isSubmittingAnswer && (
+                                {!task.answered && task.stage >= 2 && !isSubmittingAnswer && (
                                     <div className="options" style={{
                                         display: "flex",
                                         cursor: "pointer",
@@ -2103,7 +2131,10 @@ export default function PlayPage() {
                                         }}>
                                             <button
                                                 className="btnOption"
-                                                title={"Wysłać Odpowiedź"}
+                                                title={"Wyślij"}
+                                                style={{
+                                                    width: "76px"
+                                                }}
                                                 onClick={(e) => {
                                                     e.preventDefault();
                                                     handleSubmitTaskClick();
@@ -2123,7 +2154,7 @@ export default function PlayPage() {
                                             <div key={index} className="message human">
                                                 <div className="text-title">{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                                    <FormatText content={block.content} />
+                                                    {block.content}
                                                 </div>
                                             </div>
                                         ) : (
@@ -2138,19 +2169,36 @@ export default function PlayPage() {
                                     
                                     {(getLastMarker(task.chat) === "AI_QUESTION" && !isChatEnd && !task.chatFinished && chatBlocks.length > 0 && !isTyping && !isProcessingChat) && (
                                         <div className="message human">
-                                            <textarea
-                                                ref={chatTextareaRef}
-                                                placeholder={`Zakończ, zapytaj, daj odpowiedź...`}
+                                            <div
+                                                ref={chatTextareaRef as any}
+                                                contentEditable
+                                                suppressContentEditableWarning
                                                 className="answer-block"
                                                 style={{ marginTop: "0px" }}
-                                                value={chatTextValue}
-                                                onInput={handleChatInput}
-                                                rows={2}
-                                                name="userSolution"
-                                                id="userSolution"
+                                                data-placeholder="Daj odpowiedź..."
+                                                onInput={(e) => {
+                                                    const el = e.currentTarget;
+                                                    
+                                                    if (el.hasAttribute("data-placeholder-active")) {
+                                                        el.removeAttribute("data-placeholder-active");
+                                                    }
+                                                    
+                                                    setChatTextValue(el.innerText);
+                                                    
+                                                    requestAnimationFrame(() => {
+                                                        el.style.height = "auto";
+                                                        el.style.height = `${el.scrollHeight}px`;
+                                                    });
+                                                }}
+                                                onBlur={() => updatePlaceholder()}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Backspace" || e.key === "Delete") {
+                                                        setTimeout(() => updatePlaceholder(), 0);
+                                                    }
+                                                }}
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (
-                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px" }}>                            
+                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>                            
                                                     {isEmptyString(chatTextValue) && (<button
                                                         className={`btnOption ${task.status == "completed" ? "completed" : "progress"}`}
                                                         style={{
@@ -2166,8 +2214,8 @@ export default function PlayPage() {
                                                     >
                                                         {`Zakończ ${Math.round(task.percent)}%`}
                                                     </button>)}
-                                                    <div style={{ display: "flex", gap: "6px", cursor: "pointer", marginLeft: "auto" }}>
-                                                        <button
+                                                    <div style={{ display: "flex", gap: "6px", cursor: "pointer" }}>
+                                                        {/*<button
                                                             className="btnOption"
                                                             title="Zadaj Pytanie"
                                                             onClick={async (e) => {
@@ -2176,12 +2224,22 @@ export default function PlayPage() {
                                                             }}
                                                         >
                                                             <BsQuestion size={28} color="white" />
-                                                        </button>
+                                                        </button>*/}
                                                         <button
                                                             className={`btnOption darkgreen`}
+                                                            style={{
+                                                                width: "76px"
+                                                            }}
                                                             title={`Wyślij`}
                                                             onClick={async (e) => {
                                                                 e.preventDefault();
+
+                                                                const chatText = chatTextValue.trim();
+                                                                if (!chatText) {
+                                                                    showAlert(400, "Odpowiedź nie może być pusta");
+                                                                    return;
+                                                                }
+
                                                                 handleSendMessage('answer');
                                                             }}
                                                         >
@@ -2214,25 +2272,27 @@ export default function PlayPage() {
                                         }}
                                         onClick={() => setProblemsExpanded(prev => !prev)}
                                     >
-                                        <div style={{
-                                            display: "flex"
-                                        }}>
-                                            <div
-                                                className="btnElement"
-                                                style={{
-                                                    marginRight: "4px",
-                                                    fontWeight: "bold",
-                                                }}
-                                            >
-                                                {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                        {task.explanation && (<>
+                                            <div style={{
+                                                display: "flex"
+                                            }}>
+                                                <div
+                                                    className="btnElement"
+                                                    style={{
+                                                        marginRight: "4px",
+                                                        fontWeight: "bold",
+                                                    }}
+                                                >
+                                                    {problemsExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                                </div>
+                                                Wyjaśnienie:
                                             </div>
-                                            Wyjaśnienie:
-                                        </div>
-                                        <div className={`element-percent ${task.status}`}>
+                                        </>)}
+                                        <div className={`element-percent ${task.status}`} style={{ marginLeft: "auto" }}>
                                             {task.percent}%
                                         </div>
                                     </div>
-                                    {(problemsExpanded || isExplanationTyping) && (
+                                    {(problemsExpanded || isExplanationTyping) && task.explanation && (
                                         <>
                                             <br />
                                             <div style={{paddingLeft: "20px"}}>

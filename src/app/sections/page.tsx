@@ -280,6 +280,9 @@ export default function SectionsPage() {
     if (sectionType == "Stories") {
       router.push("/interactive-play");
     }
+    else if (sectionType == "Writing") {
+      router.push("/writing-play");
+    }
     else {
       router.push("/play");
     }

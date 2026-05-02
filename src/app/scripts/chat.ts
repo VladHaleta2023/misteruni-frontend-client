@@ -1,4 +1,4 @@
-export type MarkerType = 'AI_ANSWER' | 'AI_QUESTION' | 'AI_USER_SOLUTION' | 'STUDENT_ANSWER' | 'STUDENT_QUESTION';
+export type MarkerType = 'AI_ANSWER' | 'AI_QUESTION' | 'AI_USER_SOLUTION' | 'STUDENT_ANSWER' | 'STUDENT_QUESTION' | 'AI_SUBTOPIC';
 
 export interface ChatBlock {
   type: MarkerType;
@@ -11,48 +11,18 @@ export type ParseChatResult = ChatBlock[];
 
 type TitlesMap = Record<MarkerType, string>;
 
-function removeDuplicatesFromAISolution(blocks: ChatBlock[]): ChatBlock[] {
-  const result: ChatBlock[] = [];
-  const previousFullContents: string[] = [];
-  
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    
-    if (block.type === 'AI_USER_SOLUTION') {
-      const normalizedContent = block.content.trim();
-      
-      if (!previousFullContents.includes(normalizedContent)) {
-        let uniqueContent = normalizedContent;
-        
-        const sortedPrevContents = [...previousFullContents].sort((a, b) => b.length - a.length);
-        
-        for (const prevContent of sortedPrevContents) {
-          if (uniqueContent.startsWith(prevContent)) {
-            uniqueContent = uniqueContent.substring(prevContent.length).trim();
-          }
-        }
-        
-        uniqueContent = uniqueContent.replace(/^[\s,;:.!?\-–—]+/, '');
-        uniqueContent = uniqueContent.replace(/[\s,;:.!?\-–—]+$/, '');
-        
-        if (uniqueContent) {
-          result.push({
-            ...block,
-            content: uniqueContent
-          });
-          previousFullContents.push(normalizedContent);
-        }
-      }
-    } else {
-      result.push(block);
-    }
-  }
-  
-  return result;
+function removeAllSubtopicBlocks(blocks: ChatBlock[]): ChatBlock[] {
+  return blocks.filter(block => block.type !== 'AI_SUBTOPIC');
 }
 
-function removeAllAISolutionBlocks(blocks: ChatBlock[]): ChatBlock[] {
+function removeAllAIUserSolutionsBlocks(blocks: ChatBlock[]): ChatBlock[] {
   return blocks.filter(block => block.type !== 'AI_USER_SOLUTION');
+}
+
+function removeAPIBlocks(blocks: ChatBlock[]): ChatBlock[] {
+  blocks = removeAllSubtopicBlocks(blocks);
+  blocks = removeAllAIUserSolutionsBlocks(blocks);
+  return blocks;
 }
 
 export function parseChat(chatText: string): ParseChatResult {
@@ -71,7 +41,8 @@ export function parseChat(chatText: string): ParseChatResult {
         line.startsWith('[AI_QUESTION]') || 
         line.startsWith('[AI_USER_SOLUTION]') || 
         line.startsWith('[STUDENT_ANSWER]') || 
-        line.startsWith('[STUDENT_QUESTION]')) {
+        line.startsWith('[STUDENT_QUESTION]') ||
+        line.startsWith('[AI_SUBTOPIC]')) {
       
       if (currentType) {
         saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
@@ -91,7 +62,7 @@ export function parseChat(chatText: string): ParseChatResult {
     saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
   }
   
-  return removeAllAISolutionBlocks(blocks);
+  return removeAPIBlocks(blocks);
 }
 
 function saveBlock(type: MarkerType, content: string, blocks: ChatBlock[]) {
@@ -114,7 +85,8 @@ function getTitle(marker: MarkerType): string {
     'AI_QUESTION': 'Pytanie dodatkowe:',
     'AI_USER_SOLUTION': 'Rozwiązanie Ucznia:',
     'STUDENT_ANSWER': 'Moja Odpowiedź:',
-    'STUDENT_QUESTION': 'Moje Pytanie:'
+    'STUDENT_QUESTION': 'Moje Pytanie:',
+    'AI_SUBTOPIC': 'Podtematy:',
   };
   
   return titles[marker] || '';
@@ -139,6 +111,8 @@ export function getLastMarker(chatText: string): MarkerType | null {
       lastMarker = 'STUDENT_ANSWER';
     } else if (line.startsWith('[STUDENT_QUESTION]')) {
       lastMarker = 'STUDENT_QUESTION';
+    } else if (line.startsWith('[AI_SUBTOPIC]')) {
+      lastMarker = 'AI_SUBTOPIC';
     }
   }
   
@@ -173,4 +147,62 @@ export function removeLastBlockOptimal(chatText: string): string {
   }
   
   return result;
+}
+
+export function extractLastQAChunk(chatText: string): string {
+  const blocks: ChatBlock[] = [];
+  
+  if (!chatText?.trim()) return "";
+
+  const lines = chatText.split('\n');
+  let currentType: MarkerType | '' = '';
+  let currentContent = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (line.startsWith('[AI_ANSWER]') || 
+        line.startsWith('[AI_QUESTION]') || 
+        line.startsWith('[AI_USER_SOLUTION]') || 
+        line.startsWith('[STUDENT_ANSWER]') || 
+        line.startsWith('[STUDENT_QUESTION]') ||
+        line.startsWith('[AI_SUBTOPIC]')) {
+      
+      if (currentType) {
+        saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
+      }
+      
+      const markerEnd = line.indexOf(']') + 1;
+      const marker = line.substring(1, markerEnd - 1) as MarkerType;
+      currentType = marker;
+      currentContent = line.substring(markerEnd);
+    } 
+    else if (currentType) {
+      currentContent += '\n' + line;
+    }
+  }
+  
+  if (currentType) {
+    saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
+  }
+
+  const lastSubtopic = [...blocks]
+    .reverse()
+    .find(b => b.type === 'AI_SUBTOPIC');
+
+  const lastQuestion = [...blocks]
+    .reverse()
+    .find(b => b.type === 'AI_QUESTION');
+
+  const lastAnswer = [...blocks]
+    .reverse()
+    .find(b => b.type === 'STUDENT_ANSWER');
+
+  if (!lastSubtopic || !lastQuestion || !lastAnswer) return '';
+
+  return [
+    `[AI_SUBTOPIC]\n${lastSubtopic.content}`,
+    `[AI_QUESTION]\n${lastQuestion.content}`,
+    `[STUDENT_ANSWER]\n${lastAnswer.content}`,
+  ].join('\n\n');
 }
