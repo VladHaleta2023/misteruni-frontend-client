@@ -39,7 +39,6 @@ export interface ITask {
     finished: boolean;
     chatFinished: boolean;
     chat: string;
-    mode: ChatMode;
     percent: number;
     percentAudio?: number;
     percentWords?: number;

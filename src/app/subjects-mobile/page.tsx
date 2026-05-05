@@ -31,8 +31,7 @@ interface UserSubject {
   subjectId: number,
   threshold: number;
   detailLevel: SubjectDetailLevel;
-  subject: Subject
-  style: boolean;
+  subject: Subject;
 }
 
 export default function SubjectPage() {
@@ -128,14 +127,10 @@ export default function SubjectPage() {
     init();
   }, [fetchSubjects]);
 
-  const handleSubjectClick = (subjectId: number, subjectType: string, style: boolean) => {
+  const handleSubjectClick = (subjectId: number, subjectType: string) => {
     localStorage.setItem("weekOffset", "0");
     localStorage.setItem("subjectId", subjectId.toString());
     localStorage.setItem("subjectType", subjectType);
-    if (style)
-      localStorage.setItem("style", "true");
-    else
-      localStorage.removeItem("style");
     router.push('/sections');
   };
 
@@ -291,7 +286,7 @@ export default function SubjectPage() {
                     key={userSubject.subject.id}
                     className="element element-subject"
                     id={`${userSubject.subject.id}`}
-                    onClick={() => handleSubjectClick(userSubject.subject.id, userSubject.subject.type, userSubject.style)}
+                    onClick={() => handleSubjectClick(userSubject.subject.id, userSubject.subject.type)}
                     style={{ cursor: "pointer" }}
                     >
                     {userSubject.subject.url ? (

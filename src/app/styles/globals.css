@@ -76,6 +76,10 @@ img.logo {
   border: 0 !important;
 }
 
+h1 {
+  font-size: 18px;
+}
+
 @media (max-width: 768px) {
   main {
     border: none;

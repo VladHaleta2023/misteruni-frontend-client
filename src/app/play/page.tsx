@@ -15,11 +15,6 @@ import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal, extractLas
 import StatusIndicator from "../components/statusIndicator";
 import Spinner from "../components/spinner";
 
-enum ChatMode {
-  STUDENT_ANSWER = "STUDENT_ANSWER",
-  STUDENT_QUESTION = "STUDENT_QUESTION"
-}
-
 interface Subtopic {
     name: string;
     percent: number;
@@ -29,7 +24,6 @@ interface Subtopic {
 export default function PlayPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [poradnikLoading, setPoradnikLoading] = useState(true);
     const [userSolutionText, setUserSolutionText] = useState("");
     const [spinnerLoading, setSpinnerLoading] = useState(false);
 
@@ -49,13 +43,11 @@ export default function PlayPage() {
 
     const [subtopicsExpanded, setSubtopicsExpanded] = useState(false);
     const [topicNoteExpanded, setTopicNoteExpanded] = useState(false);
-    const [solutionGuideExpanded, setSolutionGuideExpanded] = useState(false);
+    const [solutionExpanded, setSolutionExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
     const [userOptionIndex, setUserOptionIndex] = useState<number | null>(null);
 
     const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
-    const [textGuideLoading, setTextGuideLoading] = useState<string>("Generowanie AI: Poradnika Rozwiązania Zadania...");
-    const [solutionGuide, setSolutionGuide] = useState<string>("");
     const [task, setTask] = useState<ITask>(
         {
             id: 0,
@@ -73,7 +65,6 @@ export default function PlayPage() {
             finished: false,
             chatFinished: false,
             chat: "",
-            mode: ChatMode.STUDENT_ANSWER,
             userOptionIndex: 0,
             correctOptionIndex: 0,
             userSolution: "",
@@ -137,9 +128,7 @@ export default function PlayPage() {
 
             shouldScrollRef.current = true;
             
-            requestAnimationFrame(() => {
-                scrollToBottom(true);
-            });
+            scrollToBottom(true);
 
             typingIntervalRef.current = setInterval(() => {
                 if (currentBlockIndex >= blocksToType.length) {
@@ -278,7 +267,7 @@ export default function PlayPage() {
                     setIsOptionsTyping(false);
                     shouldScrollRef.current = true;
                     scrollToBottom(true);
-                    resolve();  // ← Promise выполняется, все варианты напечатаны
+                    resolve();
                     return;
                 }
                 
@@ -357,16 +346,20 @@ export default function PlayPage() {
         if (!mainRef.current || !shouldScrollRef.current) return;
         
         requestAnimationFrame(() => {
-            if (mainRef.current) {
-                if (instant) {
-                    mainRef.current.scrollTop = mainRef.current.scrollHeight;
-                } else {
-                    mainRef.current.scrollTo({
-                        top: mainRef.current.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                }
-            }
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    if (mainRef.current) {
+                        if (instant) {
+                            mainRef.current.scrollTop = mainRef.current.scrollHeight;
+                        } else {
+                            mainRef.current.scrollTo({
+                                top: mainRef.current.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                }, 100);
+            });
         });
     }, []);
 
@@ -702,7 +695,6 @@ export default function PlayPage() {
         userOption: string,
         chat: string,
         chatFinished: boolean,
-        mode: ChatMode,
         subtopics: string[],
         signal?: AbortSignal
         ): Promise<{
@@ -727,7 +719,7 @@ export default function PlayPage() {
 
                 const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat-generate`,
-                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption, style },
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption, style },
                     { signal: activeSignal } as any
                 );
 
@@ -766,7 +758,6 @@ export default function PlayPage() {
         chat: string,
         chatFinished: boolean,
         userSolution: string,
-        mode: ChatMode,
         signal?: AbortSignal,
     ) => {
         if (!taskId) {
@@ -782,7 +773,6 @@ export default function PlayPage() {
                     chat,
                     chatFinished,
                     userSolution,
-                    mode
                 },
                 { signal } as any
             );
@@ -896,10 +886,10 @@ export default function PlayPage() {
         }
     }
 
-    const handleSolutionGuideGenerate = useCallback(
+    const handleSolutionGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, taskId: number, signal?: AbortSignal) => {
-            setPoradnikLoading(true);
-            setTextGuideLoading("Generowanie AI: Poradnika Rozwiązania Zadania...");
+            setLoading(true);
+            setTextLoading("Generowanie AI: Rozwiązania Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -909,15 +899,15 @@ export default function PlayPage() {
                 let changed = "true";
                 let attempt = 0;
                 let errors: string[] = [];
-                let solutionGuide: string = "";
+                let solution: string = "";
                 const MAX_ATTEMPTS = 2;
 
                 while (changed === "true" && attempt <= MAX_ATTEMPTS) {
-                    if (activeSignal?.aborted) return { solutionGuide: "" };
+                    if (activeSignal?.aborted) return { solution: "" };
 
                     const response = await api.post<any>(
-                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution-guide-generate`,
-                        { changed, errors, attempt, solutionGuide },
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution-generate`,
+                        { changed, errors, attempt, solution },
                         { signal: activeSignal } as any
                     );
 
@@ -926,7 +916,7 @@ export default function PlayPage() {
                     if (response.data?.statusCode === 201) {
                         changed = response.data.changed;
                         errors = response.data.errors;
-                        solutionGuide = response.data.solutionGuide;
+                        solution = response.data.solution;
                         attempt = response.data.attempt;
                         console.log(`Generowanie poradnika rozwiązania zadania: Próba ${attempt}`);
                     } else {
@@ -935,44 +925,44 @@ export default function PlayPage() {
                     }
                 }
 
-                return { solutionGuide };
+                return { solution };
             } catch (error: unknown) {
-                setPoradnikLoading(false);
-                if ((error as DOMException)?.name === "AbortError") return { solutionGuide: "" };
+                setLoading(false);
+                if ((error as DOMException)?.name === "AbortError") return { solution: "" };
                 handleApiError(error);
-                return { solutionGuide: "" };
+                return { solution: "" };
             } finally {
                 if (controller) controllersRef.current = controllersRef.current.filter(c => c !== controller);
             }
         }, []
     );
 
-    const handleTaskSolutionGuideSave = useCallback(async (
+    const handleTaskSolutionSave = useCallback(async (
         subjectId: number,
         sectionId: number,
         topicId: number,
         taskId: number,
-        solutionGuide: string,
+        solution: string,
         signal?: AbortSignal
     ) => {
         try {
-            setPoradnikLoading(true);
-            setTextGuideLoading("Zapisywanie Poradnika Rozwiązania Zadania...");
+            setLoading(true);
+            setTextLoading("Zapisywanie Rozwiązania Zadania...");
 
             const taskSolutionGuideResponse = await api.put<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution-guide`,
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/solution`,
                 {
-                    solutionGuide
+                    solution
                 },
                 { signal } as any
             );
 
             if (taskSolutionGuideResponse.data?.statusCode !== 200) {
-                showAlert(400, `Nie udało się zapisać poradnik`);
+                showAlert(400, `Nie udało się zapisać rozwiązanie zadania`);
             }
         }
         catch (error: unknown) {
-            setPoradnikLoading(false);
+            setLoading(false);
             handleApiError(error);
         }
     }, []);
@@ -994,43 +984,9 @@ export default function PlayPage() {
 
             const shouldGenerateChat =
                 getLastMarker(newTask.chat) === "STUDENT_ANSWER" ||
-                getLastMarker(newTask.chat) === "STUDENT_QUESTION" ||
                 isEmptyChat;
 
             if (shouldGenerateChat) {
-                const mode = getLastMarker(newTask.chat) === "STUDENT_ANSWER"
-                    ? ChatMode.STUDENT_ANSWER
-                    : getLastMarker(newTask.chat) === "STUDENT_QUESTION"
-                    ? ChatMode.STUDENT_QUESTION
-                    : newTask.mode;
-
-                /*
-                const lastLearningStep: string = extractLastQAChunk(newTask.chat ?? "");
-
-                const dataLastLearningStep = await handleProblemsGenerate(
-                    subjectId,
-                    sectionId,
-                    topicId,
-                    newTask.text ?? "",
-                    newTask.subtopics ?? [],
-                    newTask.solution ?? "",
-                    newTask.options ?? [],
-                    newTask.options[newTask.correctOptionIndex] ?? "",
-                    newTask.options[newTask.userOptionIndex] ?? "",
-                    newTask.userSolution,
-                    lastLearningStep ?? "",
-                    signal
-                );
-
-                const { chat } = dataLastLearningStep;
-
-                let newChat = chat;
-                if (!isEmptyChat)
-                    newChat = newTask.chat + `\n${chat}`;
-                */
-
-                console.log(newTask);
-
                 const result = await handleChatGenerate(
                     subjectId,
                     sectionId,
@@ -1044,7 +1000,6 @@ export default function PlayPage() {
                     newTask.options[newTask.userOptionIndex],
                     newTask.chat,
                     newTask.chatFinished,
-                    mode,
                     getSubtopicTexts(newTask.subtopics),
                     signal
                 );
@@ -1065,7 +1020,6 @@ export default function PlayPage() {
                     newChat,
                     false,
                     userSolution,
-                    mode,
                     signal
                 );
 
@@ -1238,6 +1192,22 @@ export default function PlayPage() {
             scrollToBottom(true);
 
             setLoading(true);
+
+            const solutionResult = await handleSolutionGenerate(subjectId, sectionId, topicId, task.id, signal);
+
+            if (!solutionResult.solution) {
+                setLoading(false);
+                showAlert(400, "Nie udało się wygenerować rozwiązania zadania");
+                return;
+            }
+
+            await handleTaskSolutionSave(subjectId, sectionId, topicId, task.id, solutionResult.solution ?? "", signal);
+        
+            setTask(prev => ({
+                ...prev,
+                solution: solutionResult.solution ?? "",
+            }));
+
             setTextLoading("Obliczanie Wyników...");
 
             await handleUpdateChat(
@@ -1248,7 +1218,6 @@ export default function PlayPage() {
                 newChat,
                 true,
                 task.userSolution,
-                task.mode,
                 signal
             );
 
@@ -1270,7 +1239,6 @@ export default function PlayPage() {
 
             if (finalTask) {
                 setTask(finalTask);
-                setSolutionGuide(finalTask.solutionGuide ?? "");
                 setChatBlocks(parseChat(finalTask.chat));
                 
                 setShowFinalBlocks(true);
@@ -1292,7 +1260,7 @@ export default function PlayPage() {
             setIsProcessingChat(false);
             setChatTextValue("");
         }
-    }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping]);
+    }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping, handleSolutionGenerate, handleTaskSolutionSave]);
 
     useEffect(() => {
         const handleUnload = () => {
@@ -1317,6 +1285,13 @@ export default function PlayPage() {
             showAlert(400, "Nie udało się pobrać ID lub ID jest niepoprawne");
         }
     }, []);
+
+    useEffect(() => {
+        if (!isTyping && !isProcessingChat && chatBlocks.length > 0) {
+            shouldScrollRef.current = true;
+            scrollToBottom(true);
+        }
+    }, [isTyping, isProcessingChat]);
 
     const controllerRef = useRef<AbortController | null>(null);
     const controllersRef = useRef<AbortController[]>([]);
@@ -1361,10 +1336,10 @@ export default function PlayPage() {
 
                     setUserOptionIndex(task.userOptionIndex ?? 0)
                     setTask(task);
-                    setSolutionGuide(task.solutionGuide ?? "");
                     setChatBlocks(parseChat(task.chat));
 
                     if (task.finished || (!task.answered && stage >= 2)) {
+                        setShowFinalBlocks(task.finished);
                         setLoading(false);
                         return;
                     }
@@ -1396,7 +1371,6 @@ export default function PlayPage() {
 
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask(task);
-                setSolutionGuide(task.solutionGuide ?? "");
                 setUserOptionIndex(task.userOptionIndex ?? 0);
                 setChatBlocks(parseChat(task.chat));
 
@@ -1405,7 +1379,17 @@ export default function PlayPage() {
                 if (task.finished) {
                     setShowFinalBlocks(true);
                     setTypedExplanation(task.explanation || "");
+                    setLoading(false);
                 }
+
+                await handleChatEnd(
+                    subjectId ?? 0,
+                    sectionId ?? 0,
+                    topicId ?? 0,
+                    task,
+                    task.chat,
+                    signal
+                );
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 handleApiError(error);
@@ -1463,25 +1447,6 @@ export default function PlayPage() {
         });
     }
 
-    function getPreviousErrorPercents(
-        subtopics: Subtopic[], 
-        correctOptionIndex: number, 
-        userOptionIndex: number
-    ): [string, number][] {
-        const bonus = userOptionIndex === correctOptionIndex ? 20 : 0;
-        
-        return subtopics.map(item => {
-            let errorPercent = 100 - (item.percent - bonus) / 0.8;
-            
-            errorPercent = Math.round(errorPercent);
-            
-            if (errorPercent < 0) errorPercent = 0;
-            if (errorPercent > 100) errorPercent = 100;
-            
-            return [item.name, errorPercent];
-        });
-    }
-
     function isEmptyString(str: string): boolean {
         return /^\s*$/.test(str);
     }
@@ -1518,19 +1483,16 @@ export default function PlayPage() {
 
             const userBlock: ChatBlock = {
                 isUser: true,
-                title: type === 'question' ? "Moje Pytanie:" : "Moja Odpowiedź:",
+                title: "Moja Odpowiedź:",
                 content: userMessage,
-                type: type === 'question' ? "STUDENT_QUESTION" : "STUDENT_ANSWER"
+                type: "STUDENT_ANSWER"
             };
 
             setChatBlocks(prev => [...prev, userBlock]);
             shouldScrollRef.current = true;
             scrollToBottom(true);
-
-            const chatMode = type === 'question' ? ChatMode.STUDENT_QUESTION : ChatMode.STUDENT_ANSWER;
-            const marker = type === 'question' ? 'STUDENT_QUESTION' : 'STUDENT_ANSWER';
             
-            const newChat = currentChat + `\n\n[${marker}]\n${userMessage}`;
+            const newChat = currentChat + `\n\n[STUDENT_ANSWER]\n${userMessage}`;
             
             await handleUpdateChat(
                 currentSubjectId ?? 0,
@@ -1540,7 +1502,6 @@ export default function PlayPage() {
                 newChat,
                 currentChatFinished,
                 currentUserSolution,
-                chatMode,
                 signal
             );
 
@@ -1560,11 +1521,8 @@ export default function PlayPage() {
                 signal
             );
 
-            if (updatedTask) {
+            if (updatedTask)
                 setTask(updatedTask);
-                setSolutionGuide(updatedTask.solutionGuide ?? "");
-            }
-
         } catch (error: unknown) {
             if ((error as DOMException)?.name === "AbortError") {
                 setChatBlocks(prev => prev.filter(block => 
@@ -1661,10 +1619,8 @@ export default function PlayPage() {
                     signal
                 );
 
-                if (finalTask) {
+                if (finalTask)
                     setTask(finalTask);
-                    setSolutionGuide(finalTask.solutionGuide ?? "");
-                }
             } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 setLoading(false);
@@ -1959,77 +1915,6 @@ export default function PlayPage() {
                                             {"Streszczenie"}
                                         </div>
                                 </div>) : null}
-                                {task.text != "" && (<div className="element-name"  style={{
-                                    display: "flex",
-                                    alignItems: "flex-start",
-                                    cursor: "pointer",
-                                    fontWeight: "bold",
-                                    flexDirection: "column",
-                                    gap: "6px"
-                                }} onClick={async () => {
-                                    setSolutionGuideExpanded(prev => !prev);
-
-                                    if (solutionGuide === "") {
-                                        if (controllerRef.current) controllerRef.current.abort();
-
-                                        const controller = new AbortController();
-                                        controllersRef.current.push(controller);
-                                        const signal = controller.signal;
-
-                                        const solutionGuideResult = await handleSolutionGuideGenerate(
-                                            subjectId ?? 0,
-                                            sectionId ?? 0,
-                                            topicId ?? 0,
-                                            task.id,
-                                            signal
-                                        );
-
-                                        const newSolutionGuide = solutionGuideResult?.solutionGuide ?? "";
-
-                                        await handleTaskSolutionGuideSave(
-                                            subjectId ?? 0,
-                                            sectionId ?? 0,
-                                            topicId ?? 0,
-                                            task.id,
-                                            newSolutionGuide,
-                                            signal
-                                        );
-
-                                        setSolutionGuide(newSolutionGuide);
-                                    }
-
-                                    setPoradnikLoading(false);
-                                }}>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: "6px"
-                                    }}>
-                                        <div className="btnOption" style={{
-                                            marginRight: "12px",
-                                            fontWeight: "bold",
-                                            backgroundColor: "darkgreen"
-                                        }}>
-                                            {solutionGuideExpanded ? <Minus size={26} /> : <Lightbulb size={26} />}
-                                        </div>
-                                        Poradnik Rozwiązania Zadania:
-                                    </div>
-                                </div>)}
-                                {solutionGuideExpanded && (<>
-                                    {solutionGuide !== "" ? (
-                                        <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
-                                            <br />
-                                            <FormatText content={solutionGuide ?? ""} />
-                                            <br />
-                                        </div>
-                                    ) : (
-                                        <div className="topic-note" style={{ paddingLeft: "20px", marginTop: "8px" }}>
-                                            <br />
-                                            <StatusIndicator text={textGuideLoading} />
-                                            <br />
-                                        </div>
-                                    )}
-                                </>)}
                             </div>)}
                             {task.text != "" && (
                                 <div className="message robot">
@@ -2081,7 +1966,7 @@ export default function PlayPage() {
                                         </div>
                                     ))}
                                 </div>
-                                {!task.answered && task.stage >= 2 ? (
+                                {!task.answered ? (
                                     <>
                                         <div className="text-title">Moje Rozwiązanie:</div>
                                         <div
@@ -2097,7 +1982,7 @@ export default function PlayPage() {
                                                     el.removeAttribute("data-placeholder-active");
                                                 }
                                                 
-                                                setUserSolutionText(el.innerText);
+                                                setUserSolutionText(el.innerHTML);
                                                 
                                                 requestAnimationFrame(() => {
                                                     el.style.height = "auto";
@@ -2112,7 +1997,7 @@ export default function PlayPage() {
                                             }}
                                         />
                                     </>
-                                ) : task.stage >= 2 && !isEmptyString(task.userSolution) && (<>
+                                ) : !isEmptyString(task.userSolution) && (<>
                                     <div className="text-title">Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
                                         <FormatText content={task.userSolution} />
@@ -2183,7 +2068,7 @@ export default function PlayPage() {
                                                         el.removeAttribute("data-placeholder-active");
                                                     }
                                                     
-                                                    setChatTextValue(el.innerText);
+                                                    setChatTextValue(el.innerHTML);
                                                     
                                                     requestAnimationFrame(() => {
                                                         el.style.height = "auto";
@@ -2215,16 +2100,6 @@ export default function PlayPage() {
                                                         {`Zakończ ${Math.round(task.percent)}%`}
                                                     </button>)}
                                                     <div style={{ display: "flex", gap: "6px", cursor: "pointer" }}>
-                                                        {/*<button
-                                                            className="btnOption"
-                                                            title="Zadaj Pytanie"
-                                                            onClick={async (e) => {
-                                                                e.preventDefault();
-                                                                handleSendMessage('question');
-                                                            }}
-                                                        >
-                                                            <BsQuestion size={28} color="white" />
-                                                        </button>*/}
                                                         <button
                                                             className={`btnOption darkgreen`}
                                                             style={{
@@ -2253,10 +2128,6 @@ export default function PlayPage() {
                                 </>
                             )}
                             
-                            {loading && (
-                                <StatusIndicator text={textLoading} />
-                            )}
-                            
                             {(task.finished || showFinalBlocks) && (
                             <>
                                 <div className="message robot">
@@ -2270,9 +2141,48 @@ export default function PlayPage() {
                                             fontWeight: "bold",
                                             fontSize: "20px"
                                         }}
+                                        onClick={() => setSolutionExpanded(prev => !prev)}
+                                    >
+                                        {task.solution && (<>
+                                            <div style={{
+                                                display: "flex"
+                                            }}>
+                                                <div
+                                                    className="btnElement"
+                                                    style={{
+                                                        marginRight: "4px",
+                                                        fontWeight: "bold",
+                                                    }}
+                                                >
+                                                    {solutionExpanded ? <Minus size={26} /> : <Plus size={26} />}
+                                                </div>
+                                                Rozwiązanie Zadania:
+                                            </div>
+                                        </>)}
+                                    </div>
+                                    {solutionExpanded && task.solution && (
+                                        <>
+                                            <br />
+                                            <div style={{paddingLeft: "20px"}}>
+                                                <FormatText content={task.solution ?? ""} />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <div className="message robot">
+                                    <div
+                                        className="text-title"
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            cursor: "pointer",
+                                            fontWeight: "bold",
+                                            fontSize: "20px"
+                                        }}
                                         onClick={() => setProblemsExpanded(prev => !prev)}
                                     >
-                                        {task.explanation && (<>
+                                        {task.explanation && task.solution && (<>
                                             <div style={{
                                                 display: "flex"
                                             }}>
@@ -2292,7 +2202,7 @@ export default function PlayPage() {
                                             {task.percent}%
                                         </div>
                                     </div>
-                                    {(problemsExpanded || isExplanationTyping) && task.explanation && (
+                                    {(problemsExpanded || isExplanationTyping) && task.explanation && task.solution && (
                                         <>
                                             <br />
                                             <div style={{paddingLeft: "20px"}}>
@@ -2306,6 +2216,10 @@ export default function PlayPage() {
                                     )}
                                 </div>
                             </>
+                            )}
+
+                            {loading && (
+                                <StatusIndicator text={textLoading} />
                             )}
                         </div>
                     </div>

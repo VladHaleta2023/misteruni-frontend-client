@@ -5,7 +5,6 @@ import Header from "@/app/components/header";
 import "@/app/styles/components.css";
 import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
-import axios from "axios";
 import Spinner from "@/app/components/spinner";
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from "lucide-react";
@@ -21,7 +20,6 @@ type Subject = {
   id: number;
   name: string;
   minDetailLevel: string;
-  style: boolean
 }
 
 type OptionType = {
@@ -47,8 +45,6 @@ export default function UpdatePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
 
-  const [style, setStyle] = useState(false);
-
   const subjectOptions = useMemo<OptionType[]>(() => 
     subjects.map(subject => ({
       value: subject.id,
@@ -69,15 +65,15 @@ export default function UpdatePage() {
       ];
     }
 
-    if (minLevel === SubjectDetailLevel.DESIRABLE) {
+    if (minLevel === SubjectDetailLevel.EXPANDED) {
       return [
-        { value: SubjectDetailLevel.DESIRABLE, label: "Obowiązkowy" },
-        { value: SubjectDetailLevel.OPTIONAL, label: "Pożądany" }
+        { value: SubjectDetailLevel.EXPANDED, label: "Obowiązkowy" },
+        { value: SubjectDetailLevel.ACADEMIC, label: "Pożądany" }
       ];
     }
 
     return [
-      { value: SubjectDetailLevel.OPTIONAL, label: "Obowiązkowy" }
+      { value: SubjectDetailLevel.ACADEMIC, label: "Obowiązkowy" }
     ];
   }, [subjects, selectedSubjectId]);
 
@@ -120,14 +116,11 @@ export default function UpdatePage() {
           const firstSubject = subjectsData[0];
           setSelectedSubjectId(firstSubject.id);
           setDetailLevel(firstSubject.minDetailLevel as SubjectDetailLevel);
-          setStyle(firstSubject.style);
         } else {
           setSelectedSubjectId(null);
           setDetailLevel(SubjectDetailLevel.BASIC);
-          setStyle(false);
         }
 
-        setStyle(false);
         setDailyStudyMinutes(60);
         setThreshold(50);
       }
@@ -160,10 +153,8 @@ export default function UpdatePage() {
           id: subj.id,
           name: subj.name,
           minDetailLevel: subj.minDetailLevel,
-          style: subj.style
         }]);
 
-        setStyle(response.data.subject.style ?? false);
         setThreshold(response.data.subject.threshold ?? 50);
         setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
         setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
@@ -217,7 +208,6 @@ export default function UpdatePage() {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
-        style
       });
 
       setLoading(false);
@@ -264,7 +254,6 @@ export default function UpdatePage() {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
-        style
       });
 
       setLoading(false);

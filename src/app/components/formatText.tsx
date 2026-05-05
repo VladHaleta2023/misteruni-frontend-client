@@ -16,7 +16,17 @@ export default function FormatText({ content }: FormatTextProps) {
 
     let cleaned = content;
 
-    // Заголовки
+    cleaned = cleaned
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#x2F;/g, '/')
+      .replace(/&#x60;/g, '`')
+      .replace(/&#x3D;/g, '=');
+
     cleaned = cleaned
       .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
       .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
@@ -25,37 +35,6 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/^## (.*)$/gm, '<h2>$1</h2>')
       .replace(/^# (.*)$/gm, '<h1>$1</h1>');
 
-    /*
-    // Нумерованные списки (закомментировано)
-    cleaned = cleaned.replace(
-      /(^\d+\.\s.*(\n\d+\.\s.*)*)/gm,
-      (match) => {
-        const items = match
-          .trim()
-          .split('\n')
-          .map((line) => line.replace(/^\d+\.\s/, '<li>') + '</li>')
-          .join('');
-        return `<ol>${items}</ol>`;
-      }
-    );
-    */
-
-    /*
-    // Маркированные списки (закомментировано)
-    cleaned = cleaned.replace(
-      /(^- .*(\n- .*)*)/gm,
-      (match) => {
-        const items = match
-          .trim()
-          .split('\n')
-          .map((line) => line.replace(/^- /, '<li>') + '</li>')
-          .join('');
-        return `<ul>${items}</ul>`;
-      }
-    );
-    */
-
-    // Стили Markdown
     cleaned = cleaned
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -63,14 +42,12 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
       .replace(/`(.*?)`/g, '<code>$1</code>');
 
-    // Сохраняем блочные формулы $$…$$
     const blockFormulas: string[] = [];
     cleaned = cleaned.replace(/\$\$([\s\S]+?)\$\$/g, (_, f) => {
       blockFormulas.push(f);
       return `%%BLOCK_FORMULA_${blockFormulas.length - 1}%%`;
     });
 
-    // Сохраняем блочные формулы \[…\]
     const bracketFormulas: string[] = [];
     cleaned = cleaned.replace(/\\\[([\s\S]+?)\\\]/g, (_, f) => {
       bracketFormulas.push(f);
@@ -80,7 +57,6 @@ export default function FormatText({ content }: FormatTextProps) {
     cleaned = cleaned.replace(/\n/g, '<br />');
 
     cleaned = cleaned.replace(/%%BLOCK_FORMULA_(\d+)%%/g, (_, i) => `$$${blockFormulas[i]}$$`);
-
     cleaned = cleaned.replace(/%%BRACKET_FORMULA_(\d+)%%/g, (_, i) => `\\[${bracketFormulas[i]}\\]`);
 
     ref.current.innerHTML = cleaned;

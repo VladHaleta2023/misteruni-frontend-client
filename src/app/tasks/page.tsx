@@ -90,7 +90,7 @@ export default function TasksPage() {
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
   const [taskId, setTaskId] = useState<number | null>(null);
-  const [sectionType, setSectionType] = useState<string | null>(null);
+  const [type, setType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
   const [topicPercent, setTopicPercent] = useState<number | null>(null);
   const [topicStatus, setTopicStatus] = useState<string | null>(null);
@@ -125,8 +125,8 @@ export default function TasksPage() {
         setSectionId(storedSectionId ? Number(storedSectionId) : null);
         const storedTopicId = localStorage.getItem("topicId");
         setTopicId(storedTopicId ? Number(storedTopicId) : null);
-        const storedSectionType = localStorage.getItem("sectionType");
-        setSectionType(storedSectionType ? String(storedSectionType) : null);
+        const storedtype = localStorage.getItem("type");
+        setType(storedtype ? String(storedtype) : null);
         
         const storedWeekOffset = localStorage.getItem("weekOffset");
         const parsedWeekOffset = Number(storedWeekOffset);
@@ -209,7 +209,7 @@ export default function TasksPage() {
       sectionId: number,
       topicId: number,
       taskId: number,
-      sectionType: string
+      type: string
   ) => {
       if (!subjectId) {
           setLoading(false);
@@ -240,10 +240,10 @@ export default function TasksPage() {
       localStorage.setItem("topicId", String(topicId));
       localStorage.setItem("taskId", String(taskId));
 
-      if (sectionType == "Stories") {
+      if (type == "Stories") {
         router.push("/interactive-play");
       }
-      else if (sectionType == "Writing") {
+      else if (type == "Writing") {
         router.push("/writing-play");
       }
       else {
@@ -355,7 +355,7 @@ export default function TasksPage() {
                 onConfirm={() => {
                     setMsgPlayVisible(false);
 
-                    if (sectionType == "Stories") {
+                    if (type == "Stories") {
                         router.push("/interactive-play");
                     }
                     else {
@@ -380,7 +380,7 @@ export default function TasksPage() {
                         alignItems: "flex-start"
                     }}
                     onClick={(e) => {
-                        if (!topicNote || sectionType === "Stories")
+                        if (!topicNote || type === "Stories")
                             return;
 
                         e.stopPropagation();
@@ -389,7 +389,7 @@ export default function TasksPage() {
                 >
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                         <div className="element-name" style={{ fontSize: "20px" }}>
-                            {topicName && sectionType === "Stories" && (
+                            {topicName && type === "Stories" && (
                                 <div
                                     className="btnOption"
                                     style={{
@@ -414,7 +414,7 @@ export default function TasksPage() {
                         </div>
                     </div>
                     <div className="element-name" style={{ margin: "0px 8px" }}>
-                        {topicNote && sectionType !== "Stories" && (<>
+                        {topicNote && type !== "Stories" && (<>
                             <div
                                 className="btnOption" 
                                 style={{
@@ -447,7 +447,7 @@ export default function TasksPage() {
                             <LibraryBig size={26} />
                         </div>) : null}
 
-                        {sectionType !== "Stories" && (<>
+                        {type !== "Stories" && (<>
                             <div
                                 className="btnOption" 
                                 style={{
@@ -481,7 +481,7 @@ export default function TasksPage() {
                         flexDirection: "column",
                         margin: "auto"
                     }}>
-                        {sectionType === "Stories" ? (
+                        {type === "Stories" ? (
                         <>
                             <div>
                                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
@@ -514,7 +514,7 @@ export default function TasksPage() {
                               sectionId ?? 0,
                               topicId ?? 0,
                               task.id,
-                              sectionType ?? ""
+                              type ?? ""
                           )
                       }
                       key={task.id}
@@ -524,7 +524,7 @@ export default function TasksPage() {
                     alignItems: "flex-start"
                   }}>
                     <div style={{ display: "flex", marginBottom: "8px", }}>
-                        {sectionType !== "Stories" ? (
+                        {type !== "Stories" ? (
                             <FormatText content={task.text ?? ""} />
                         ) : !task.finished ? (
                             <FormatText content={"Tekst do nagrania..."} />

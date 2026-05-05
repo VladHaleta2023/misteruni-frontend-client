@@ -81,7 +81,6 @@ export default function InteractivePlayPage() {
         finished: false,
         chatFinished: false,
         chat: "",
-        mode: ChatMode.STUDENT_ANSWER,
         userOptionIndex: 0,
         correctOptionIndex: 0,
         userSolution: "",
@@ -771,7 +770,6 @@ export default function InteractivePlayPage() {
         userOption: string,
         chat: string,
         chatFinished: boolean,
-        mode: ChatMode,
         subtopics: string[],
         signal?: AbortSignal
         ): Promise<{
@@ -796,7 +794,7 @@ export default function InteractivePlayPage() {
 
                 const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat-generate`,
-                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, mode, subtopics, options, userOption, correctOption, style },
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption, style },
                     { signal: activeSignal } as any
                 );
 
@@ -835,7 +833,6 @@ export default function InteractivePlayPage() {
         chat: string,
         chatFinished: boolean,
         userSolution: string,
-        mode: ChatMode,
         signal?: AbortSignal,
     ) => {
         if (!taskId) {
@@ -850,8 +847,7 @@ export default function InteractivePlayPage() {
                 {
                     chat,
                     chatFinished,
-                    userSolution,
-                    mode
+                    userSolution
                 },
                 { signal } as any
             );
@@ -943,7 +939,6 @@ export default function InteractivePlayPage() {
                     newTask.options[newTask.userOptionIndex],
                     newTask.chat,
                     newTask.chatFinished,
-                    mode,
                     getSubtopicTexts(subtopics),
                     signal
                 );
@@ -977,7 +972,6 @@ export default function InteractivePlayPage() {
                     newChat,
                     chatFinished,
                     userSolution,
-                    mode,
                     signal
                 );
 
@@ -1290,7 +1284,6 @@ export default function InteractivePlayPage() {
                 newChat,
                 true,
                 task.userSolution,
-                task.mode,
                 signal
             );
 
@@ -1597,19 +1590,16 @@ export default function InteractivePlayPage() {
 
             const userBlock: ChatBlock = {
                 isUser: true,
-                title: type === 'question' ? "Moje Pytanie:" : "Moja Odpowiedź:",
+                title:"Moja Odpowiedź:",
                 content: userMessage,
-                type: type === 'question' ? "STUDENT_QUESTION" : "STUDENT_ANSWER"
+                type: "STUDENT_ANSWER"
             };
 
             setChatBlocks(prev => [...prev, userBlock]);
             shouldScrollRef.current = true;
             scrollToBottom(true);
-
-            const chatMode = type === 'question' ? ChatMode.STUDENT_QUESTION : ChatMode.STUDENT_ANSWER;
-            const marker = type === 'question' ? 'STUDENT_QUESTION' : 'STUDENT_ANSWER';
             
-            const newChat = currentChat + `\n\n[${marker}]\n${userMessage}`;
+            const newChat = currentChat + `\n\n[STUDENT_ANSWER]\n${userMessage}`;
             
             await handleUpdateChat(
                 currentSubjectId ?? 0,
@@ -1619,7 +1609,6 @@ export default function InteractivePlayPage() {
                 newChat,
                 currentChatFinished,
                 currentUserSolution,
-                chatMode,
                 signal
             );
 

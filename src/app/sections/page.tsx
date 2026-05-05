@@ -26,6 +26,7 @@ interface Subtopic {
 interface Topic {
   id: number;
   name: string;
+  type: string;
   percent: number;
   frequency: number;
   status: Status;
@@ -222,48 +223,6 @@ export default function SectionsPage() {
     }
   }, []);
 
-  const fetchFirstUnCompletedTopic = useCallback(async () => {
-    if (fetchInProgressRef.current) return;
-    fetchInProgressRef.current = true;
-    
-    if (!subjectId) {
-      setLoading(false);
-      fetchInProgressRef.current = false;
-      showAlert(400, "Przedmiot nie został znaleziony");
-      return;
-    }
-
-    try {
-      const response = await api.get<any>(`/subjects/${subjectId}/sections/topics/first-uncompleted`);
-
-      if (response.data?.statusCode === 200) {
-        handlePlayClick(
-          response.data.topic.sectionId,
-          response.data.topic.topicId,
-          response.data.topic.sectionType
-        );
-      } else {
-        setLoading(false);
-        showAlert(response.data.statusCode, response.data.message);
-      }
-    } catch (error) {
-      setLoading(false);
-      const err = error as any;
-    
-      if (err?.response) {
-        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
-      } 
-      else if (error instanceof Error) {
-        showAlert(500, error.message);
-      }
-      else {
-        showAlert(500, "Unknown error");
-      }
-    } finally {
-      fetchInProgressRef.current = false;
-    }
-  }, [subjectId]);
-
   const handleTopicsExpand = useCallback((sectionId: number) => {
     setExpandedSections((prev) => ({
       ...prev,
@@ -271,16 +230,16 @@ export default function SectionsPage() {
     }));
   }, []);
 
-  const handleTopicPlayClick = (sectionId: number, topic: Topic, sectionType: string) => {
+  const handleTopicPlayClick = (sectionId: number, topic: Topic, type: string) => {
     setTopicId(topic.id);
     setSectionId(sectionId);
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
 
-    if (sectionType == "Stories") {
+    if (type == "Stories") {
       router.push("/interactive-play");
     }
-    else if (sectionType == "Writing") {
+    else if (type == "Writing") {
       router.push("/writing-play");
     }
     else {
@@ -288,24 +247,12 @@ export default function SectionsPage() {
     }
   };
 
-  const handlePlayClick = (sectionId: number, topicId: number, sectionType: string) => {
-    localStorage.setItem("sectionId", String(sectionId));
-    localStorage.setItem("topicId", String(topicId));
-
-    if (sectionType == "Stories") {
-      router.push("/interactive-play");
-    }
-    else {
-      router.push("/play");
-    }
-  };
-
-  const handleTopicClick = (sectionId: number, topic: Topic, sectionType: string) => {
+  const handleTopicClick = (sectionId: number, topic: Topic, type: string) => {
     setTopicId(topic.id);
     setSectionId(sectionId);
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
-    localStorage.setItem("sectionType", String(sectionType));
+    localStorage.setItem("type", String(type));
     localStorage.setItem("topicPercent", String(topic.percent));
     localStorage.setItem("topicStatus", String(topic.status));
 
@@ -470,9 +417,12 @@ export default function SectionsPage() {
                     <div
                       className={`element element-topic`}
                       onClick={(e) => {
-                          e.stopPropagation();
-                          handleTopicClick(section.id, topic, section.type);
-                        }}
+                        e.stopPropagation();
+
+                        const finalType = topic.type || section.type;
+
+                        handleTopicClick(section.id, topic, finalType);
+                      }}
                       style={{ justifyContent: "space-between" }}
                       key={`topic-${section.id}-${topic.id}`}
                     >
@@ -491,7 +441,10 @@ export default function SectionsPage() {
                           style={{ backgroundColor: "#d4d4d4", border: "1px solid grey", padding: "5px" }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleTopicPlayClick(section.id, topic, section.type);
+
+                            const finalType = topic.type || section.type;
+
+                            handleTopicPlayClick(section.id, topic, finalType);
                           }}
                         >
                           <Play size={28} color="black" />
