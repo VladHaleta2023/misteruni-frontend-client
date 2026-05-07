@@ -166,10 +166,8 @@ export default function InteractivePlayPage() {
 
             shouldScrollRef.current = true;
             
-            requestAnimationFrame(() => {
-                scrollToBottom(true);
-            });
-
+            scrollToBottom(true);
+            
             typingIntervalRef.current = setInterval(() => {
                 if (currentBlockIndex >= blocksToType.length) {
                     if (typingIntervalRef.current) {
@@ -268,7 +266,7 @@ export default function InteractivePlayPage() {
                     setIsOptionsTyping(false);
                     shouldScrollRef.current = true;
                     scrollToBottom(true);
-                    resolve();  // ← Promise выполняется, все варианты напечатаны
+                    resolve();
                     return;
                 }
                 
@@ -347,16 +345,20 @@ export default function InteractivePlayPage() {
         if (!mainRef.current || !shouldScrollRef.current) return;
         
         requestAnimationFrame(() => {
-            if (mainRef.current) {
-                if (instant) {
-                    mainRef.current.scrollTop = mainRef.current.scrollHeight;
-                } else {
-                    mainRef.current.scrollTo({
-                        top: mainRef.current.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                }
-            }
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    if (mainRef.current) {
+                        if (instant) {
+                            mainRef.current.scrollTop = mainRef.current.scrollHeight;
+                        } else {
+                            mainRef.current.scrollTo({
+                                top: mainRef.current.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                }, 100);
+            });
         });
     }, []);
 
@@ -702,6 +704,7 @@ export default function InteractivePlayPage() {
         correctOption: string,
         userOption: string,
         userSolution: string,
+        chat: string,
         signal?: AbortSignal
         ): Promise<{
             outputSubtopics: string[];
@@ -727,7 +730,7 @@ export default function InteractivePlayPage() {
 
                     const response = await api.post<any>(
                         `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/problems-generate`,
-                        { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation },
+                        { changed, errors, attempt, text, solution, options, correctOption, userOption, userSolution, subtopics: taskSubtopics, outputSubtopics, explanation, chat },
                         { signal: activeSignal } as any
                     );
 
@@ -909,16 +912,9 @@ export default function InteractivePlayPage() {
 
             const shouldGenerateChat =
                 getLastMarker(newTask.chat) === "STUDENT_ANSWER" ||
-                getLastMarker(newTask.chat) === "STUDENT_QUESTION" ||
                 isEmptyChat;
 
             if (shouldGenerateChat) {
-                const mode = getLastMarker(newTask.chat) === "STUDENT_ANSWER"
-                    ? ChatMode.STUDENT_ANSWER
-                    : getLastMarker(newTask.chat) === "STUDENT_QUESTION"
-                    ? ChatMode.STUDENT_QUESTION
-                    : newTask.mode;
-
                 const subtopics: Subtopic[] = [
                     {
                         name: newTask.topicName ?? "",
@@ -945,20 +941,7 @@ export default function InteractivePlayPage() {
 
                 if (signal?.aborted || !result) return;
 
-                const { chat, chatFinished, userSolution } = result;
-
-                if (chatFinished) {
-                    newTask.chatFinished = chatFinished;
-
-                    await handleTaskFinishedTransaction(subjectId, sectionId, topicId, newTask.id);
-
-                    if (signal?.aborted) return;
-            
-                    newTask = await fetchTaskById(subjectId, sectionId, topicId, taskId, signal);
-                    setTask(newTask);
-
-                    return;
-                }
+                const { chat, userSolution } = result;
 
                 let newChat = chat;
                 if (!isEmptyChat)
@@ -970,7 +953,7 @@ export default function InteractivePlayPage() {
                     topicId,
                     taskId,
                     newChat,
-                    chatFinished,
+                    false,
                     userSolution,
                     signal
                 );
@@ -985,7 +968,8 @@ export default function InteractivePlayPage() {
                     newTask.options ?? [],
                     newTask.options[newTask.correctOptionIndex] ?? "",
                     newTask.options[newTask.userOptionIndex] ?? "",
-                    userSolution,
+                    newTask.userSolution,
+                    newChat,
                     signal
                 );
 
@@ -1021,32 +1005,6 @@ export default function InteractivePlayPage() {
                 );
 
                 if (signal?.aborted) return;
-
-                if (data.explanation === "") {
-                    setIsChatEnd(true);
-                    const newChat = removeLastBlockOptimal(task.chat)
-                    setChatBlocks(parseChat(newChat));
-
-                    if (controllerRef.current) controllerRef.current.abort();
-
-                    const controller = new AbortController();
-                    controllersRef.current.push(controller);
-                    const signal = controller.signal;
-
-                    await handleChatEnd(
-                        subjectId ?? 0,
-                        sectionId ?? 0,
-                        topicId ?? 0,
-                        task,
-                        newChat,
-                        signal
-                    );
-
-                    return;
-                }
-
-                setLoading(false);
-                setIsProcessingChat(false);
                 
                 const newChatBlocks = parseChat(newChat);
                 const newRobotBlocks = getNewRobotBlocks(newChatBlocks, parseChat(newTask.chat));
@@ -1073,7 +1031,10 @@ export default function InteractivePlayPage() {
             if ((error as DOMException)?.name === "AbortError") return;
             setLoading(false);
             setIsProcessingChat(false);
-            handleApiError(error);   
+            handleApiError(error);
+        } finally {
+            setLoading(false);
+            setIsProcessingChat(false);
         }
     }, [handleChatGenerate, handleUpdateChat, handleProblemsGenerate, handleSaveTaskTransaction, getNewRobotBlocks, simulateTypingForRobotBlocks]);
 
@@ -1306,15 +1267,15 @@ export default function InteractivePlayPage() {
             if (finalTask) {
                 setTask({
                     ...finalTask,
-                    explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                    explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`  // ✅
                 });
                 setChatBlocks(parseChat(finalTask.chat));
-                
                 setShowFinalBlocks(true);
-                
                 if (finalTask.explanation) {
                     setLoading(false);
-                    await simulateExplanationTyping(finalTask.explanation);
+                    await simulateExplanationTyping(
+                        finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                    );
                 }
             }
         }
@@ -1750,6 +1711,7 @@ export default function InteractivePlayPage() {
                     setChatBlocks(parseChat(task.chat));
 
                     if (task.finished || (!task.answered && stage >= 3)) {
+                        setShowFinalBlocks(task.finished);
                         setLoading(false);
                         return;
                     }
@@ -1813,6 +1775,13 @@ export default function InteractivePlayPage() {
             controllerRef.current = null;
         };
     }, [subjectId, sectionId, topicId]);
+
+    useEffect(() => {
+        if (!isTyping && !isProcessingChat && chatBlocks.length > 0) {
+            shouldScrollRef.current = true;
+            scrollToBottom(true);
+        }
+    }, [isTyping, isProcessingChat]);
 
     useEffect(() => {
         const audioEl = audioRef.current;
@@ -2368,16 +2337,6 @@ export default function InteractivePlayPage() {
                                                         {`Zakończ ${Math.round(task.percent)}%`}
                                                     </button>)}
                                                     <div style={{ display: "flex", gap: "6px", cursor: "pointer", marginLeft: "auto" }}>
-                                                        {/*<button
-                                                            className="btnOption"
-                                                            title="Zadaj Pytanie"
-                                                            onClick={async (e) => {
-                                                                e.preventDefault();
-                                                                handleSendMessage('question');
-                                                            }}
-                                                        >
-                                                            <BsQuestion size={28} color="white" />
-                                                        </button>*/}
                                                         <button
                                                             className={`btnOption darkgreen`}
                                                             style={{
@@ -2386,6 +2345,11 @@ export default function InteractivePlayPage() {
                                                             title={`Wyślij`}
                                                             onClick={async (e) => {
                                                                 e.preventDefault();
+                                                                const chatText = chatTextValue.trim();
+                                                                if (!chatText) {
+                                                                    showAlert(400, "Odpowiedź nie może być pusta");
+                                                                    return;
+                                                                }
                                                                 handleSendMessage('answer');
                                                             }}
                                                         >

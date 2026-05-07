@@ -47,8 +47,6 @@ export default function PlayPage() {
     const chatRef = useRef<HTMLDivElement>(null);
 
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
-
-    const [subtopicsExpanded, setSubtopicsExpanded] = useState(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
 
     const [task, setTask] = useState<ITask>({
@@ -67,7 +65,6 @@ export default function PlayPage() {
         finished: false,
         chatFinished: false,
         chat: "",
-        mode: "STUDENT_ANSWER" as any,
         userOptionIndex: 0,
         correctOptionIndex: 0,
         userSolution: "",
@@ -83,7 +80,6 @@ export default function PlayPage() {
 
     const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
 
-    const [showFinalBlocks, setShowFinalBlocks] = useState(false);
     const [isExplanationTyping, setIsExplanationTyping] = useState(false);
     const [typedExplanation, setTypedExplanation] = useState("");
     const [isTaskTextTyping, setIsTaskTextTyping] = useState(false);
@@ -173,6 +169,21 @@ export default function PlayPage() {
             scrollTimeout.current = null;
         }, 40);
     }, []);
+
+    const updatePlaceholder = () => {
+        const el = textareaRef.current as any;
+        if (!el) return;
+        
+        const isEmpty = el.innerText.trim() === "";
+        const hasPlaceholder = el.hasAttribute("data-placeholder-active");
+        
+        if (isEmpty && !hasPlaceholder) {
+            el.setAttribute("data-placeholder-active", "true");
+            el.innerText = "";
+        } else if (!isEmpty && hasPlaceholder) {
+            el.removeAttribute("data-placeholder-active");
+        }
+    };
 
     const fetchPendingTask = useCallback(async (
         subjectId: number,
@@ -342,6 +353,7 @@ export default function PlayPage() {
         text: string,
         userSolution: string,
         subtopics: string[],
+        chat: string,
         signal?: AbortSignal
     ): Promise<{
         outputSubtopics: { name: string; percent: number }[];
@@ -379,7 +391,8 @@ export default function PlayPage() {
                         userSolution,
                         subtopics: subtopics,
                         outputSubtopics: outputSubtopics.map(s => [s.name, s.percent]),
-                        explanation
+                        explanation,
+                        chat
                     },
                     { signal: activeSignal } as any
                 );
@@ -580,6 +593,7 @@ export default function PlayPage() {
                     task.text ?? "",
                     task.userSolution,
                     currentSubtopics.map(s => s.name),
+                    task.chat ?? "",
                     signal
                 );
 
@@ -631,7 +645,6 @@ export default function PlayPage() {
                         explanation: data.explanation,
                         percent: finalPercent
                     });
-                    setShowFinalBlocks(true);
                     setLoading(false);
                     
                     if (data.explanation) {
@@ -763,6 +776,7 @@ export default function PlayPage() {
                         task.text ?? "",
                         task.userSolution,
                         currentSubtopics.map(s => s.name),
+                        task.chat ?? "",
                         signal
                     );
 
@@ -814,7 +828,6 @@ export default function PlayPage() {
                             explanation: data.explanation,
                             percent: finalPercent
                         });
-                        setShowFinalBlocks(true);
                         setLoading(false);
                         
                         if (data.explanation) {
@@ -824,7 +837,6 @@ export default function PlayPage() {
                 }
 
                 if (task.finished) {
-                    setShowFinalBlocks(true);
                     setTypedExplanation(task.explanation || "");
                 }
             } catch (error) {
@@ -968,8 +980,11 @@ export default function PlayPage() {
                                         onInput={(e) => {
                                             const el = e.currentTarget;
 
-                                            const value = el.innerText;
+                                            if (el.hasAttribute("data-placeholder-active")) {
+                                                el.removeAttribute("data-placeholder-active");
+                                            }
 
+                                            const value = el.innerText;
                                             setTask(prev => ({
                                                 ...prev,
                                                 originalSolution: value,
@@ -980,6 +995,12 @@ export default function PlayPage() {
                                                 el.style.height = "auto";
                                                 el.style.height = `${el.scrollHeight}px`;
                                             });
+                                        }}
+                                        onBlur={() => updatePlaceholder()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Backspace" || e.key === "Delete") {
+                                                setTimeout(() => updatePlaceholder(), 0);
+                                            }
                                         }}
                                     />
 
@@ -1004,6 +1025,11 @@ export default function PlayPage() {
                                                 title={"Sprawdź i zakończ"}
                                                 onClick={(e) => {
                                                     e.preventDefault();
+                                                    const text = task.userSolution?.trim();
+                                                    if (!text) {
+                                                        showAlert(400, "Odpowiedź nie może być pusta");
+                                                        return;
+                                                    }
                                                     handleSubmitTaskClick();
                                                 }}
                                                 disabled={isSubmittingAnswer}

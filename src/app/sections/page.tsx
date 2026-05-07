@@ -283,23 +283,6 @@ export default function SectionsPage() {
         >
           <ArrowLeft size={28} color="white" />
         </div>
-
-        {/*
-        <div className="menu-icon" title="Play" style={{
-          marginLeft: "auto",
-          backgroundColor: "darkgreen",
-          padding: "8px 24px"
-        }}
-          onClick={async (e) => {
-            e.stopPropagation();
-            
-            setLoading(true);
-
-            await fetchFirstUnCompletedTopic();
-          }}>
-            <Play size={28} color="white" />
-        </div>
-        */}
       </div>
     </Header>
     
@@ -340,20 +323,6 @@ export default function SectionsPage() {
           }}>
               <LibraryBig size={26} />
           </div>) : null}
-          {/*<div
-            className="btnOption" 
-            title={"Tests"}
-            onClick={() => { console.log("Tests") }}
-          >
-            <IoSchoolSharp size={28} color="white" />
-          </div>
-          <div
-            className="btnOption" 
-            title={"Ranking"}
-            onClick={() => { console.log("Ranking") }}
-          >
-            <GrLineChart size={28} color="white" />
-          </div>*/}
           </div>
           <div className="table">
             {sections
@@ -396,18 +365,6 @@ export default function SectionsPage() {
                   <div className={`element-percent ${section.status}`}>
                     {section.percent}%
                   </div>
-                  <button
-                    className="btnElement"
-                    style={{ padding: "5px" }}
-                  >
-                    {section.type == "Stories" ? (
-                      <AudioLines size={28} color="grey" />
-                    ) : section.type == "Writing" ? (
-                      <UserPen size={28} color="grey" />
-                    ) : (
-                      <SquareChartGantt size={28} color="grey" />
-                    )}
-                  </button>
                 </div>
               </div>,
 
@@ -426,10 +383,22 @@ export default function SectionsPage() {
                       style={{ justifyContent: "space-between" }}
                       key={`topic-${section.id}-${topic.id}`}
                     >
-                      <div className="element-frequency" style={{ color: "#888888" }}>
+                      {/*}div className="element-frequency" style={{ color: "#888888" }}>
                         {section.type !== "Stories" ? topic.frequency : ""}
-                      </div>
-                      <div className="element-name" style={{ marginLeft: "0px" }}>
+                      </div>*/}
+                      <button
+                        className="element-frequency"
+                        style={{ padding: "5px" }}
+                      >
+                        {topic.type == "Stories" || section.type == "Stories" ? (
+                          <AudioLines size={28} color="grey" />
+                        ) : topic.type == "Writing" || section.type == "Writing" ? (
+                          <UserPen size={28} color="grey" />
+                        ) : (
+                          <SquareChartGantt size={28} color="grey" />
+                        )}
+                      </button>
+                      <div className="element-name">
                         <FormatText content={topic.name ?? ""} />
                       </div>
                       <div className="element-options">
