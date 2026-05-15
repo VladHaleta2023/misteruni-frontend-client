@@ -9,23 +9,10 @@ import "@/app/styles/play.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "../scripts/showAlert";
 import api from "../utils/api";
-import axios from "axios";
 import React from "react";
 import { Status } from "../scripts/task";
 import FormatText from "../components/formatText";
 import StatusIndicator from "../components/statusIndicator";
-
-type Topic = {
-  id: number;
-  sectionId: number;
-  subjectId: number;
-}
-
-type Task = {
-  id: number;
-  text: string;
-  topic: Topic;
-}
 
 type Word = {
   id: number;
@@ -37,7 +24,6 @@ type Word = {
   status: Status;
   totalCorrectCount: number;
   totalAttemptCount: number;
-  tasks: Task[]
 }
 
 export default function StoriesPage() {
@@ -232,7 +218,7 @@ export default function StoriesPage() {
 
   const handlePlayClick = async () => {
     if (selectedWordIds.length === 0) {
-      showAlert(400, "Proszę wybrać przynajmniej jedno słowo");
+      showAlert(400, "Proszę wybrać przynajmniej jeden wyraz");
       return;
     }
 
@@ -241,7 +227,7 @@ export default function StoriesPage() {
       localStorage.removeItem("taskId");
       router.push('/vocabluary');
     } catch {
-      showAlert(500, "Nie udało się zapisać wybranych słów");
+      showAlert(500, "Nie udało się zapisać wybranych wyrazów");
     }
   };
 
@@ -311,7 +297,10 @@ export default function StoriesPage() {
                     <div
                       className="element"
                       style={{ alignItems: "start", border: "1px solid rgb(191, 191, 191)", borderBottom: "none", fontWeight: isSelected ? "bold" : "normal", cursor: "pointer" }}
-                      onClick={(e) => { e.stopPropagation(); handleWordClick(word.id, !isSelected); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleWordClick(word.id, !isSelected);
+                      }}
                     >
                       <div className="element-word" style={{ flex: "0 0 auto", width: "32px" }}>
                         <button
@@ -327,7 +316,11 @@ export default function StoriesPage() {
 
                       <div className="element-word">{word.text}</div>
 
-                      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+                      <div style={{
+                        marginLeft: "auto",
+                        display: "flex",
+                        alignItems: "center"
+                      }}>
                         <div className="element-word stats-column">{word.totalCorrectCount} ({word.totalAttemptCount})</div>
                         <div className="element-word stats-column">
                           <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
