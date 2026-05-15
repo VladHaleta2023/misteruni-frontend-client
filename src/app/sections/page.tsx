@@ -10,9 +10,6 @@ import api from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
 import Header from "@/app/components/header";
-import { GrLineChart } from "react-icons/gr";
-import { IoSchoolSharp } from "react-icons/io5";
-import { GrTooltip } from "react-icons/gr";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -44,7 +41,7 @@ interface Section {
 }
 
 interface ChartData {
-  total: [number, number, number];
+  total: [number, number, number, number];
   prediction: string;
   deltaDays: number;
   hasData: boolean;
@@ -157,10 +154,11 @@ export default function SectionsPage() {
         
         setSections(fetchedSections);
         
-        const newTotal: [number, number, number] = [
+        const newTotal: [number, number, number, number] = [
           Number(response.data.total.completed),
           Number(response.data.total.progress),
-          Number(response.data.total.started)
+          Number(response.data.total.started),
+          Number(response.data.total.willNotFinish)
         ];
         
         setChartData({
@@ -256,7 +254,7 @@ export default function SectionsPage() {
     localStorage.setItem("topicPercent", String(topic.percent));
     localStorage.setItem("topicStatus", String(topic.status));
 
-    router.push("/tasks");
+    router.push("/topic");
   };
 
   const ChartComponent = useCallback(() => {

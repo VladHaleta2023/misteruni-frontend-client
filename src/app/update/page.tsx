@@ -20,6 +20,7 @@ type Subject = {
   id: number;
   name: string;
   minDetailLevel: string;
+  examDate: Date;
 }
 
 type OptionType = {
@@ -32,6 +33,21 @@ type DetailLevelOption = {
   label: string;
 }
 
+const MONTHS: OptionType[] = [
+  { value: 1, label: "Styczeń" },
+  { value: 2, label: "Luty" },
+  { value: 3, label: "Marzec" },
+  { value: 4, label: "Kwiecień" },
+  { value: 5, label: "Maj" },
+  { value: 6, label: "Czerwiec" },
+  { value: 7, label: "Lipiec" },
+  { value: 8, label: "Sierpień" },
+  { value: 9, label: "Wrzesień" },
+  { value: 10, label: "Październik" },
+  { value: 11, label: "Listopad" },
+  { value: 12, label: "Grudzień" }
+]
+
 export default function UpdatePage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [spinnerText, setSpinnerText] = useState("");
@@ -41,6 +57,8 @@ export default function UpdatePage() {
   const [threshold, setThreshold] = useState(50);
   const [detailLevel, setDetailLevel] = useState<SubjectDetailLevel>(SubjectDetailLevel.BASIC);
   const [dailyStudyMinutes, setDailyStudyMinutes] = useState<number>(60);
+  const [examMonth, setExamMonth] = useState<number>(new Date().getMonth() + 1);
+  const [examYear, setExamYear] = useState<number>(new Date().getFullYear());
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
@@ -103,6 +121,11 @@ export default function UpdatePage() {
     [dailyStudyMinutes]
   );
 
+  const selectedMonthOption = useMemo<OptionType | null>(() => 
+    MONTHS.find(month => month.value === examMonth) || null,
+    [examMonth]
+  );
+
   const fetchSubjects = useCallback(async () => {
     setLoading(true);
     try {
@@ -153,11 +176,18 @@ export default function UpdatePage() {
           id: subj.id,
           name: subj.name,
           minDetailLevel: subj.minDetailLevel,
+          examDate: subj.examDate
         }]);
 
         setThreshold(response.data.subject.threshold ?? 50);
         setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
         setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
+
+        const examDate = new Date(response.data.subject.examDate ?? Date.now());
+
+        setExamMonth(examDate.getMonth() + 1);
+        setExamYear(examDate.getFullYear());
+        
         setSelectedSubjectId(subj.id);
         setSubjectId(subj.id);
       }
@@ -203,11 +233,19 @@ export default function UpdatePage() {
       return;
     }
 
+    if (examYear < new Date(Date.now()).getFullYear()) {
+      setLoading(false);
+      showAlert(400, "Rok Egzaminu nie może być mniejszy niż dzisiejszy");
+      return;
+    }
+
     try {
       const response = await api.put<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
+        month: examMonth,
+        year: examYear
       });
 
       setLoading(false);
@@ -249,11 +287,19 @@ export default function UpdatePage() {
       return;
     }
 
+    if (examYear < new Date(Date.now()).getFullYear()) {
+      setLoading(false);
+      showAlert(400, "Rok Egzaminu nie może być mniejszy niż dzisiejszy");
+      return;
+    }
+
     try {
       const response = await api.post<any>(`/user-subjects/${selectedSubjectOption?.value}`, {
         threshold,
         detailLevel: selectedDetailLevelOption?.value ?? SubjectDetailLevel.BASIC,
         dailyStudyMinutes,
+        month: examMonth,
+        year: examYear
       });
 
       setLoading(false);
@@ -385,6 +431,48 @@ export default function UpdatePage() {
                 isSearchable={false}
                 isClearable={false}
               />
+            </div>
+            <div className="options-container" style={{ marginTop: "12px" }}>
+              <label htmlFor="exam-month" className="label">Data Egzaminu:</label>
+              <div style={{ display: "flex", gap: "12px" }}>
+                <div style={{ width: "200px" }}>
+                  <Select
+                    id="exam-month"
+                    value={selectedMonthOption}
+                    onChange={(selectedOption) => setExamMonth(selectedOption?.value ?? 1)}
+                    classNamePrefix="react-select"
+                    options={MONTHS}
+                    isSearchable={false}
+                    isClearable={false}
+                    placeholder="Wybierz miesiąc..."
+                  />
+                </div>
+                <input
+                  type="text"
+                  id="exam-year"
+                  value={examYear}
+                  onChange={(e) => {
+                    const year = Number(e.target.value);
+
+                    if (e.target.value === "" || !year) {
+                      setLoading(false);
+                      showAlert(400, "Proszę podać poprawny rok egzaminu");
+                      setExamYear(0);
+                    }
+                    else
+                      setExamYear(year);
+                  }}
+                  className="input-container"
+                  style={{ 
+                    width: "100px", 
+                    fontSize: "18px", 
+                    padding: "6px 12px", 
+                    border: "none", 
+                    borderRadius: "6px" 
+                  }}
+                  placeholder="Rok"
+                />
+              </div>
             </div>
             <div style={{ display: "flex", marginTop: "24px" }}>
               <button

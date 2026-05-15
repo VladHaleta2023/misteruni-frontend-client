@@ -943,11 +943,11 @@ export default function PlayPage() {
                                     alignItems: "center",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    fontSize: "20px"
+                                    fontSize: "20px",
+                                    margin: "0px"
                                 }}>
-                                    {task.topicName}
-                                    <div className={`element-percent ${task.status}`}>
-                                        {task.percent}%
+                                    <div className="text-title">
+                                        <FormatText content={task.topicName} />
                                     </div>
                                 </div>
                             </div>)}

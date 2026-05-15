@@ -3,11 +3,11 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useState, useEffect, useRef } from 'react';
 
-const DEFAULT_NAMES = ['Ukończonych', 'Trwałych', 'Nierozpoczętych'];
-const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb'];
+const DEFAULT_NAMES = ['Ukończonych', 'Trwałych', 'Nierozpoczętych', 'Niezdążących'];
+const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb', '#777777'];
 
 interface CirclePieChartProps {
-  percents: [number, number, number];
+  percents: [number, number, number, number];
   prediction: string | null;
   deltaDays?: number | null;
   names?: [string?, string?, string?, string?];
@@ -190,7 +190,7 @@ export default function CirclePieChart({
           }}
         >
           {!isCountable ? (<>
-            {data.slice(0, -1).map((item, index) => (
+            {data.map((item, index) => (
               <div
                 key={index}
                 style={{
@@ -203,10 +203,10 @@ export default function CirclePieChart({
               >
                 <div
                   style={{
-                    width: '12px', // Уменьшено с 14px
-                    height: '12px', // Уменьшено с 14px
+                    width: '12px',
+                    height: '12px',
                     backgroundColor: COLORS[index % COLORS.length],
-                    marginRight: '8px', // Уменьшено с 10px
+                    marginRight: '8px',
                     borderRadius: '2px',
                     flexShrink: 0,
                   }}
@@ -229,10 +229,10 @@ export default function CirclePieChart({
               >
                 <div
                   style={{
-                    width: '12px', // Уменьшено с 14px
-                    height: '12px', // Уменьшено с 14px
+                    width: '12px',
+                    height: '12px',
                     backgroundColor: COLORS[index % COLORS.length],
-                    marginRight: '8px', // Уменьшено с 10px
+                    marginRight: '8px',
                     borderRadius: '2px',
                     flexShrink: 0,
                   }}

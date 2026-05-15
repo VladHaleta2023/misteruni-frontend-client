@@ -12,7 +12,6 @@ import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import FormatText from "@/app/components/formatText";
 import Message from "@/app/components/message";
-import { FaSearchPlus } from "react-icons/fa";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -447,7 +446,7 @@ export default function TasksPage() {
                             <LibraryBig size={26} />
                         </div>) : null}
 
-                        {type !== "Stories" && (<>
+                        {type !== "Stories" && type !== "Writing" && (<>
                             <div
                                 className="btnOption" 
                                 style={{
@@ -542,23 +541,11 @@ export default function TasksPage() {
                       <div className={`element-percent ${task.status}`}>
                           {task.finished ? Math.round(task.percent) : 0}%
                       </div>
-                      {/*<div
-                        className="btnOption"
-                        style={{ backgroundColor: "transparent", color: "black" }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setTaskId(task.id);
-                            setMsgDeleteTaskVisible(true);
-                        }}>
-                          <Trash2 size={26} />
-                        </div>*/}
                   </div>
-              </div>))}
-              
+              </div>))} 
           </div>))}
           </>)}
-          </>
-        )}
+        </>)}
       </main>
     </>
   );

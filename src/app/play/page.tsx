@@ -706,8 +706,6 @@ export default function PlayPage() {
         if (controller) controllersRef.current.push(controller);
         const activeSignal = signal ?? controller?.signal;
 
-        const style = localStorage.getItem('style') === 'true' ? true : false;
-
         try {
             let changed = "true";
             let attempt = 0;
@@ -719,7 +717,7 @@ export default function PlayPage() {
 
                 const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat-generate`,
-                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption, style },
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption },
                     { signal: activeSignal } as any
                 );
 
@@ -1381,15 +1379,6 @@ export default function PlayPage() {
                     setTypedExplanation(task.explanation || "");
                     setLoading(false);
                 }
-
-                await handleChatEnd(
-                    subjectId ?? 0,
-                    sectionId ?? 0,
-                    topicId ?? 0,
-                    task,
-                    task.chat,
-                    signal
-                );
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 handleApiError(error);
@@ -1847,7 +1836,8 @@ export default function PlayPage() {
                                     cursor: "pointer",
                                     fontWeight: "bold",
                                     flexDirection: "column",
-                                    gap: "6px"
+                                    gap: "6px",
+                                    margin: "0px"
                                 }}>
                                     <div
                                         style={{
@@ -1865,7 +1855,9 @@ export default function PlayPage() {
                                         >
                                             {topicNoteExpanded ? <Minus size={26} /> : <BookOpen size={26} />}
                                         </div>
-                                        {task.topicName ?? ""}
+                                        <div className="text-title">
+                                            <FormatText content={task.topicName} />
+                                        </div>
                                     </div>
                                 </div>
                                 {topicNoteExpanded && (

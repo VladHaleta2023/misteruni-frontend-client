@@ -15,13 +15,7 @@ import React from "react";
 import Message from "../components/message";
 import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
-import { BsQuestion } from "react-icons/bs";
 import Spinner from "../components/spinner";
-
-enum ChatMode {
-  STUDENT_ANSWER = "STUDENT_ANSWER",
-  STUDENT_QUESTION = "STUDENT_QUESTION"
-}
 
 interface Subtopic {
     name: string;
@@ -784,8 +778,6 @@ export default function InteractivePlayPage() {
         if (controller) controllersRef.current.push(controller);
         const activeSignal = signal ?? controller?.signal;
 
-        const style = localStorage.getItem('style') === 'true' ? true : false;
-
         try {
             let changed = "true";
             let attempt = 0;
@@ -797,7 +789,7 @@ export default function InteractivePlayPage() {
 
                 const response = await api.post<any>(
                     `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/chat-generate`,
-                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption, style },
+                    { changed, errors, attempt, text, solution, chat, userSolution, chatFinished, subtopics, options, userOption, correctOption },
                     { signal: activeSignal } as any
                 );
 
@@ -1710,7 +1702,7 @@ export default function InteractivePlayPage() {
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
 
-                    if (task.finished || (!task.answered && stage >= 3)) {
+                    if (task.finished) {
                         setShowFinalBlocks(task.finished);
                         setLoading(false);
                         return;
@@ -1967,7 +1959,8 @@ export default function InteractivePlayPage() {
                                         alignItems: "center",
                                         cursor: "pointer",
                                         fontWeight: "bold",
-                                        fontSize: "20px"
+                                        fontSize: "20px",
+                                        margin: "0px"
                                     }}>
                                         <div
                                             className="btnOption"
@@ -1980,7 +1973,9 @@ export default function InteractivePlayPage() {
                                         >
                                             <Globe size={28} color="white" />
                                         </div>
-                                        {task.topicName}
+                                        <div className="text-title">
+                                            <FormatText content={task.topicName} />
+                                        </div>
                                     </div>
                                 </div>)}
                             </div>
@@ -2012,7 +2007,8 @@ export default function InteractivePlayPage() {
                                     alignItems: "center",
                                     cursor: "pointer",
                                     fontWeight: "bold",
-                                    fontSize: "20px"
+                                    fontSize: "20px",
+                                    margin: "0px"
                                 }}>
                                     <div
                                         className="btnOption"
@@ -2025,7 +2021,9 @@ export default function InteractivePlayPage() {
                                     >
                                         <Globe size={28} color="white" />
                                     </div>
-                                    {task.topicName}
+                                    <div className="text-title">
+                                        <FormatText content={task.topicName} />
+                                    </div>
                                 </div>
                             </div>)}
                             
@@ -2306,6 +2304,7 @@ export default function InteractivePlayPage() {
                                                 contentEditable
                                                 suppressContentEditableWarning
                                                 className="answer-block"
+                                                style={{ marginTop: "0px" }}
                                                 data-placeholder="Daj odpowiedź..."
                                                 onInput={(e) => {
                                                     const el = e.currentTarget;

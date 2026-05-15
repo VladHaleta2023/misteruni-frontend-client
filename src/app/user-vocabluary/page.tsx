@@ -371,13 +371,6 @@ export default function StoriesPage() {
           </div>
         ) : (
         <>
-          {words.length === 0 ? (
-            <span style={{
-                color: "#514e4e",
-                margin: "auto"
-            }}>Brak słow lub wyrazów...</span>
-          ) : (
-          <>
           <div style={{ padding: "0px 12px", paddingBottom: "12px" }}>
             <div style={{ padding: "8px 0px", width: "100%"}}>
                 <div className="text-title text-topic-note">
@@ -512,7 +505,6 @@ export default function StoriesPage() {
               })}
             </div>
           </div>
-          </>)}
         </>
         )}
       </main>

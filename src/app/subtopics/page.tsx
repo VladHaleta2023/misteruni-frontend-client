@@ -150,12 +150,7 @@ export default function SubtopicsPage() {
     if (!chartData || !chartData.hasData) return null;
     
     return (
-      <CirclePieChart
-        isCountable={true}
-        percents={chartData.total} 
-        prediction={chartData.prediction}
-        maxWidth="240px"
-      />
+      <></>
     );
   }, [chartData]);
 
