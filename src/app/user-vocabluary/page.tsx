@@ -374,21 +374,8 @@ export default function StoriesPage() {
           <div style={{ padding: "0px 12px", paddingBottom: "12px" }}>
             <div style={{ padding: "8px 0px", width: "100%"}}>
                 <div className="text-title text-topic-note">
-                    <div className="element-name" style={{ margin: "0px" }}>
+                    <div className="element-name">
                         Personal Vocabulary
-                    </div>
-                    <div className="element-options">
-                        <div className={`element-percent ${wordsStatus}`}>
-                            {wordsPercent}%
-                        </div>
-                        {words.length != 0 && (<button 
-                          className="btnElement" 
-                          title="Play"
-                          style={{ backgroundColor: "#b0b0b0", border: "1px solid grey", padding: "6px" }}
-                          onClick={handlePlayClick}
-                        >
-                          <Play size={28} color="black" />
-                        </button>)}
                     </div>
                 </div>
             </div>
@@ -407,17 +394,45 @@ export default function StoriesPage() {
                 style={{ fontSize: "18px", padding: "6px 12px", borderRadius: "6px" }}
                 placeholder="Wpisz nowy wyraz..."
               />
-              <button className="btnOption" onClick={async () => {
-                try {
-                  await handleAddWord();
-                  await fetchWords();
-                } catch (error) {
-                  console.error(error);
-                }
+              <button className="btnElement" style={{ backgroundColor: "transparent", padding: "6px" }}
+                onClick={async () => {
+                  try {
+                    await handleAddWord();
+                    await fetchWords();
+                  } catch (error) {
+                    console.error(error);
+                  }
               }}>
-                <Plus size={24} />
+                <Plus
+                  size={28}
+                  color="#7e2ba9"
+                  fill="#7e2ba9"
+                  stroke="#7e2ba9"
+                  strokeWidth={3}
+                />
               </button>
             </div>
+            <div className="text-title text-topic-note">
+            <div className="element-name" style={{ margin: "0px" }}></div>
+            <div className="element-options">
+                <div className={`element-percent ${wordsStatus}`}>
+                    {wordsPercent}%
+                </div>
+                {words.length != 0 && (<button 
+                  className="btnElement" 
+                  title="Play"
+                  style={{ backgroundColor: "transparent", padding: "6px" }}
+                  onClick={handlePlayClick}
+                >
+                  <Play
+                    size={28}
+                    color="#7e2ba9"
+                    fill="#7e2ba9"
+                    stroke="#7e2ba9"
+                  />
+                </button>)}
+            </div>
+        </div>
             <div className="table" style={{ border: "none" }}>
               {words.map((word) => {
                 const isSelected = selectedWordIds.includes(word.id);
@@ -463,7 +478,7 @@ export default function StoriesPage() {
                         </div>
                         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
                           <div className="element-word stats-column">
-                              {word.totalCorrectCount} ({word.totalAttemptCount})
+                              {word.totalCorrectCount}/{word.totalAttemptCount}
                           </div>
                           <div className="element-word stats-column">
                               <div

@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
-import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, Minus, Plus, BookOpen, LibraryBig } from 'lucide-react';
 import "@/app/styles/play.css";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
 import "@/app/styles/table.css";
-import { getSubtopicTexts, ITask } from "../scripts/task";
-import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal, extractLastQAChunk } from "../scripts/chat";
+import { getSubtopicTexts, ITask, getExamIdParam } from "../scripts/task";
+import { ChatBlock, getLastMarker, parseChat, removeLastBlockOptimal } from "../scripts/chat";
 import StatusIndicator from "../components/statusIndicator";
 import Spinner from "../components/spinner";
 
@@ -23,6 +23,12 @@ interface Subtopic {
 
 export default function PlayPage() {
     const router = useRouter();
+
+    // TIMER VALUES
+    const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
+    const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const sessionStartTimeRef = useRef<number | null>(null);
+
     const [loading, setLoading] = useState(true);
     const [userSolutionText, setUserSolutionText] = useState("");
     const [spinnerLoading, setSpinnerLoading] = useState(false);
@@ -363,6 +369,53 @@ export default function PlayPage() {
         });
     }, []);
 
+    // Start TIMER FUNC
+    const startTimer = useCallback(() => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = Date.now();
+        
+        timerIntervalRef.current = setInterval(() => {
+            if (sessionStartTimeRef.current) {
+                const elapsed = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                setCurrentSessionSeconds(elapsed);
+            }
+        }, 1000);
+    }, []);
+
+    // Stop TIMER FUNC
+    const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+        
+        let sessionSeconds = currentSessionSeconds;
+        if (sessionStartTimeRef.current && sessionSeconds === 0) {
+            sessionSeconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+        }
+        
+        if (sessionSeconds > 0 && task.id) {
+            try {
+                await api.post(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`, {
+                    additionalSeconds: sessionSeconds
+                });
+                
+                console.log(`Dodano ${sessionSeconds} sekund do czasu zadania`);
+            } catch (error) {
+                console.error("Błąd zapisu czasu:", error);
+            }
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = null;
+        
+        return sessionSeconds;
+    }, [currentSessionSeconds, task.id, subjectId]);
+
     const fetchPendingTask = useCallback(async (
         subjectId: number,
         sectionId: number,
@@ -389,8 +442,11 @@ export default function PlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending${examIdParam}`;
+
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -443,8 +499,11 @@ export default function PlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}${examIdParam}`;
+
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -468,7 +527,7 @@ export default function PlayPage() {
     const handleTextGenerate = useCallback(
         async (subjectId: number, sectionId: number, topicId: number, signal?: AbortSignal) => {
             setLoading(true);
-            setTextLoading("Generowanie AI: Treści Zadania...");
+            setTextLoading("Generowanie AI: Tekst Zadania...");
 
             const controller = !signal ? new AbortController() : null;
             if (controller) controllersRef.current.push(controller);
@@ -499,9 +558,9 @@ export default function PlayPage() {
                         text = response.data.text;
                         outputSubtopics = response.data.outputSubtopics;
                         attempt = response.data.attempt;
-                        console.log(`Generowanie treści zadania: Próba ${attempt}`);
+                        console.log(`Generowanie tekstu zadania: Próba ${attempt}`);
                     } else {
-                        showAlert(400, "Nie udało się zgenerować treści zadania");
+                        showAlert(400, "Nie udało się zgenerować tekst zadania");
                         break;
                     }
                 }
@@ -588,8 +647,11 @@ export default function PlayPage() {
         id?: number
     ) => {
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction${examIdParam}`
+
             const response = await api.post<any>(
-            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
+                url,
                 {
                     id,
                     stage,
@@ -918,7 +980,7 @@ export default function PlayPage() {
                         attempt = response.data.attempt;
                         console.log(`Generowanie poradnika rozwiązania zadania: Próba ${attempt}`);
                     } else {
-                        showAlert(400, "Nie udało się zgenerować treści zadania");
+                        showAlert(400, "Nie udało się zgenerować tekst zadania");
                         break;
                     }
                 }
@@ -1109,7 +1171,7 @@ export default function PlayPage() {
 
                 if (!text) {
                     setLoading(false);
-                    showAlert(400, "Nie udało się wygenerować treści zadania");
+                    showAlert(400, "Nie udało się wygenerować tekst zadania");
                     return;
                 }
 
@@ -1186,6 +1248,8 @@ export default function PlayPage() {
         signal?: AbortSignal
     ) => {
         try {
+            await stopTimerAndSaveToDatabase();
+        
             shouldScrollRef.current = true;
             scrollToBottom(true);
 
@@ -1339,6 +1403,11 @@ export default function PlayPage() {
                     if (task.finished || (!task.answered && stage >= 2)) {
                         setShowFinalBlocks(task.finished);
                         setLoading(false);
+
+                        if (!task.finished && !task.answered && stage >= 2) {
+                            startTimer();
+                        }
+
                         return;
                     }
                 }
@@ -1379,6 +1448,10 @@ export default function PlayPage() {
                     setTypedExplanation(task.explanation || "");
                     setLoading(false);
                 }
+
+                if (!task.finished && !task.answered && task.stage >= 2) {
+                    startTimer();
+                }
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 handleApiError(error);
@@ -1414,7 +1487,9 @@ export default function PlayPage() {
         };
     }, []);
 
-    const handleBackClick = () => {
+    const handleBackClick = async () => {
+        await stopTimerAndSaveToDatabase();
+
         localStorage.removeItem("taskId");
 
         router.back();
@@ -1441,6 +1516,8 @@ export default function PlayPage() {
     }
 
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
+        await stopTimerAndSaveToDatabase();
+
         if (isTyping || isProcessingChat) return;
 
         setLoading(true);
@@ -1535,6 +1612,8 @@ export default function PlayPage() {
         if (isSubmittingAnswer) return;
         
         setIsSubmittingAnswer(true);
+
+        await stopTimerAndSaveToDatabase();
 
         if (controllerRef.current) controllerRef.current.abort();
 
@@ -1685,6 +1764,58 @@ export default function PlayPage() {
             el.removeAttribute("data-placeholder-active");
         }
     };
+
+    // Back Click in WEb Page
+    useEffect(() => {
+        const handlePopState = () => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                stopTimerAndSaveToDatabase();
+            }
+        };
+        
+        window.addEventListener('popstate', handlePopState);
+        
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [task.id, task.finished, task.chatFinished, stopTimerAndSaveToDatabase]);
+
+    // Back Page Close
+    useEffect(() => {
+        const handlePageHide = (event: PageTransitionEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        window.addEventListener('pagehide', handlePageHide);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
     return (
         <>

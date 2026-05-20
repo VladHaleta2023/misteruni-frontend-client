@@ -10,7 +10,7 @@ import api from "@/app/utils/api";
 import Message from "../components/message";
 import FormatText from "../components/formatText";
 import "@/app/styles/table.css";
-import { ITask } from "../scripts/task";
+import { ITask, getExamIdParam } from "../scripts/task";
 import StatusIndicator from "../components/statusIndicator";
 import Spinner from "../components/spinner";
 
@@ -38,6 +38,11 @@ function subtractPercents(
 
 export default function PlayPage() {
     const router = useRouter();
+
+    const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
+    const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const sessionStartTimeRef = useRef<number | null>(null);
+
     const [loading, setLoading] = useState(true);
     const [spinnerLoading, setSpinnerLoading] = useState(false);
     const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
@@ -170,6 +175,51 @@ export default function PlayPage() {
         }, 40);
     }, []);
 
+    const startTimer = useCallback(() => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = Date.now();
+        
+        timerIntervalRef.current = setInterval(() => {
+            if (sessionStartTimeRef.current) {
+                const elapsed = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                setCurrentSessionSeconds(elapsed);
+            }
+        }, 1000);
+    }, []);
+
+    const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+        
+        let sessionSeconds = currentSessionSeconds;
+        if (sessionStartTimeRef.current && sessionSeconds === 0) {
+            sessionSeconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+        }
+        
+        if (sessionSeconds > 0 && task.id) {
+            try {
+                await api.post(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`, {
+                    additionalSeconds: sessionSeconds
+                });
+                
+                console.log(`Dodano ${sessionSeconds} sekund do czasu zadania`);
+            } catch (error) {
+                console.error("Błąd zapisu czasu:", error);
+            }
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = null;
+        
+        return sessionSeconds;
+    }, [currentSessionSeconds, task.id, subjectId]);
+
     const updatePlaceholder = () => {
         const el = textareaRef.current as any;
         if (!el) return;
@@ -196,8 +246,11 @@ export default function PlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending${examIdParam}`;
+
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -230,8 +283,11 @@ export default function PlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}${examIdParam}`;
+
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -319,8 +375,11 @@ export default function PlayPage() {
         id?: number
     ) => {
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction${examIdParam}`;
+
             const response = await api.post<any>(
-            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
+                url,
                 {
                     id,
                     stage,
@@ -544,6 +603,8 @@ export default function PlayPage() {
     }, [handleTextGenerate, handleSaveTaskTransaction, simulateTaskTextTyping]);
 
     const handleSubmitTaskClick = useCallback(async () => {
+        await stopTimerAndSaveToDatabase();
+    
         if (isSubmittingAnswer) return;
         
         setIsSubmittingAnswer(true);
@@ -665,7 +726,9 @@ export default function PlayPage() {
         }
     }, [task.id, task.answered, task.userSolution, task.subtopics, task.stage, task.text, task.solution, task.options, task.correctOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, handleProblemsGenerate, handleSaveTaskTransaction, handleTaskFinishedTransaction, fetchTaskById, simulateExplanationTyping]);
 
-    const handleBackClick = () => {
+    const handleBackClick = async () => {
+        await stopTimerAndSaveToDatabase();
+
         localStorage.removeItem("taskId");
         router.back();
     };
@@ -743,6 +806,11 @@ export default function PlayPage() {
 
                     if (task.finished || (!task.answered && stage >= 1)) {
                         setLoading(false);
+
+                        if (!task.finished && !task.answered && stage >= 1) {
+                            startTimer();
+                        }
+
                         return;
                     }
                 }
@@ -839,6 +907,10 @@ export default function PlayPage() {
                 if (task.finished) {
                     setTypedExplanation(task.explanation || "");
                 }
+
+                if (!task.finished && !task.answered && stage >= 1) {
+                    startTimer();
+                }
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 handleApiError(error);
@@ -885,6 +957,56 @@ export default function PlayPage() {
             setMsgDeleteTaskVisible(false);
         }
     }, [subjectId, task.id]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                stopTimerAndSaveToDatabase();
+            }
+        };
+        
+        window.addEventListener('popstate', handlePopState);
+        
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [task.id, task.finished, task.chatFinished, stopTimerAndSaveToDatabase]);
+
+    useEffect(() => {
+        const handlePageHide = (event: PageTransitionEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        window.addEventListener('pagehide', handlePageHide);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
     return (
         <>

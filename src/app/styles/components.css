@@ -1,3 +1,26 @@
+.option-letter {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.option-letter.check {
+  border: 2px solid black;
+  border-radius: 50%;
+}
+
+.check.correct {
+  border-color: #1b5e20 !important;
+}
+
+.check.uncorrect {
+  border-color: #b71c1c !important;
+}
+
 .form-container {
   width: 100%;
   padding: 16px;

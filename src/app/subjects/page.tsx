@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import Header from "@/app/components/header";
 import "@/app/styles/table.css";
 import "@/app/styles/components.css";
+import "@/app/styles/dropdown.css";
 import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
-import axios from "axios";
 import Spinner from "@/app/components/spinner";
-import { LogOut, Plus, Settings, Trash2 } from "lucide-react";
+import { DoorOpen, Plus, Settings, Trash2, Menu, CreditCard, LogOut, User } from "lucide-react";
 import Message from "../components/message";
 
 enum SubjectDetailLevel {
@@ -39,6 +39,15 @@ export default function SubjectPage() {
   const [loading, setLoading] = useState(true);
   const [msgDeleteSubjectVisible, setMsgDeleteTaskVisible] = useState(false);
   const router = useRouter();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = () => setMenuOpen(false);
+    if (menuOpen) window.addEventListener("click", handleClickOutside);
+
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [menuOpen]);
 
   const preloadImages = useCallback((subjects: Subject[]) => {
     let loaded = 0;
@@ -103,10 +112,9 @@ export default function SubjectPage() {
   }, [fetchSubjects]);
 
   const handleSubjectClick = (subjectId: number, subjectType: string) => {
-    localStorage.setItem("weekOffset", "0");
     localStorage.setItem("subjectId", subjectId.toString());
     localStorage.setItem("subjectType", subjectType);
-    router.push('/sections');
+    router.push('/exam');
   };
 
   function handleSubjectEdit(id: number) {
@@ -186,11 +194,13 @@ export default function SubjectPage() {
           </div>
           <div
             className="menu-icon"
-            onClick={handleLogout}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(prev => !prev);
+            }}
             style={{ marginLeft: "auto" }}
-            title={"Wyloguj się"}
           >
-            <LogOut size={28} color="white" />
+            <Menu size={28} color="white" />
           </div>
         </div>
       </Header>
@@ -215,6 +225,20 @@ export default function SubjectPage() {
       />
 
       <main>
+        {menuOpen && (
+          <div className="dropdown-content show">
+            <div className="element">
+              <User  size={24} color={"gray"} /> Profil
+            </div>
+            <div className="element">
+              <CreditCard size={24} color={"gray"} />Płatności
+            </div>
+            <div className="element" onClick={handleLogout} style={{ borderTop: "2px solid gray" }}>
+              <LogOut size={24} color={"gray"} /> Wyloguj się
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="spinner-wrapper">
             <Spinner noText />
@@ -246,7 +270,7 @@ export default function SubjectPage() {
                 <div>
                     <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                         <span>Naciśnij</span>
-                        <LogOut strokeWidth={4} />
+                        <DoorOpen strokeWidth={4} />
                     </div>
                     <span>aby wylogować się</span>
                 </div>

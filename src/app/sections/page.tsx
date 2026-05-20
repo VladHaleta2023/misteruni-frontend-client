@@ -48,10 +48,9 @@ interface ChartData {
 }
 
 export default function SectionsPage() {
-   const router = useRouter();
+  const router = useRouter();
 
   const [subjectType, setSubjectType] = useState<string | null>(null);
-  const [weekOffset, setWeekOffset] = useState<number>(0);
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
@@ -69,25 +68,10 @@ export default function SectionsPage() {
     if (typeof window !== "undefined") {
         const storedSubjectType = localStorage.getItem("subjectType");
         setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
-        
-        const storedWeekOffset = localStorage.getItem("weekOffset");
-        const parsedWeekOffset = Number(storedWeekOffset);
-
-        if (!storedWeekOffset || isNaN(parsedWeekOffset) || Number(parsedWeekOffset) > 0) {
-            setWeekOffset(0);
-            localStorage.setItem("weekOffset", "0");
-        } else {
-            setWeekOffset(parsedWeekOffset);
-        }
     }
   }, []);
 
   function handleBackClick() {
-    localStorage.removeItem("subjectId");
-    localStorage.removeItem("sectionId");
-    localStorage.removeItem("topicId");
-    localStorage.removeItem("weekOffset");
-    localStorage.removeItem("style");
     router.back();
   }
 
@@ -251,8 +235,6 @@ export default function SectionsPage() {
     localStorage.setItem("sectionId", String(sectionId));
     localStorage.setItem("topicId", String(topic.id));
     localStorage.setItem("type", String(type));
-    localStorage.setItem("topicPercent", String(topic.percent));
-    localStorage.setItem("topicStatus", String(topic.status));
 
     router.push("/topic");
   };
@@ -281,6 +263,36 @@ export default function SectionsPage() {
         >
           <ArrowLeft size={28} color="white" />
         </div>
+        {subjectType === "Language" && (<div 
+          className="menu-icon"
+          title={"Przełącz do listy słów"}
+          style={{
+            marginLeft: "auto"
+          }}
+          onClick={handleTopicVocabluaryClick}
+        >
+          <Globe size={28} color="white" />
+        </div>)}
+        {literatures.length > 0 && (<div
+          className="menu-icon"
+          title={"Przełącz do listy streszceń"}
+          style={{
+            marginLeft: "auto"
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            
+            if (literatures.length === 1) {
+                localStorage.setItem("literature", literatures[0]);
+                router.push('/literature');
+            }
+            else {
+                localStorage.setItem("literatures", JSON.stringify(literatures));
+                router.push('/literatures');
+            }
+        }}>
+          <LibraryBig size={26} />
+        </div>)}
       </div>
     </Header>
     
@@ -292,36 +304,6 @@ export default function SectionsPage() {
       ) : (
         <>
           <ChartComponent />
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            margin: "0px 12px"
-          }}>
-            {subjectType === "Language" && weekOffset === 0 && (<div 
-              className="btnOption"
-              title={"Przełącz do listy słów"}
-              onClick={handleTopicVocabluaryClick}
-            >
-              <Globe size={28} color="white" />
-            </div>)}
-            {literatures.length > 0 ? (<div
-              className="btnOption"
-              onClick={(e) => {
-              e.stopPropagation();
-              
-              if (literatures.length === 1) {
-                  localStorage.setItem("literature", literatures[0]);
-                  router.push('/literature');
-              }
-              else {
-                  localStorage.setItem("literatures", JSON.stringify(literatures));
-                  router.push('/literatures');
-              }
-          }}>
-              <LibraryBig size={26} />
-          </div>) : null}
-          </div>
           <div className="table">
             {sections
               .flatMap((section) => [
@@ -373,24 +355,18 @@ export default function SectionsPage() {
                       className={`element element-topic`}
                       onClick={(e) => {
                         e.stopPropagation();
-
-                        const finalType = topic.type || section.type;
-
-                        handleTopicClick(section.id, topic, finalType);
+                        handleTopicClick(section.id, topic, topic.type);
                       }}
                       style={{ justifyContent: "space-between" }}
                       key={`topic-${section.id}-${topic.id}`}
                     >
-                      {/*}div className="element-frequency" style={{ color: "#888888" }}>
-                        {section.type !== "Stories" ? topic.frequency : ""}
-                      </div>*/}
                       <button
                         className="element-frequency"
                         style={{ padding: "5px" }}
                       >
-                        {topic.type == "Stories" || section.type == "Stories" ? (
+                        {topic.type == "Stories" ? (
                           <AudioLines size={28} color="grey" />
-                        ) : topic.type == "Writing" || section.type == "Writing" ? (
+                        ) : topic.type == "Writing" ? (
                           <UserPen size={28} color="grey" />
                         ) : (
                           <SquareChartGantt size={28} color="grey" />
@@ -405,16 +381,18 @@ export default function SectionsPage() {
                         </div>
                         <button
                           className="btnElement"
-                          style={{ backgroundColor: "#d4d4d4", border: "1px solid grey", padding: "5px" }}
+                          style={{ backgroundColor: "transparent", padding: "5px" }}
                           onClick={(e) => {
                             e.stopPropagation();
-
-                            const finalType = topic.type || section.type;
-
-                            handleTopicPlayClick(section.id, topic, finalType);
+                            handleTopicPlayClick(section.id, topic, topic.type);
                           }}
                         >
-                          <Play size={28} color="black" />
+                          <Play
+                            size={28}
+                            color="#7e2ba9"
+                            fill="#7e2ba9"
+                            stroke="#7e2ba9"
+                          />
                         </button>
                       </div>
                     </div>

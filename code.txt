@@ -1,0 +1,68 @@
+// Inicjalizacja placeholdera dla textarea (Moje Rozwiązanie)
+useEffect(() => {
+    if (textareaRef.current && !task.answered) {
+        const isEmpty = textareaRef.current.innerText.trim() === "";
+        const hasPlaceholder = textareaRef.current.hasAttribute("data-placeholder-active");
+        
+        if (isEmpty && !hasPlaceholder) {
+            textareaRef.current.setAttribute("data-placeholder-active", "true");
+            textareaRef.current.innerText = "";
+        }
+    }
+}, [task.answered]); // Re-run gdy task.answered się zmieni
+
+const updatePlaceholder = useCallback((element: HTMLElement | null, placeholderText: string) => {
+    if (!element) return;
+    
+    const isEmpty = element.innerText.trim() === "";
+    const hasPlaceholder = element.hasAttribute("data-placeholder-active");
+    
+    if (isEmpty && !hasPlaceholder) {
+        element.setAttribute("data-placeholder-active", "true");
+        element.innerText = "";
+    } else if (!isEmpty && hasPlaceholder) {
+        element.removeAttribute("data-placeholder-active");
+    }
+}, []);
+
+<div
+    ref={textareaRef as any}
+    data-placeholder="Napisz rozwiązanie..."
+    contentEditable={!task.answered}
+    suppressContentEditableWarning
+    className="answer-block"
+    onInput={(e) => {
+        const el = e.currentTarget;
+        
+        if (el.hasAttribute("data-placeholder-active")) {
+            el.removeAttribute("data-placeholder-active");
+        }
+        
+        setUserSolutionText(el.innerHTML);
+        
+        requestAnimationFrame(() => {
+            el.style.height = "auto";
+            el.style.height = `${el.scrollHeight}px`;
+        });
+    }}
+    onBlur={() => updatePlaceholder(textareaRef.current, "Napisz rozwiązanie...")}
+    onKeyDown={(e) => {
+        if (e.key === "Backspace" || e.key === "Delete") {
+            setTimeout(() => updatePlaceholder(textareaRef.current, "Napisz rozwiązanie..."), 0);
+        }
+    }}
+/>
+
+useEffect(() => {
+    if (chatTextareaRef.current && !task.chatFinished) {
+        const isEmpty = chatTextareaRef.current.innerText.trim() === "";
+        const hasPlaceholder = chatTextareaRef.current.hasAttribute("data-placeholder-active");
+        
+        if (isEmpty && !hasPlaceholder) {
+            chatTextareaRef.current.setAttribute("data-placeholder-active", "true");
+            chatTextareaRef.current.innerText = "";
+        }
+    }
+}, [task.chatFinished]);
+
+PLACEHOLDERS

@@ -539,7 +539,7 @@ export default function TasksPage() {
                       justifyContent: "flex-start"
                   }}>
                       <div className={`element-percent ${task.status}`}>
-                          {task.finished ? Math.round(task.percent) : 0}%
+                        {task.finished ? Math.round(task.percent) : 0}%
                       </div>
                   </div>
               </div>))} 

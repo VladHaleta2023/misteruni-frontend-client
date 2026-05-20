@@ -111,8 +111,6 @@ export default function TasksPage() {
   const [topicId, setTopicId] = useState<number | null>(null);
   const [type, setType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
-  const [topicPercent, setTopicPercent] = useState<number | null>(null);
-  const [topicStatus, setTopicStatus] = useState<string | null>(null);
 
   const [elementReponse, setElementResponse] = useState<ElementResponse | null>(null);
 
@@ -212,8 +210,6 @@ export default function TasksPage() {
         const fetchedSubtopics: Subtopic[] = response.data.subtopics;
         setSubtopics(fetchedSubtopics);
         setTopicName(response.data.topic.name);
-        setTopicPercent(response.data.topic.percent);
-        setTopicStatus(response.data.topic.status);
         setTopicNote(response.data.topic.note);
         setLiteratures(response.data.topic.literatures);
       } else {
@@ -586,11 +582,6 @@ export default function TasksPage() {
                                 <FormatText content={topicName} />
                             </div>
                         </div>
-                        <div className="element-options">
-                            <div
-                                className={`element-percent ${topicStatus}`}
-                            >{topicPercent}%</div>
-                        </div>
                     </div>
 
                     {expandedSubtopics && (<>
@@ -721,98 +712,105 @@ export default function TasksPage() {
                             <br />
                             <FormatText content={topicNote} />
                         </div>
-                    ) : words.length === 0 ? (
-                        <span style={{ color: "#514e4e", margin: "auto", display: "block", textAlign: "center", padding: "20px", width: "100%" }}>
-                            Brak słow lub wyrazów...
-                        </span>
-                    ) : (
-                        <div style={{ padding: "0px 12px", paddingBottom: "12px", width: "100%" }}>
-                            <div style={{ padding: "8px 0px", width: "100%" }}>
-                                <div className="text-title text-topic-note">
-                                    <div className="element-name" style={{ margin: "0px" }}>{topicName}</div>
-                                    {!localStorage.getItem("fetchWordIds") && (
-                                        <div className="element-options">
-                                            <div className={`element-percent ${wordsStatus}`}>{wordsPercent}%</div>
-                                        </div>
-                                    )}
-                                    <button
-                                        className="btnElement"
-                                        style={{ backgroundColor: "#b0b0b0", border: "1px solid grey", padding: "6px" }}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handlePlayClick();
-                                        }}
-                                    >
-                                        <Play size={28} color="black" />
-                                    </button>
+                    ) : type === "Stories" ? (
+                        words.length === 0 ? (
+                            <span style={{ color: "#514e4e", margin: "auto", display: "block", textAlign: "center", padding: "20px", width: "100%" }}>
+                                Brak słow lub wyrazów...
+                            </span>
+                        ) : (
+                            <div style={{ padding: "0px 12px", paddingBottom: "12px", width: "100%" }}>
+                                <div style={{ padding: "8px 0px", width: "100%" }}>
+                                    <div className="text-title text-topic-note">
+                                        <div className="element-name" style={{ margin: "0px" }}></div>
+                                        {!localStorage.getItem("fetchWordIds") && (
+                                            <div className="element-options">
+                                                <div className={`element-percent ${wordsStatus}`}>{wordsPercent}%</div>
+                                            </div>
+                                        )}
+                                        <button
+                                            className="btnElement"
+                                            style={{ backgroundColor: "transparent", padding: "6px" }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handlePlayClick();
+                                            }}
+                                        >
+                                            <Play
+                                                size={28}
+                                                color="#7e2ba9"
+                                                fill="#7e2ba9"
+                                                stroke="#7e2ba9"
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="table" style={{ border: "none" }}>
+                                    {words.map(word => {
+                                        const isSelected = selectedWordIds.includes(word.id);
+
+                                        return (
+                                            <React.Fragment key={word.id}>
+                                                <div
+                                                    className="element"
+                                                    style={{ 
+                                                        alignItems: "start", 
+                                                        border: "1px solid rgb(191, 191, 191)", 
+                                                        borderBottom: "none", 
+                                                        fontWeight: isSelected ? "bold" : "normal", 
+                                                        cursor: "pointer" 
+                                                    }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleWordClick(word.id, !isSelected);
+                                                    }}
+                                                >
+                                                    <div className="element-word" style={{ flex: "0 0 auto", width: "32px" }}>
+                                                        <button
+                                                            className="btnElement"
+                                                            onClick={(e) => { 
+                                                                e.stopPropagation(); 
+                                                                handleExpandWord(word);
+                                                            }}
+                                                        >
+                                                            {expandedWords[word.id] ? <Minus size={24} /> : <Plus size={24} />}
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="element-word">{word.text}</div>
+
+                                                    <div style={{
+                                                        marginLeft: "auto",
+                                                        display: "flex",
+                                                        alignItems: "center"
+                                                    }}>
+                                                        <div className="element-word stats-column">{word.totalCorrectCount}/{word.totalAttemptCount}</div>
+                                                        <div className="element-word stats-column">
+                                                            <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {expandedWords[word.id] && (
+                                                    <div className="element" style={{ alignItems: "start", border: "1px solid rgb(191, 191, 191)", borderBottom: "none", padding: "0px" }} key={`${word.id}-details`}>
+                                                        {word.translate !== "" ? (
+                                                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
+                                                                <FormatText content={word.translate} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
+                                                                <StatusIndicator text="Przetwarzanie tłumaczenia..." />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </div>
                             </div>
-
-                            <div className="table" style={{ border: "none" }}>
-                                {words.map(word => {
-                                    const isSelected = selectedWordIds.includes(word.id);
-
-                                    return (
-                                    <React.Fragment key={word.id}>
-                                        <div
-                                        className="element"
-                                        style={{ 
-                                            alignItems: "start", 
-                                            border: "1px solid rgb(191, 191, 191)", 
-                                            borderBottom: "none", 
-                                            fontWeight: isSelected ? "bold" : "normal", 
-                                            cursor: "pointer" 
-                                        }}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleWordClick(word.id, !isSelected);
-                                        }}
-                                        >
-                                        <div className="element-word" style={{ flex: "0 0 auto", width: "32px" }}>
-                                            <button
-                                            className="btnElement"
-                                            onClick={(e) => { 
-                                                e.stopPropagation(); 
-                                                handleExpandWord(word);
-                                            }}
-                                            >
-                                            {expandedWords[word.id] ? <Minus size={24} /> : <Plus size={24} />}
-                                            </button>
-                                        </div>
-
-                                        <div className="element-word">{word.text}</div>
-
-                                        <div style={{
-                                            marginLeft: "auto",
-                                            display: "flex",
-                                            alignItems: "center"
-                                        }}>
-                                            <div className="element-word stats-column">{word.totalCorrectCount} ({word.totalAttemptCount})</div>
-                                            <div className="element-word stats-column">
-                                            <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
-                                            </div>
-                                        </div>
-                                        </div>
-
-                                        {expandedWords[word.id] && (
-                                        <div className="element" style={{ alignItems: "start", border: "1px solid rgb(191, 191, 191)", borderBottom: "none", padding: "0px" }} key={`${word.id}-details`}>
-                                            {word.translate !== "" ? (
-                                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
-                                                <FormatText content={word.translate} />
-                                            </div>
-                                            ) : (
-                                            <div className="topic-note" style={{ margin: "0px", marginLeft: "42px", padding: "8px", fontSize: "16px", backgroundColor: "#ccc" }}>
-                                                <StatusIndicator text="Przetwarzanie tłumaczenia..." />
-                                            </div>
-                                            )}
-                                        </div>
-                                        )}
-                                    </React.Fragment>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        )}
+                        )
+                    ) : null}
                 </div>
             </div>
         </>)}

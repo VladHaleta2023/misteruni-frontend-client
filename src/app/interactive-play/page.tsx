@@ -8,7 +8,7 @@ import "@/app/styles/play.css";
 import "@/app/styles/message.css";
 import "@/app/styles/table.css";
 import { showAlert } from "@/app/scripts/showAlert";
-import { getSubtopicTexts, getWordTexts, ITask } from "../scripts/task";
+import { getSubtopicTexts, getWordTexts, ITask, getExamIdParam } from "../scripts/task";
 import api from "@/app/utils/api";
 import FormatText from "../components/formatText";
 import React from "react";
@@ -25,6 +25,11 @@ interface Subtopic {
 
 export default function InteractivePlayPage() {
     const router = useRouter();
+
+    const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
+    const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const sessionStartTimeRef = useRef<number | null>(null);
+
     const [loading, setLoading] = useState(true);
     const [spinnerLoading, setSpinnerLoading] = useState(false);
     const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
@@ -356,6 +361,51 @@ export default function InteractivePlayPage() {
         });
     }, []);
 
+    const startTimer = useCallback(() => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = Date.now();
+        
+        timerIntervalRef.current = setInterval(() => {
+            if (sessionStartTimeRef.current) {
+                const elapsed = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                setCurrentSessionSeconds(elapsed);
+            }
+        }, 1000);
+    }, []);
+
+     const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+        
+        let sessionSeconds = currentSessionSeconds;
+        if (sessionStartTimeRef.current && sessionSeconds === 0) {
+            sessionSeconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+        }
+        
+        if (sessionSeconds > 0 && task.id) {
+            try {
+                await api.post(`/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`, {
+                    additionalSeconds: sessionSeconds
+                });
+                
+                console.log(`Dodano ${sessionSeconds} sekund do czasu zadania`);
+            } catch (error) {
+                console.error("Błąd zapisu czasu:", error);
+            }
+        }
+        
+        setCurrentSessionSeconds(0);
+        sessionStartTimeRef.current = null;
+        
+        return sessionSeconds;
+    }, [currentSessionSeconds, task.id, subjectId]);
+
     const handleScroll = useCallback(() => {
         if (!mainRef.current) return;
         
@@ -427,8 +477,11 @@ export default function InteractivePlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending${examIdParam}`;
+            
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/pending`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -480,8 +533,11 @@ export default function InteractivePlayPage() {
         const activeSignal = signal ?? controller.signal;
 
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}${examIdParam}`;
+
             const response = await api.get<any>(
-                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}`,
+                url,
                 { signal: activeSignal } as any
             );
 
@@ -625,8 +681,11 @@ export default function InteractivePlayPage() {
         id?: number
     ) => {
         try {
+            const examIdParam = getExamIdParam();
+            const url = `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction${examIdParam}`;
+
             const response = await api.post<any>(
-            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/task-transaction`,
+                url,
                 {
                     id,
                     stage,
@@ -1223,6 +1282,8 @@ export default function InteractivePlayPage() {
         signal?: AbortSignal
     ) => {
         try {
+            await stopTimerAndSaveToDatabase();
+
             shouldScrollRef.current = true;
             scrollToBottom(true);
 
@@ -1317,7 +1378,9 @@ export default function InteractivePlayPage() {
         return `${min}:${sec.toString().padStart(2, "0")}`;
     };
 
-    const handleBackClick = () => {
+    const handleBackClick = async () => {
+        await stopTimerAndSaveToDatabase();
+
         localStorage.removeItem("taskId");
         localStorage.removeItem("audioRepeat");
         router.back();
@@ -1414,6 +1477,8 @@ export default function InteractivePlayPage() {
     };
 
     const handleSubmitTaskClick = useCallback(async () => {
+        await stopTimerAndSaveToDatabase();
+
         if (isSubmittingAnswer) return;
         
         setIsSubmittingAnswer(true);
@@ -1512,6 +1577,8 @@ export default function InteractivePlayPage() {
     }, [task.id, task.answered, task.userSolution, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
+        await stopTimerAndSaveToDatabase();
+
         if (isTyping || isProcessingChat) return;
 
         setLoading(true);
@@ -1702,9 +1769,14 @@ export default function InteractivePlayPage() {
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
 
-                    if (task.finished) {
+                    if (task.finished  || (!task.answered && stage >= 3)) {
                         setShowFinalBlocks(task.finished);
                         setLoading(false);
+
+                        if (!task.finished && !task.answered && stage >= 3) {
+                            startTimer();
+                        }
+
                         return;
                     }
                 }
@@ -1748,6 +1820,10 @@ export default function InteractivePlayPage() {
                 if (task.finished) {
                     setShowFinalBlocks(true);
                     setTypedExplanation(task.explanation || "");
+                }
+
+                if (!task.finished && !task.answered && task.stage >= 3) {
+                    startTimer();
                 }
             } catch (error) {
                 if ((error as DOMException)?.name === "AbortError") return;
@@ -1871,6 +1947,56 @@ export default function InteractivePlayPage() {
         
         return result;
     }, [chatBlocks, tempTypingBlocks]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                stopTimerAndSaveToDatabase();
+            }
+        };
+        
+        window.addEventListener('popstate', handlePopState);
+        
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [task.id, task.finished, task.chatFinished, stopTimerAndSaveToDatabase]);
+
+    useEffect(() => {
+        const handlePageHide = (event: PageTransitionEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
+                const seconds = Math.floor((Date.now() - sessionStartTimeRef.current) / 1000);
+                
+                if (seconds > 0) {
+                    navigator.sendBeacon(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/add-time`,
+                        JSON.stringify({ additionalSeconds: seconds })
+                    );
+                }
+            }
+        };
+        
+        window.addEventListener('pagehide', handlePageHide);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
     return (
         <>

@@ -23,6 +23,12 @@ export enum ChatMode {
   STUDENT_QUESTION = "STUDENT_QUESTION"
 }
 
+export const getExamIdParam = () => {
+    const examIdRaw = localStorage.getItem("examId");
+    const examId = examIdRaw && !isNaN(Number(examIdRaw)) ? Number(examIdRaw) : null;
+    return examId !== null ? `?examId=${examId}` : '';
+};
+
 export interface ITask {
     id: number;
     stage: number;
