@@ -1769,11 +1769,13 @@ export default function InteractivePlayPage() {
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
 
+                    setInitLoading(false);
+
                     if (task.finished  || (!task.answered && stage >= 3)) {
                         setShowFinalBlocks(task.finished);
                         setLoading(false);
 
-                        if (!task.finished && !task.answered && stage >= 3) {
+                        if (!task.finished && stage >= 3  && task.wordsCompleted) {
                             startTimer();
                         }
 
@@ -1816,13 +1818,15 @@ export default function InteractivePlayPage() {
                 setChatBlocks(parseChat(task.chat));
 
                 localStorage.setItem("taskId", task.id);
-                
+
                 if (task.finished) {
                     setShowFinalBlocks(true);
                     setTypedExplanation(task.explanation || "");
                 }
 
-                if (!task.finished && !task.answered && task.stage >= 3) {
+                setInitLoading(false);
+
+                if (!task.finished && task.stage >= 3 && task.wordsCompleted) {
                     startTimer();
                 }
             } catch (error) {
@@ -1831,7 +1835,6 @@ export default function InteractivePlayPage() {
             } finally {
                 controllersRef.current = controllersRef.current.filter(c => c !== controller);
                 setLoading(false);
-                setInitLoading(false);
                 setTextLoading("");
             }
         };

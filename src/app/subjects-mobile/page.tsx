@@ -128,10 +128,9 @@ export default function SubjectPage() {
   }, [fetchSubjects]);
 
   const handleSubjectClick = (subjectId: number, subjectType: string) => {
-    localStorage.setItem("weekOffset", "0");
     localStorage.setItem("subjectId", subjectId.toString());
     localStorage.setItem("subjectType", subjectType);
-    router.push('/sections');
+    router.push('/exam');
   };
 
   function handleSubjectEdit(id: number) {

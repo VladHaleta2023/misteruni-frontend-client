@@ -12,14 +12,12 @@ import Select from "react-select";
 
 enum SubjectDetailLevel {
   BASIC = "BASIC",
-  EXPANDED = "EXPANDED",
-  ACADEMIC = "ACADEMIC"
+  EXPANDED = "EXPANDED"
 }
 
 type Subject = {
   id: number;
   name: string;
-  minDetailLevel: string;
   examDate: Date;
 }
 
@@ -72,26 +70,9 @@ export default function UpdatePage() {
   );
 
   const detailLevelOptions = useMemo<DetailLevelOption[]>(() => {
-    const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
-    const minLevel = selectedSubject?.minDetailLevel as SubjectDetailLevel | undefined;
-
-    if (!minLevel || minLevel === SubjectDetailLevel.BASIC) {
-      return [
-        { value: SubjectDetailLevel.BASIC, label: "Podstawowy" },
-        { value: SubjectDetailLevel.EXPANDED, label: "Rozszerzony" },
-        { value: SubjectDetailLevel.ACADEMIC, label: "Akademicki" }
-      ];
-    }
-
-    if (minLevel === SubjectDetailLevel.EXPANDED) {
-      return [
-        { value: SubjectDetailLevel.EXPANDED, label: "Obowiązkowy" },
-        { value: SubjectDetailLevel.ACADEMIC, label: "Pożądany" }
-      ];
-    }
-
     return [
-      { value: SubjectDetailLevel.ACADEMIC, label: "Obowiązkowy" }
+      { value: SubjectDetailLevel.BASIC, label: "Podstawowy" },
+      { value: SubjectDetailLevel.EXPANDED, label: "Rozszerzony" }
     ];
   }, [subjects, selectedSubjectId]);
 
@@ -138,7 +119,7 @@ export default function UpdatePage() {
         if (subjectsData.length > 0) {
           const firstSubject = subjectsData[0];
           setSelectedSubjectId(firstSubject.id);
-          setDetailLevel(firstSubject.minDetailLevel as SubjectDetailLevel);
+          setDetailLevel(SubjectDetailLevel.BASIC);
         } else {
           setSelectedSubjectId(null);
           setDetailLevel(SubjectDetailLevel.BASIC);
@@ -175,12 +156,11 @@ export default function UpdatePage() {
         setSubjects([{
           id: subj.id,
           name: subj.name,
-          minDetailLevel: subj.minDetailLevel,
           examDate: subj.examDate
         }]);
 
         setThreshold(response.data.subject.threshold ?? 50);
-        setDetailLevel(response.data.subject.detailLevel ?? (subj.minDetailLevel as SubjectDetailLevel));
+        setDetailLevel(response.data.subject.detailLevel ?? (SubjectDetailLevel.BASIC));
         setDailyStudyMinutes(response.data.subject.dailyStudyMinutes ?? 60);
 
         const examDate = new Date(response.data.subject.examDate ?? Date.now());
@@ -358,7 +338,7 @@ export default function UpdatePage() {
                   const selectedSubject = subjects.find(s => s.id === newSubjectId);
 
                   if (subjectId === null && selectedSubject) {
-                    setDetailLevel(selectedSubject.minDetailLevel as SubjectDetailLevel);
+                    setDetailLevel(SubjectDetailLevel.BASIC);
                     setDailyStudyMinutes(60);
                     setThreshold(50);
                   }

@@ -1404,7 +1404,7 @@ export default function PlayPage() {
                         setShowFinalBlocks(task.finished);
                         setLoading(false);
 
-                        if (!task.finished && !task.answered && stage >= 2) {
+                        if (!task.finished && stage >= 2) {
                             startTimer();
                         }
 
@@ -1449,7 +1449,7 @@ export default function PlayPage() {
                     setLoading(false);
                 }
 
-                if (!task.finished && !task.answered && task.stage >= 2) {
+                if (!task.finished && task.stage >= 2) {
                     startTimer();
                 }
             } catch (error) {

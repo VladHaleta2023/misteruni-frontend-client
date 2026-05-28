@@ -807,7 +807,7 @@ export default function PlayPage() {
                     if (task.finished || (!task.answered && stage >= 1)) {
                         setLoading(false);
 
-                        if (!task.finished && !task.answered && stage >= 1) {
+                        if (!task.finished && stage >= 1) {
                             startTimer();
                         }
 
@@ -908,7 +908,7 @@ export default function PlayPage() {
                     setTypedExplanation(task.explanation || "");
                 }
 
-                if (!task.finished && !task.answered && stage >= 1) {
+                if (!task.finished && stage >= 1) {
                     startTimer();
                 }
             } catch (error) {
