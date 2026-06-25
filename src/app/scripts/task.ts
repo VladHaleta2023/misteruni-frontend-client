@@ -43,6 +43,7 @@ export interface ITask {
     subtopics: ISubtopic[];
     answered: boolean;
     finished: boolean;
+    theoryFinished: boolean;
     chatFinished: boolean;
     chat: string;
     percent: number;

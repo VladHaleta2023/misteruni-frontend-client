@@ -77,11 +77,8 @@ export default function UpdatePage() {
   }, [subjects, selectedSubjectId]);
 
   const dailyStudyOptions: OptionType[] = [
-    { value: 30, label: "30 minut" },
     { value: 60, label: "1 godzina" },
-    { value: 90, label: "1 godzina 30 minut" },
     { value: 120, label: "2 godziny" },
-    { value: 150, label: "2 godziny 30 minut" },
     { value: 180, label: "3 godziny" },
   ];
 
@@ -389,7 +386,7 @@ export default function UpdatePage() {
               </div>
             </div>
             <div className="options-container" style={{ marginTop: "12px" }}>
-              <label htmlFor="detail-level" className="label">Poziom szczegółowości:</label>
+              <label htmlFor="detail-level" className="label">Poziom:</label>
               <Select
                 id="detail-level"
                 value={selectedDetailLevelOption}
@@ -456,7 +453,7 @@ export default function UpdatePage() {
             </div>
             <div style={{ display: "flex", marginTop: "24px" }}>
               <button
-                className="button"
+                className="btnOption"
                 style={{ padding: "12px 24px", marginRight: "12px", height: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}
                 onClick={async () => {
                   if (subjectId !== null) await handleSubjectEditSubmit();

@@ -114,7 +114,7 @@ export default function SubjectPage() {
   const handleSubjectClick = (subjectId: number, subjectType: string) => {
     localStorage.setItem("subjectId", subjectId.toString());
     localStorage.setItem("subjectType", subjectType);
-    router.push('/exam');
+    router.push('/dashboard');
   };
 
   function handleSubjectEdit(id: number) {
@@ -266,14 +266,6 @@ export default function SubjectPage() {
                 </div>
                 <span>aby dodać nowy przedmiot</span>
                 </div>
-                <br />
-                <div>
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                        <span>Naciśnij</span>
-                        <DoorOpen strokeWidth={4} />
-                    </div>
-                    <span>aby wylogować się</span>
-                </div>
               </div>
             ) : (<>
             <div className="table" id="subject">
@@ -300,7 +292,7 @@ export default function SubjectPage() {
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                       <button
                         id={String(userSubject.subject.id)}
-                        className="button btnSubjectOptionsEdit"
+                        className="btnOption btnSubjectOptionsEdit"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleSubjectEdit(Number(e.currentTarget.id))
@@ -310,7 +302,7 @@ export default function SubjectPage() {
                       </button>
                       <button
                         id={String(userSubject.subject.id)}
-                        className="button btnSubjectOptionsEdit"
+                        className="btnElement btnSubjectOptionsEdit"
                         style={{
                           backgroundColor: "transparent",
                           borderColor: "transparent",

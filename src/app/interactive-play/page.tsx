@@ -29,6 +29,8 @@ export default function InteractivePlayPage() {
     const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
     const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const sessionStartTimeRef = useRef<number | null>(null);
+    const [examTimeLeft, setExamTimeLeft] = useState<number>(0);
+    const examTimerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [spinnerLoading, setSpinnerLoading] = useState(false);
@@ -46,7 +48,6 @@ export default function InteractivePlayPage() {
     const [initLoading, setInitLoading] = useState(true);
 
     const [problemsExpanded, setProblemsExpanded] = useState(true);
-    const [taskWordsExpanded, setTaskWordsExpanded] = useState(false);
     const [msgChatVisible, setMsgChatVisible] = useState<boolean>(false);
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
 
@@ -78,6 +79,7 @@ export default function InteractivePlayPage() {
         subtopics: [],
         answered: false,
         finished: false,
+        theoryFinished: false,
         chatFinished: false,
         chat: "",
         userOptionIndex: 0,
@@ -375,12 +377,36 @@ export default function InteractivePlayPage() {
                 setCurrentSessionSeconds(elapsed);
             }
         }, 1000);
-    }, []);
 
-     const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
+        if (examTimerIntervalRef.current) clearInterval(examTimerIntervalRef.current);
+
+        if (examTimeLeft > 0) {
+            examTimerIntervalRef.current = setInterval(() => {
+            setExamTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(examTimerIntervalRef.current!);
+                    examTimerIntervalRef.current = null;
+                    localStorage.removeItem("remainingExamTimeSeconds");
+                    return 0;
+                }
+
+                const newTime = prev - 1;
+                localStorage.setItem("remainingExamTimeSeconds", String(newTime));
+                return newTime;
+            });
+            }, 1000);
+        }
+    }, [examTimeLeft]);
+
+    const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
         if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
+        }
+
+        if (examTimerIntervalRef.current) {
+            clearInterval(examTimerIntervalRef.current);
+            examTimerIntervalRef.current = null;
         }
         
         let sessionSeconds = currentSessionSeconds;
@@ -404,7 +430,7 @@ export default function InteractivePlayPage() {
         sessionStartTimeRef.current = null;
         
         return sessionSeconds;
-    }, [currentSessionSeconds, task.id, subjectId]);
+    }, [currentSessionSeconds, task, subjectId, examTimeLeft]);
 
     const handleScroll = useCallback(() => {
         if (!mainRef.current) return;
@@ -1078,6 +1104,9 @@ export default function InteractivePlayPage() {
 
                 return;
             }
+            else {
+                startTimer();
+            }
         } catch (error) {
             if ((error as DOMException)?.name === "AbortError") return;
             setLoading(false);
@@ -1087,7 +1116,7 @@ export default function InteractivePlayPage() {
             setLoading(false);
             setIsProcessingChat(false);
         }
-    }, [handleChatGenerate, handleUpdateChat, handleProblemsGenerate, handleSaveTaskTransaction, getNewRobotBlocks, simulateTypingForRobotBlocks]);
+    }, [handleChatGenerate, handleUpdateChat, handleProblemsGenerate, handleSaveTaskTransaction, getNewRobotBlocks, simulateTypingForRobotBlocks, startTimer]);
 
     const loadTask = useCallback(async (
         subjectId: number,
@@ -1698,6 +1727,16 @@ export default function InteractivePlayPage() {
     }, [task, router]);
 
     useEffect(() => {
+        const storedRemaining = localStorage.getItem("remainingExamTimeSeconds");
+        if (storedRemaining) {
+            const seconds = Number(storedRemaining);
+            if (!isNaN(seconds) && seconds > 0) {
+                setExamTimeLeft(seconds);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
         const handleUnload = () => {
             controllersRef.current.forEach((controller: AbortController) => controller.abort());
             controllersRef.current = [];
@@ -2014,6 +2053,9 @@ export default function InteractivePlayPage() {
                     }} style={{ cursor: "pointer" }}>
                         <Trash2 size={28} color="white" />
                     </div>
+                    {examTimeLeft > 0 && (<div style={{ color: 'white', fontWeight: 'bold', marginLeft: "auto" }}>
+                        {formatTime(examTimeLeft)}
+                    </div>)}
                 </div>
             </Header>
 
@@ -2169,35 +2211,6 @@ export default function InteractivePlayPage() {
                             )}
                             
                             {task.text && (<div className="message robot">
-                                {task.words.length != 0 && (
-                                    <>
-                                        <div
-                                            className="text-title"
-                                            style={{
-                                                marginBottom: "12px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                cursor: "pointer",
-                                                fontWeight: "bold"
-                                            }}
-                                            onClick={() => setTaskWordsExpanded(prev => !prev)}
-                                        >
-                                            <div className="btnElement" style={{ marginRight: "4px", fontWeight: "bold" }}>
-                                                {taskWordsExpanded ? <Minus size={26} /> : <Plus size={26} />}
-                                            </div>
-                                            Słownictwo:
-                                        </div>
-                                        {taskWordsExpanded && (
-                                            <div className="text-audio">
-                                                {task.words.map((word, index) => (
-                                                    <div key={index}>{word.text}</div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <br />
-                                    </>
-                                )}
-
                                 {task.audioFiles.length != 0 && (<div className="options">
                                     {(task.finished) && isSentences && (
                                         <button className="btnOption" onClick={handlePrev}>
@@ -2312,7 +2325,7 @@ export default function InteractivePlayPage() {
                             </div>)}
                             
                             {task.options.length != 0 && (<div className="message human">
-                                <div className="text-title" style={{ fontSize: "20px" }}>O czym chodzi:</div>
+                                <div className="text-title" style={{ fontSize: "18px" }}>Warianty:</div>
                                 <div style={{ margin: "12px"}} className="radio-group">
                                     {(task.options ?? []).map((option, index) => (
                                         <div key={index}>
@@ -2349,7 +2362,7 @@ export default function InteractivePlayPage() {
                                 </div>
                                 {!task.answered && task.stage >= 3 ? (
                                     <>
-                                        <div className="text-title">Moje Rozwiązanie:</div>
+                                        <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                         <div
                                             ref={textareaRef as any}
                                             data-placeholder="Napisz rozwiązanie..."
@@ -2372,10 +2385,22 @@ export default function InteractivePlayPage() {
                                                     el.style.height = `${el.scrollHeight}px`;
                                                 });
                                             }}
+                                            onCopy={(e) => {
+                                                e.preventDefault();
+                                                const selection = window.getSelection();
+                                                const plainText = selection?.toString() || '';
+                                                e.clipboardData?.setData('text/plain', plainText);
+                                                e.clipboardData?.setData('text/html', plainText);
+                                            }}
+                                            onPaste={(e) => {
+                                                e.preventDefault();
+                                                const text = e.clipboardData?.getData('text/plain') || '';
+                                                document.execCommand('insertText', false, text);
+                                            }}
                                         />
                                     </>
                                 ) : !isEmptyString(task.userSolution) && task.stage >= 3 && (<>
-                                    <div className="text-title">Moje Rozwiązanie:</div>
+                                    <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
                                         <FormatText content={task.userSolution} />
                                     </div>
@@ -2384,6 +2409,7 @@ export default function InteractivePlayPage() {
                                     <div className="options" style={{
                                         display: "flex",
                                         cursor: "pointer",
+                                        marginTop: "16px"
                                     }}>
                                         <div style={{
                                             display: "flex",
@@ -2411,14 +2437,14 @@ export default function InteractivePlayPage() {
                                     {allDisplayBlocks?.map((block: ChatBlock, index: number) => (
                                         block.isUser ? (
                                             <div key={index} className="message human">
-                                                <div className="text-title">{block.title}</div>
+                                                <div className="text-title" style={{ fontSize: "18px" }}>{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
                                                     {block.content}
                                                 </div>
                                             </div>
                                         ) : (
                                             <div key={index} className="message robot">
-                                                <div className="text-title">{block.title}</div>
+                                                <div className="text-title" style={{ fontSize: "18px" }}>{block.title}</div>
                                                 <div style={{ paddingLeft: "20px", marginTop: "8px" }}>
                                                     <FormatText content={block.content} />
                                                 </div>
@@ -2446,9 +2472,21 @@ export default function InteractivePlayPage() {
                                                         el.style.height = `${el.scrollHeight}px`;
                                                     });
                                                 }}
+                                                onCopy={(e) => {
+                                                    e.preventDefault();
+                                                    const selection = window.getSelection();
+                                                    const plainText = selection?.toString() || '';
+                                                    e.clipboardData?.setData('text/plain', plainText);
+                                                    e.clipboardData?.setData('text/html', plainText);
+                                                }}
+                                                onPaste={(e) => {
+                                                    e.preventDefault();
+                                                    const text = e.clipboardData?.getData('text/plain') || '';
+                                                    document.execCommand('insertText', false, text);
+                                                }}
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (
-                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "8px", justifyContent: "flex-end" }}>
+                                                <div className="options" style={{ display: "flex", cursor: "pointer", gap: "6px", marginTop: "16px", justifyContent: "flex-end" }}>
                                                     {isEmptyString(chatTextValue) && (<button
                                                         className={`btnOption ${task.status == "completed" ? "completed" : "progress"}`}
                                                         style={{

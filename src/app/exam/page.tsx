@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play, ArrowLeft, SquareChartGantt, UserPen, AudioLines, Text, BookOpen } from "lucide-react";
+import { Play, ArrowLeft, SquareChartGantt, UserPen, AudioLines, Files } from "lucide-react";
 import "@/app/styles/table.css";
 import "@/app/styles/components.css";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import FormatText from "@/app/components/formatText";
 import Header from "@/app/components/header";
 import StatusIndicator from "../components/statusIndicator";
+import "@/app/styles/components.css";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -51,7 +52,7 @@ export default function ExamPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
-  const [isExamView, setIsExamView] = useState<boolean>(false);
+  const [subjectType, setSubjectType] = useState<string | null>(null);
 
   const [exam, setExam] = useState<Exam | null>(null);
 
@@ -79,8 +80,8 @@ export default function ExamPage() {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
-      const storedIsExamView = localStorage.getItem("isExamView");
-      setIsExamView(storedIsExamView ? true : false);
+      const storedSubjectType = localStorage.getItem("subjectType");
+      setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
     }
   }, []);
 
@@ -243,10 +244,12 @@ export default function ExamPage() {
     localStorage.removeItem("topicId");
     localStorage.removeItem("examId");
     localStorage.removeItem("isExamView");
+    localStorage.removeItem("remainingExamTimeSeconds");
     router.back();
   }
 
   function handleExamsClick() {
+    localStorage.removeItem("remainingExamTimeSeconds");
     localStorage.removeItem("examId");
     router.push("exams");
   }
@@ -322,6 +325,7 @@ export default function ExamPage() {
                 if (exam) {
                     setExam(exam);
                     localStorage.setItem("examId", exam.id);
+                    localStorage.setItem("remainingExamTimeSeconds", exam.remainingExamTimeSeconds);
                     return;
                 }
             }
@@ -336,6 +340,7 @@ export default function ExamPage() {
 
             setExam(exam);
             localStorage.setItem("examId", exam.id);
+            localStorage.setItem("remainingExamTimeSeconds", exam.remainingExamTimeSeconds);
         } catch (error) {
             if ((error as DOMException)?.name === "AbortError") return;
             handleApiError(error);
@@ -400,20 +405,6 @@ export default function ExamPage() {
         >
           <ArrowLeft size={28} color="white" />
         </div>
-        {!isExamView && (<div 
-          className="menu-icon"
-          title={"Przełącz do treści przedmiotu"}
-          style={{
-            marginLeft: "auto"
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            localStorage.removeItem("examId");
-            router.push("sections");
-          }}
-        >
-          <BookOpen size={28} color="white" />
-        </div>)}
       </div>
     </Header>
     
@@ -426,22 +417,23 @@ export default function ExamPage() {
                 <div className="text-title text-topic-note">
                     <div style={{ display: "flex", width: "100%", justifyContent: "space-between" }}>
                         <button
-                            className="element-frequency"
+                            className="btnOption"
+                            style={{
+                                fontWeight: "bold",
+                                fontSize: "20px",
+                                alignSelf: "center"
+                            }}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleExamsClick();
                             }}
-                            style={{ padding: "5px", cursor: "pointer" }}
                         >
-                            <Text size={28} color="gray" />
+                            <Files size={28} color="white" />
                         </button>
                         <div className="element-name" style={{ fontSize: "20px" }}>
-                            <FormatText content={`Arkusz ${exam.partId}`} />
+                            <FormatText content={`Arkusze`} />
                         </div>
                         <div className="element-options">
-                            <div className={`element-percent ${exam.status}`}>
-                                {exam.percent}%
-                            </div>
                             {exam.finished && (<button
                                 className="btnElement"
                                 style={{ backgroundColor: "transparent", padding: "6px" }}
@@ -450,6 +442,7 @@ export default function ExamPage() {
                                     const examResult = await handleExamPlayClick(subjectId ?? 0);
                                     setExam(examResult);
                                     localStorage.setItem("examId", examResult.id);
+                                    localStorage.setItem("remainingExamTimeSeconds", examResult.remainingExamTimeSeconds);
                                 }}
                             >
                                 <Play
@@ -462,18 +455,26 @@ export default function ExamPage() {
                         </div>
                     </div>
                 </div>
-                <div style={{ padding: "12px", gap: "6px", display: "flex", flexDirection: "column", width: "100%" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ paddingTop: "24px", gap: "6px", display: "flex", flexDirection: "column", width: "100%" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ fontWeight: "bold" }}>
-                            Czas:
+                            Pozostało:
                         </div>
                         {formatTime(exam.remainingExamTimeSeconds)}
                     </div>
-                     <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ fontWeight: "bold" }}>
                             Data:
                         </div>
                         {formatDate(exam.createdAt)}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px" }}>
+                        <div style={{ fontWeight: "bold" }}>
+                            Wynik:
+                        </div>
+                        <div className={`element-percent ${exam.status}`} style={{ fontWeight: "bold" }}>
+                            {exam.percent}%
+                        </div>
                     </div>
                 </div>
             </div>
@@ -514,11 +515,13 @@ export default function ExamPage() {
                                 fontSize: "16px",
                                 alignItems: "flex-start"
                             }}>
-                                <FormatText content={topic.task.text ?? ""} />
+                                <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
+                                    <FormatText content={topic.task.text ?? ""} />
+                                </div>
                                 {topic.task.options.map((option, index) => (
                                 <div
                                     key={index}
-                                    style={{ display: "flex", alignItems: "center" }}
+                                    style={{ display: "flex", alignItems: "center", padding: "2px" }}
                                 >
                                     <strong className={`option-letter ${getOptionClass(index, topic.task)}`}>
                                         {String.fromCharCode(65 + index)}.
@@ -527,7 +530,13 @@ export default function ExamPage() {
                                     <FormatText content={option} />
                                 </div>
                                 ))}
-                                <FormatText content={topic.task.userSolution ?? ""} />
+                                <div className={
+                                    subjectType === 'Humanistic' || subjectType === 'Language'
+                                        ? 'humanities-solution-container'
+                                        : 'math-solution-container'
+                                } style={{ marginTop: "16px", width: "100%" }}>
+                                    <FormatText content={topic.task.userSolution ?? ""} />
+                                </div>
                             </div>
                         </>)}
                         <div className="element-options">

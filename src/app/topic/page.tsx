@@ -42,19 +42,23 @@ interface IDate {
     year: string;
 }
 
-interface ITask {
-    id: number;
-    text: string;
-    percent: number;
-    explanation: string;
-    status: Status;
-    finished: boolean;
-    userSolution: string;
+interface Task {
+  id: number;
+  text: string;
+  finished: boolean;
+  answered: boolean;
+  percent: number;
+  status: Status;
+  options: string[];
+  userOptionIndex: number;
+  correctOptionIndex: number;
+  userSolution: string;
+  examId: number | undefined | null;
 }
 
 interface IElement {
     date: IDate;
-    tasks: ITask[];
+    tasks: Task[];
 }
 
 class ElementResponse {
@@ -110,6 +114,7 @@ export default function TasksPage() {
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
   const [type, setType] = useState<string | null>(null);
+  const [subjectType, setSubjectType] = useState<string | null>(null);
   const [topicName, setTopicName] = useState<string>("");
 
   const [elementReponse, setElementResponse] = useState<ElementResponse | null>(null);
@@ -165,6 +170,8 @@ export default function TasksPage() {
         setTopicId(storedTopicId ? Number(storedTopicId) : null);
         const storedtype = localStorage.getItem("type");
         setType(storedtype ? String(storedtype) : null);
+        const storedSubjectType = localStorage.getItem("subjectType");
+        setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
     }
   }, []);
 
@@ -232,6 +239,18 @@ export default function TasksPage() {
       fetchInProgressRef.current = false;
     }
   }, [subjectId, sectionId, topicId]);
+
+  const getOptionClass = (index: number, task: Task | undefined | null) => {
+    if (!task || !task.answered) return "";
+
+    const isCorrect = task.correctOptionIndex === index;
+    const isUser = task.userOptionIndex === index;
+
+    if (isCorrect) return "check correct";
+    if (isUser) return "check uncorrect";
+
+    return "";
+  };
 
   const fetchTasksByTopicId = useCallback(async () => {
       if (!subjectId) {
@@ -550,8 +569,7 @@ export default function TasksPage() {
             
             <div style={{
                 width: "100%",
-                padding: "0px 8px",
-                margin: "12px 0px"
+                padding: "12px 8px"
             }}>
                 <div 
                     className="text-topic-note"
@@ -569,7 +587,7 @@ export default function TasksPage() {
                                         fontWeight: "bold",
                                         marginRight: "12px"
                                     }}
-                                    title={"Przełącz do listy słów"}
+                                    title={"Przełącz do listy podtematów"}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleSubtopicsExpand();
@@ -632,11 +650,23 @@ export default function TasksPage() {
                     {expandedTasks && elementReponse?.getElements().map((element, index) => (<div key={index} style={{ display: "flex", width: "100%" }}>
                         <div style={{ display: "flex", width: "100%" }}>
                             <div key={index} className="table" style={{ margin: "8px" }}>
+                                <div
+                                    className={`element`}
+                                    style={{
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        fontSize: "18px",
+                                        backgroundColor: "#cccccc",
+                                        color: "#000000"
+                                    }}
+                                >
+                                    {`${element.date.day}-${element.date.month}-${element.date.year}`}
+                                </div>
                                 {element.tasks.map(task => (
                                 <div
                                     className={`element element-task ${!task.finished ? "not-finished" : ""}`}
                                     style={{
-                                    justifyContent: "space-between"
+                                        justifyContent: "space-between"
                                     }}
                                     onClick={() => 
                                         handleTaskClick(
@@ -651,16 +681,42 @@ export default function TasksPage() {
                                 >
                                 <div className="element-name" style={{
                                     flexDirection: "column",
-                                    alignItems: "flex-start"
+                                    alignItems: "flex-start",
+                                    fontSize: "16px",
                                 }}>
-                                    <div style={{ display: "flex", marginBottom: "8px", }}>
+                                    <div style={{ display: "flex", marginBottom: "8px", flexDirection: "column" }}>
                                         {type !== "Stories" ? (
-                                            <FormatText content={task.text ?? ""} />
+                                            <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
+                                                <FormatText content={task.text ?? ""} />
+                                            </div>
                                         ) : !task.finished ? (
-                                            <FormatText content={"Tekst do nagrania..."} />
+                                            <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
+                                                <FormatText content={"Tekst do nagrania..."} />
+                                            </div>
                                         ) : (
-                                            ElementResponse.truncateText(task.text, 300)
+                                            <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
+                                                {ElementResponse.truncateText(task.text, 300)}
+                                            </div>
                                         )}
+                                        {task.options.map((option, index) => (
+                                        <div
+                                            key={index}
+                                            style={{ display: "flex", alignItems: "center", padding: "2px" }}
+                                        >
+                                            <strong className={`option-letter ${getOptionClass(index, task)}`}>
+                                                {String.fromCharCode(65 + index)}.
+                                            </strong>
+        
+                                            <FormatText content={option} />
+                                        </div>
+                                        ))}
+                                        <div className={
+                                            subjectType === 'Humanistic' || subjectType === 'Language'
+                                                ? 'humanities-solution-container'
+                                                : 'math-solution-container'
+                                        } style={{ marginTop: "16px", width: "100%" }}>
+                                            <FormatText content={task.userSolution ?? ""} />
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="element-options" style={{

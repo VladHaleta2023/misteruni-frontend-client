@@ -9,7 +9,7 @@
   border-top: 2px solid #bfbfbf;
 }
 
-.table > .element {
+.element {
   font-size: 18px;
   display: flex;
   border-bottom: 2px solid #bfbfbf;
@@ -163,6 +163,13 @@
   margin-right: 16px;
   flex-shrink: 0;
   border-radius: 12px;
+  border: 1px solid gray;
+}
+
+.element-statistic {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .element-name {
@@ -229,10 +236,6 @@
   padding: 12px !important;
 }
 
-.element-subject:hover {
-  background-color: #b9b0cc;
-}
-
 .element-title {
   font-weight: bold;
 }
@@ -267,6 +270,12 @@
   flex-shrink: 0;
 }
 
+.btnElement svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25))
+          drop-shadow(0 2px 3px rgba(0, 0, 0, 0.15));
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
 @media (max-width: 768px) {
   .table#subject {
     margin-top: 0px;
@@ -277,10 +286,6 @@
   }
 
   .element-subject-options {
-    font-size: 18px;
-  }
-
-  .button {
     font-size: 18px;
   }
 

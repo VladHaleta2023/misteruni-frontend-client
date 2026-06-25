@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import renderMathInElement from 'katex/contrib/auto-render';
 import 'katex/dist/katex.min.css';
+import DOMPurify from 'dompurify';
 
 interface FormatTextProps {
   content: string;
@@ -39,7 +40,7 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/~~(.*?)~~/g, '<del>$1</del>')
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
       .replace(/`(.*?)`/g, '<code>$1</code>');
 
     const blockFormulas: string[] = [];
@@ -59,15 +60,25 @@ export default function FormatText({ content }: FormatTextProps) {
     cleaned = cleaned.replace(/%%BLOCK_FORMULA_(\d+)%%/g, (_, i) => `$$${blockFormulas[i]}$$`);
     cleaned = cleaned.replace(/%%BRACKET_FORMULA_(\d+)%%/g, (_, i) => `\\[${bracketFormulas[i]}\\]`);
 
+    cleaned = DOMPurify.sanitize(cleaned, {
+      ALLOWED_TAGS: [
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'strong', 'em', 'del', 'a', 'code', 'br',
+        'span', 'div', 'p'
+      ],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+      ALLOW_DATA_ATTR: false,
+    });
+
     ref.current.innerHTML = cleaned;
 
     try {
       renderMathInElement(ref.current, {
         delimiters: [
-          { left: '$$', right: '$$', display: false },
+          { left: '$$', right: '$$', display: true },
           { left: '$', right: '$', display: false },
           { left: '\\(', right: '\\)', display: false },
-          { left: '\\[', right: '\\]', display: false },
+          { left: '\\[', right: '\\]', display: true },
         ],
         throwOnError: false,
       });

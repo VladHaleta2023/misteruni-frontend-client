@@ -1,7 +1,7 @@
 'use client';
 
 import Header from "@/app/components/header";
-import { ArrowLeft, BookOpen, Globe, LibraryBig, Minus, SearchCheck } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import "@/app/styles/table.css";
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,6 @@ import "@/app/styles/components.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
 import api from "@/app/utils/api";
-import FormatText from "@/app/components/formatText";
 
 type Status = 'started' | 'progress' | 'completed';
 
@@ -52,21 +51,6 @@ export default function ExamsPage() {
   const [subjectId, setSubjectId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
-  const [textLoading, setTextLoading] = useState("");
-
-  function handleApiError(error: any) {
-    const err = error as any;
-
-    if (err?.response) {
-        showAlert(err.response.status || 500, err.response.data?.message || err.message || "Server error");
-    } 
-    else if (error instanceof Error) {
-        showAlert(500, error.message);
-    }
-    else {
-        showAlert(500, "Unknown error");
-    }
-  }
 
   const fetchExamsBySubjectId = useCallback(async () => {
     if (!subjectId) {
@@ -161,41 +145,29 @@ export default function ExamsPage() {
       <main>
         {loading ? (
             <div className="spinner-wrapper">
-            <Spinner text={textLoading} />
+                <Spinner noText />
             </div>
         ) : (
             <>
             {exams.length === 0 ? (
                 <div
-                style={{
-                    color: "#514e4e",
-                    display: "flex",
-                    flexDirection: "column",
-                    margin: "auto",
-                }}
+                    style={{
+                        color: "#514e4e",
+                        display: "flex",
+                        flexDirection: "column",
+                        margin: "auto",
+                    }}
                 >
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <span>Brak arkuszów</span>
-                </div>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                        <span>Brak rozwiązanych arkuszy</span>
+                    </div>
                 </div>
             ) : (
                 <div className="table">
                 {exams.map((exam) => (
                     <Fragment key={exam.id}>
                         <div
-                            className={`element`}
-                            style={{
-                                backgroundColor: "#cccccc",
-                                color: "#000000",
-                                justifyContent: "center",
-                                alignItems: "center",
-                                fontSize: "18px"
-                            }}
-                        >
-                            {formatDate(exam.createdAt)}
-                        </div>
-                        <div
-                            className={`element element-task ${!exam.finished ? "not-finished" : ""}`}
+                            className={`element element-task`}
                             style={{
                                 justifyContent: "space-between",
                                 alignItems: "center"
@@ -207,9 +179,7 @@ export default function ExamsPage() {
                                 )
                             }
                         >
-                            <div className="text-title">
-                                {`Arkusz ${exam.partId}`}
-                            </div>
+                            {formatDate(exam.createdAt)}
                             <div className="element-options">
                                 <div className={`element-percent ${exam.status}`}>
                                     {exam.percent ?? 0}%

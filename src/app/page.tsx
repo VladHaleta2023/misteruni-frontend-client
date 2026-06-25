@@ -28,7 +28,7 @@ export default function MainPage() {
           margin: "0 auto"
         }}>
           <button
-            className="btnOption"
+            className="btnOptionAuth"
             style={{
               padding: "4px 12px",
               backgroundColor: "#c2c2c2",

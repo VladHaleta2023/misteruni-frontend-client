@@ -42,6 +42,8 @@ export default function PlayPage() {
     const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
     const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const sessionStartTimeRef = useRef<number | null>(null);
+    const [examTimeLeft, setExamTimeLeft] = useState<number>(0);
+    const examTimerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const [loading, setLoading] = useState(true);
     const [spinnerLoading, setSpinnerLoading] = useState(false);
@@ -68,6 +70,7 @@ export default function PlayPage() {
         subtopics: [],
         answered: false,
         finished: false,
+        theoryFinished: false,
         chatFinished: false,
         chat: "",
         userOptionIndex: 0,
@@ -91,6 +94,18 @@ export default function PlayPage() {
     const [typedTaskText, setTypedTaskText] = useState("");
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const taskTextIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const formatTime = (seconds: number): string => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        return [
+            hours.toString().padStart(2, '0'),
+            minutes.toString().padStart(2, '0'),
+            secs.toString().padStart(2, '0')
+        ].join(':');
+    };
 
     const simulateTaskTextTyping = useCallback((taskText: string) => {
         return new Promise<void>((resolve) => {
@@ -189,12 +204,36 @@ export default function PlayPage() {
                 setCurrentSessionSeconds(elapsed);
             }
         }, 1000);
-    }, []);
+
+        if (examTimerIntervalRef.current) clearInterval(examTimerIntervalRef.current);
+
+        if (examTimeLeft > 0) {
+            examTimerIntervalRef.current = setInterval(() => {
+            setExamTimeLeft(prev => {
+                if (prev <= 1) {
+                    clearInterval(examTimerIntervalRef.current!);
+                    examTimerIntervalRef.current = null;
+                    localStorage.removeItem("remainingExamTimeSeconds");
+                    return 0;
+                }
+
+                const newTime = prev - 1;
+                localStorage.setItem("remainingExamTimeSeconds", String(newTime));
+                return newTime;
+            });
+            }, 1000);
+        }
+    }, [examTimeLeft]);
 
     const stopTimerAndSaveToDatabase = useCallback(async (): Promise<number> => {
         if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
             timerIntervalRef.current = null;
+        }
+
+        if (examTimerIntervalRef.current) {
+            clearInterval(examTimerIntervalRef.current);
+            examTimerIntervalRef.current = null;
         }
         
         let sessionSeconds = currentSessionSeconds;
@@ -218,7 +257,7 @@ export default function PlayPage() {
         sessionStartTimeRef.current = null;
         
         return sessionSeconds;
-    }, [currentSessionSeconds, task.id, subjectId]);
+    }, [currentSessionSeconds, task, subjectId, examTimeLeft]);
 
     const updatePlaceholder = () => {
         const el = textareaRef.current as any;
@@ -738,6 +777,16 @@ export default function PlayPage() {
     }
 
     useEffect(() => {
+        const storedRemaining = localStorage.getItem("remainingExamTimeSeconds");
+        if (storedRemaining) {
+            const seconds = Number(storedRemaining);
+            if (!isNaN(seconds) && seconds > 0) {
+                setExamTimeLeft(seconds);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
         const handleUnload = () => {
             controllersRef.current.forEach((controller: AbortController) => controller.abort());
             controllersRef.current = [];
@@ -1021,6 +1070,9 @@ export default function PlayPage() {
                     }}>
                         <Trash2 size={28} color="white" />
                     </div>
+                    {examTimeLeft > 0 && (<div style={{ color: 'white', fontWeight: 'bold', marginLeft: "auto" }}>
+                        {formatTime(examTimeLeft)}
+                    </div>)}
                 </div>
             </Header>
 
@@ -1091,11 +1143,11 @@ export default function PlayPage() {
                             
                             {!task.answered && task.stage >= 1 && (
                                 <div className="message human">
-                                    <div className="text-title">Moje Rozwiązanie:</div>
+                                    <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
 
                                     <div
                                         ref={textareaRef as any}
-                                        data-placeholder="Napisz wypracowanie..."
+                                        data-placeholder="Napisz rozwiązanie..."
                                         contentEditable={!task.answered}
                                         suppressContentEditableWarning
                                         className="answer-block"
@@ -1124,6 +1176,18 @@ export default function PlayPage() {
                                                 setTimeout(() => updatePlaceholder(), 0);
                                             }
                                         }}
+                                        onCopy={(e) => {
+                                            e.preventDefault();
+                                            const selection = window.getSelection();
+                                            const plainText = selection?.toString() || '';
+                                            e.clipboardData?.setData('text/plain', plainText);
+                                            e.clipboardData?.setData('text/html', plainText);
+                                        }}
+                                        onPaste={(e) => {
+                                            e.preventDefault();
+                                            const text = e.clipboardData?.getData('text/plain') || '';
+                                            document.execCommand('insertText', false, text);
+                                        }}
                                     />
 
                                     <div
@@ -1131,7 +1195,7 @@ export default function PlayPage() {
                                         style={{
                                             display: "flex",
                                             cursor: "pointer",
-                                            marginTop: "12px"
+                                            marginTop: "16px"
                                         }}
                                     >
                                         <div
@@ -1165,7 +1229,7 @@ export default function PlayPage() {
                             
                             {task.answered && !isEmptyString(task.userSolution) && (
                                 <div className="message human">
-                                    <div className="text-title">Moje Rozwiązanie:</div>
+                                    <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
                                         <FormatText content={task.userSolution} />
                                     </div>

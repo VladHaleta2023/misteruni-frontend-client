@@ -16,21 +16,10 @@ import { Status } from "../scripts/task";
 import FormatText from "../components/formatText";
 import StatusIndicator from "../components/statusIndicator";
 
-type Topic = {
-  id: number;
-  sectionId: number;
-  subjectId: number;
-}
-
-type Task = {
-  id: number;
-  text: string;
-  topic: Topic;
-}
-
 type Word = {
   id: number;
   text: string;
+  topicId: number | null;
   translate: string;
   finished: boolean;
   frequency: number;
@@ -38,10 +27,9 @@ type Word = {
   status: Status;
   totalCorrectCount: number;
   totalAttemptCount: number;
-  tasks: Task[]
 }
 
-export default function StoriesPage() {
+export default function UserVocabluaryPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
@@ -51,6 +39,10 @@ export default function StoriesPage() {
   const [words, setWords] = useState<Word[]>([]);
   const [wordId, setWordId] = useState<number | null>(null);
   const [selectedWordIds, setSelectedWordIds] = useState<number[]>([]);
+
+  const filteredWords = words.filter(word =>
+    word.text.toLowerCase().includes(wordText.toLowerCase())
+  );
 
   const [wordsStatus, setWordsStatus] = useState<string | null>(null);
   const [wordsPercent, setWordsPercent] = useState<number | null>(null);
@@ -88,7 +80,9 @@ export default function StoriesPage() {
         setWords(fetchedWords);
         setWordsStatus(response.data.wordsStatus);
         setWordsPercent(response.data.wordsPercent);
-        setSelectedWordIds([]);
+        
+        const top15Ids = fetchedWords.slice(0, 15).map(w => w.id);
+        setSelectedWordIds(top15Ids);
 
         textareaRefs.current = new Array(fetchedWords.length).fill(null);
       } else {
@@ -196,14 +190,6 @@ export default function StoriesPage() {
     });
   };
 
-  const handleStoryClick = (sectionId: number, topicId: number, taskId: number) => {
-    localStorage.setItem("sectionId", String(sectionId));
-    localStorage.setItem("topicId", String(topicId));
-    localStorage.setItem("taskId", String(taskId));
-
-    router.push("/interactive-play");
-  }
-
   const handlePlayClick = async () => {
     if (selectedWordIds.length === 0) {
       showAlert(400, "Proszę wybrać przynajmniej jedno słowo");
@@ -211,14 +197,12 @@ export default function StoriesPage() {
     }
 
     try {
-        localStorage.setItem("wordIds", JSON.stringify(selectedWordIds));
-        
-        localStorage.removeItem("taskId");
-        
-        router.push('/vocabluary');
-        
+      localStorage.setItem("wordIds", JSON.stringify(selectedWordIds));
+      localStorage.removeItem("taskId");
+      
+      router.push('/vocabluary');
     } catch {
-        showAlert(500, "Nie udało się zapisać wybranych słów");
+      showAlert(500, "Nie udało się zapisać wybranych słów");
     }
  };
 
@@ -375,8 +359,20 @@ export default function StoriesPage() {
             <div style={{ padding: "8px 0px", width: "100%"}}>
                 <div className="text-title text-topic-note">
                     <div className="element-name">
-                        Personal Vocabulary
+                      Słownictwo
                     </div>
+                    <div className="element-options">
+                      <div className={`element-percent ${wordsStatus}`}>
+                          {wordsPercent}%
+                      </div>
+                      {words.length != 0 && (<button 
+                        className="btnOption"
+                        title="Play"
+                        onClick={handlePlayClick}
+                      >
+                        <Play size={24} />
+                      </button>)}
+                  </div>
                 </div>
             </div>
             <div style={{
@@ -413,28 +409,9 @@ export default function StoriesPage() {
               </button>
             </div>
             <div className="text-title text-topic-note">
-            <div className="element-name" style={{ margin: "0px" }}></div>
-            <div className="element-options">
-                <div className={`element-percent ${wordsStatus}`}>
-                    {wordsPercent}%
-                </div>
-                {words.length != 0 && (<button 
-                  className="btnElement" 
-                  title="Play"
-                  style={{ backgroundColor: "transparent", padding: "6px" }}
-                  onClick={handlePlayClick}
-                >
-                  <Play
-                    size={28}
-                    color="#7e2ba9"
-                    fill="#7e2ba9"
-                    stroke="#7e2ba9"
-                  />
-                </button>)}
-            </div>
         </div>
             <div className="table" style={{ border: "none" }}>
-              {words.map((word) => {
+              {filteredWords.map((word) => {
                 const isSelected = selectedWordIds.includes(word.id);
                 
                 return (
@@ -491,7 +468,7 @@ export default function StoriesPage() {
                               {word.percent}%
                               </div>
                           </div>
-                          <Trash2 size={24} style={{
+                          {!word.topicId && (<Trash2 size={24} style={{
                             minWidth: "24px",
                             marginLeft: "auto",
                             marginTop: "2px"
@@ -499,7 +476,7 @@ export default function StoriesPage() {
                               e.stopPropagation();
                               setWordId(word.id);
                               setMsgDeleteVisible(true);
-                          }} />
+                          }} />)}
                         </div>
                       </div>
                       {expandedWords[word.id] && (

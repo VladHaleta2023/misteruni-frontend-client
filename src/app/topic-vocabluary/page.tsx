@@ -26,7 +26,7 @@ type Word = {
   totalAttemptCount: number;
 }
 
-export default function StoriesPage() {
+export default function TopicVocabluaryPage() {
   const router = useRouter();
 
   const [subjectId, setSubjectId] = useState<number | null>(null);
@@ -276,14 +276,14 @@ export default function StoriesPage() {
                   <div className={`element-percent ${wordsStatus}`}>{wordsPercent}%</div>
                 </div>)}
                 <button
-                  className="btnElement"
-                  style={{ backgroundColor: "#b0b0b0", border: "1px solid grey", padding: "6px" }}
+                  className="btnOption"
+                  title="Play"
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePlayClick();
                   }}
                 >
-                  <Play size={28} color="black" />
+                  <Play size={24} />
                 </button>
               </div>
             </div>

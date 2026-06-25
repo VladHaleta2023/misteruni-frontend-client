@@ -108,7 +108,7 @@ export default function LoginPage() {
 
         <div className="options-container" style={{ marginTop: "12px", display: "flex", justifyContent: "center" }}>
           <button
-            className="btnOption"
+            className="btnOptionAuth"
             onClick={() => handleOAuthRedirect("google")}
             style={{
               width: "260px",

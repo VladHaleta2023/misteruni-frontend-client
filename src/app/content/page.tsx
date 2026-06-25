@@ -263,6 +263,7 @@ export default function SectionsPage() {
         >
           <ArrowLeft size={28} color="white" />
         </div>
+        {/*
         {subjectType === "Language" && (<div 
           className="menu-icon"
           title={"Przełącz do listy słów"}
@@ -293,6 +294,7 @@ export default function SectionsPage() {
         }}>
           <LibraryBig size={26} />
         </div>)}
+        */}
       </div>
     </Header>
     

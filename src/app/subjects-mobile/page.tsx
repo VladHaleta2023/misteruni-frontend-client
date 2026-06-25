@@ -9,7 +9,7 @@ import api from "@/app/utils/api";
 import { showAlert } from "@/app/scripts/showAlert";
 import axios from "axios";
 import Spinner from "@/app/components/spinner";
-import { LogOut, Plus, Settings, Trash2 } from "lucide-react";
+import { CreditCard, LogOut, Menu, Plus, Settings, Trash2, User } from "lucide-react";
 import Message from "../components/message";
 
 enum SubjectDetailLevel {
@@ -39,6 +39,15 @@ export default function SubjectPage() {
   const [loading, setLoading] = useState(true);
   const [msgDeleteSubjectVisible, setMsgDeleteTaskVisible] = useState(false);
   const router = useRouter();
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = () => setMenuOpen(false);
+    if (menuOpen) window.addEventListener("click", handleClickOutside);
+
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, [menuOpen]);
 
   const waitForToken = () =>
     new Promise<void>((resolve) => {
@@ -130,7 +139,7 @@ export default function SubjectPage() {
   const handleSubjectClick = (subjectId: number, subjectType: string) => {
     localStorage.setItem("subjectId", subjectId.toString());
     localStorage.setItem("subjectType", subjectType);
-    router.push('/exam');
+    router.push('/dashboard');
   };
 
   function handleSubjectEdit(id: number) {
@@ -201,141 +210,149 @@ export default function SubjectPage() {
 
   return (
     <>
-        <Header>
-            <div className="menu-icons">
-            <div
-                className="menu-icon"
-                style={{ border: "3px solid white", borderRadius: "50%" }}
-                onClick={handleAddSubject}
-                title={"Dodaj Przedmiot"}
-            >
-                <Plus size={28} color="white" />
-            </div>
-            <div
-                className="menu-icon"
-                onClick={handleLogout}
-                style={{ marginLeft: "auto" }}
-                title={"Wyloguj się"}
-            >
-                <LogOut size={28} color="white" />
-            </div>
-            </div>
-        </Header>
-
-        <Message
-            message={"Czy na pewno chcesz usunąć dany przedmiot?"}
-            textConfirm="Tak"
-            textCancel="Nie"
-            onConfirm={async () => {
-            setMsgDeleteTaskVisible(false);
-            const subjectId = localStorage.getItem("subjectId");
-
-            await handleSubjectDelete(Number(subjectId));
-
-            localStorage.removeItem("subjectId");
+      <Header>
+        <div className="menu-icons">
+          <div
+            className="menu-icon"
+            style={{ border: "3px solid white", borderRadius: "50%" }}
+            onClick={handleAddSubject}
+            title={"Dodaj Przedmiot"}
+          >
+            <Plus size={28} color="white" />
+          </div>
+          <div
+            className="menu-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(prev => !prev);
             }}
-            onClose={() => {
-            setMsgDeleteTaskVisible(false);
-            localStorage.removeItem("subjectId");
-            }}
-            visible={msgDeleteSubjectVisible}
-        />
+            style={{ marginLeft: "auto" }}
+          >
+            <Menu size={28} color="white" />
+          </div>
+        </div>
+      </Header>
 
-        <main>
-            {loading ? (
-            <div className="spinner-wrapper">
-                <Spinner noText />
+      <Message
+        message={"Czy na pewno chcesz usunąć dany przedmiot?"}
+        textConfirm="Tak"
+        textCancel="Nie"
+        onConfirm={async () => {
+          setMsgDeleteTaskVisible(false);
+          const subjectId = localStorage.getItem("subjectId");
+
+          await handleSubjectDelete(Number(subjectId));
+
+          localStorage.removeItem("subjectId");
+        }}
+        onClose={() => {
+          setMsgDeleteTaskVisible(false);
+          localStorage.removeItem("subjectId");
+        }}
+        visible={msgDeleteSubjectVisible}
+      />
+
+      <main>
+        {menuOpen && (
+          <div className="dropdown-content show">
+            <div className="element">
+              <User  size={24} color={"gray"} /> Profil
             </div>
-            ) : (
-            <>
-                {subjects.length === 0 ? (
-                <div style={{
-                    color: "#514e4e",
-                    display: "flex",
-                    flexDirection: "column",
-                    margin: "auto"
-                }}>
-                    <div>
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <span>Naciśnij</span>
-                    <div
-                        className="menu-icon"
-                        style={{ border: "3px solid #514e4e", borderRadius: "50%" }}
-                        onClick={handleAddSubject}
-                        title={"Dodaj Przedmiot"}
-                    >
-                        <Plus strokeWidth={4} />
-                    </div>
-                    </div>
-                    <span>aby dodać nowy przedmiot</span>
-                    </div>
-                    <br />
-                    <div>
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                            <span>Naciśnij</span>
-                            <LogOut strokeWidth={4} />
-                        </div>
-                        <span>aby wylogować się</span>
-                    </div>
+            <div className="element">
+              <CreditCard size={24} color={"gray"} />Płatności
+            </div>
+            <div className="element" onClick={handleLogout} style={{ borderTop: "2px solid gray" }}>
+              <LogOut size={24} color={"gray"} /> Wyloguj się
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="spinner-wrapper">
+            <Spinner noText />
+          </div>
+        ) : (
+          <>
+            {subjects.length === 0 ? (
+              <div style={{
+                  color: "#514e4e",
+                  display: "flex",
+                  flexDirection: "column",
+                  margin: "auto"
+              }}>
+                <div>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                  <span>Naciśnij</span>
+                  <div
+                    className="menu-icon"
+                    style={{ border: "3px solid #514e4e", borderRadius: "50%" }}
+                    onClick={handleAddSubject}
+                    title={"Dodaj Przedmiot"}
+                  >
+                    <Plus strokeWidth={4} />
+                  </div>
                 </div>
-                ) : (<>
-                <div className="table" id="subject">
-                {subjects.map((userSubject) => (
-                    <div
-                    key={userSubject.subject.id}
-                    className="element element-subject"
-                    id={`${userSubject.subject.id}`}
-                    onClick={() => handleSubjectClick(userSubject.subject.id, userSubject.subject.type)}
-                    style={{ cursor: "pointer" }}
-                    >
-                    {userSubject.subject.url ? (
-                    <img
-                        src={userSubject.subject.url}
-                        alt={userSubject.subject.name}
-                        className="element-icon"
-                        />
-                    ) : null}
-                    <div className="element-subject-options">
-                        <div>
-                        <div className="element-title">{userSubject.subject.name}</div>
-                        <div>Próg: {userSubject.threshold}%</div>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-                        <button
-                            id={String(userSubject.subject.id)}
-                            className="button btnSubjectOptionsEdit"
-                            onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubjectEdit(Number(e.currentTarget.id))
-                            }}
-                        >
-                            <Settings size={24} color="white" />
-                        </button>
-                        <button
-                            id={String(userSubject.subject.id)}
-                            className="button btnSubjectOptionsEdit"
-                            style={{
-                              backgroundColor: "transparent",
-                              borderColor: "transparent",
-                              boxShadow: "none"
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              localStorage.setItem("subjectId", String(e.currentTarget.id));
-                              setMsgDeleteTaskVisible(true);
-                            }}
-                        >
-                            <Trash2 size={24} color="black" />
-                        </button>
-                        </div>
-                    </div>
-                    </div>
-                ))}
+                <span>aby dodać nowy przedmiot</span>
                 </div>
-                </>)}
-            </>
-            )}
-        </main>
+              </div>
+            ) : (<>
+            <div className="table" id="subject">
+              {subjects.map((userSubject) => (
+                <div
+                  key={userSubject.subject.id}
+                  className="element element-subject"
+                  id={`${userSubject.subject.id}`}
+                  onClick={() => handleSubjectClick(userSubject.subject.id, userSubject.subject.type)}
+                  style={{ cursor: "pointer" }}
+                >
+                  {userSubject.subject.url ? (
+                  <img
+                      src={userSubject.subject.url}
+                      alt={userSubject.subject.name}
+                      className="element-icon"
+                    />
+                  ) : null}
+                  <div className="element-subject-options">
+                    <div>
+                      <div className="element-title">{userSubject.subject.name}</div>
+                      <div>Próg: {userSubject.threshold}%</div>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                      <button
+                        id={String(userSubject.subject.id)}
+                        className="btnOption btnSubjectOptionsEdit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSubjectEdit(Number(e.currentTarget.id))
+                        }}
+                      >
+                        <Settings size={24} color="white" />
+                      </button>
+                      <button
+                        id={String(userSubject.subject.id)}
+                        className="btnElement btnSubjectOptionsEdit"
+                        style={{
+                          backgroundColor: "transparent",
+                          borderColor: "transparent",
+                          boxShadow: "none"
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          localStorage.setItem("subjectId", String(e.currentTarget.id));
+                          setMsgDeleteTaskVisible(true);
+                        }}
+                      >
+                        <Trash2 size={24} color="black" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>)}
+          </>
+        )}
+      </main>
     </>
   );
 }

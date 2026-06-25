@@ -69,6 +69,20 @@
   font-weight: 700;
 }
 
+.math-solution-container {
+  background-image: 
+    linear-gradient(to right, grey 1px, transparent 1px),
+    linear-gradient(to bottom, grey 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-repeat: repeat;
+}
+
+.humanities-solution-container {
+  background-image: radial-gradient(circle, grey 1.5px, transparent 1.5px);
+  background-size: 6px 24px;
+  background-position: -0px -15px;
+}
+
 .btnTextAreaOpen {
   position: absolute;
   right: 0;
