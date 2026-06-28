@@ -1406,6 +1406,12 @@ export default function InteractivePlayPage() {
         return /^\s*$/.test(str);
     }
 
+    const formatAudioTime = (seconds: number) => {
+        const min = Math.floor(seconds / 60);
+        const sec = Math.floor(seconds % 60);
+        return `${min}:${sec.toString().padStart(2, "0")}`;
+    };
+
     const formatTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
@@ -1959,7 +1965,7 @@ export default function InteractivePlayPage() {
             setDurations(results);
 
             const total = results.reduce((sum, d) => sum + d, 0);
-            setTotalTimeFormatted(formatTime(total));
+            setTotalTimeFormatted(formatAudioTime(total));
         };
 
         if (task.audioFiles && task.audioFiles.length > 0) {
@@ -1978,7 +1984,7 @@ export default function InteractivePlayPage() {
             const percent = totalTime ? ((previousTime + currentTime) / totalTime) * 100 : 0;
             setProgress(percent);
 
-            setCurrentTimeFormatted(formatTime(previousTime + currentTime));
+            setCurrentTimeFormatted(formatAudioTime(previousTime + currentTime));
         }, 200);
 
         return () => clearInterval(interval);
