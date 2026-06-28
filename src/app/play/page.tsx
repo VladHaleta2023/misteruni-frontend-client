@@ -30,6 +30,7 @@ export default function PlayPage() {
     const sessionStartTimeRef = useRef<number | null>(null);
     const [examTimeLeft, setExamTimeLeft] = useState<number>(0);
     const examTimerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const lastAutosavedTextRef = useRef<string>("");
 
     const [loading, setLoading] = useState(true);
     const [userSolutionText, setUserSolutionText] = useState("");
@@ -41,6 +42,7 @@ export default function PlayPage() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mainRef = useRef<HTMLDivElement>(null);
+    const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [chatTextValue, setChatTextValue] = useState("");
     const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
@@ -952,6 +954,7 @@ export default function PlayPage() {
         taskId: number,
         userSolution: string,
         userOptionIndex: number,
+        answered: boolean,
         signal?: AbortSignal
     ) => {
         try {
@@ -962,7 +965,8 @@ export default function PlayPage() {
             `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/user-solution`,
             {
                 userSolution,
-                userOptionIndex
+                userOptionIndex,
+                answered
             },
             { signal } as any
             );
@@ -1333,7 +1337,7 @@ export default function PlayPage() {
 
                 return;
             }
-            else {
+            else if (newTask.theoryFinished) {
                 startTimer();
             }
         } catch (error) {
@@ -1515,7 +1519,7 @@ export default function PlayPage() {
             setIsProcessingChat(false);
             setChatTextValue("");
         }
-    }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping, handleSolutionGenerate, handleTaskSolutionSave]);
+    }, [handleUpdateChat, loadChat, fetchTaskById, simulateExplanationTyping, handleSolutionGenerate, handleTaskSolutionSave, stopTimerAndSaveToDatabase]);
 
     useEffect(() => {
         const storedRemaining = localStorage.getItem("remainingExamTimeSeconds");
@@ -1565,8 +1569,6 @@ export default function PlayPage() {
         if (!subjectId || !sectionId || !topicId) return;
 
         setLoading(true);
-
-        if (controllerRef.current) controllerRef.current.abort();
 
         const controller = new AbortController();
         controllersRef.current.push(controller);
@@ -1689,11 +1691,33 @@ export default function PlayPage() {
             if (optionsIntervalRef.current) {
                 clearInterval(optionsIntervalRef.current);
             }
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
         };
     }, []);
 
     const handleBackClick = async () => {
         await stopTimerAndSaveToDatabase();
+
+        if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+        if (userSolutionText.trim() && userSolutionText !== lastAutosavedTextRef.current) {
+            try {
+                await api.put<any>(
+                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                    {
+                        userSolution: userSolutionText,
+                        userOptionIndex: userOptionIndex,
+                        answered: false
+                    }
+                );
+
+                lastAutosavedTextRef.current = userSolutionText;
+            } catch (error) {
+                console.error("UserSolution autosave failed:", error);
+            }
+        }
 
         localStorage.removeItem("taskId");
 
@@ -1738,8 +1762,6 @@ export default function PlayPage() {
         const userMessage = chatTextValue;
         
         setChatTextValue("");
-
-        if (controllerRef.current) controllerRef.current.abort();
 
         const controller = new AbortController();
         controllerRef.current = controller;
@@ -1820,8 +1842,6 @@ export default function PlayPage() {
 
         await stopTimerAndSaveToDatabase();
 
-        if (controllerRef.current) controllerRef.current.abort();
-
         const controller = new AbortController();
         controllerRef.current = controller;
         controllersRef.current.push(controller);
@@ -1841,6 +1861,11 @@ export default function PlayPage() {
                 const currentTopicId = topicId;
                 const currentUserOptionIndex = userOptionIndex;
 
+                if (autosaveTimeoutRef.current) {
+                    clearTimeout(autosaveTimeoutRef.current);
+                    autosaveTimeoutRef.current = null;
+                }
+
                 await handleTaskUserSolutionSave(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
@@ -1848,6 +1873,7 @@ export default function PlayPage() {
                     currentTaskId ?? 0,
                     userSolutionText,
                     currentUserOptionIndex ?? 0,
+                    true,
                     signal
                 );
 
@@ -1971,10 +1997,34 @@ export default function PlayPage() {
     };
 
     useEffect(() => {
-        const handlePopState = () => {
+        const handlePopState = async () => {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+
+            if (userSolutionText.trim() && task.id && !task.finished && userSolutionText !== lastAutosavedTextRef.current) {
+                try {
+                    await api.put<any>(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                        {
+                            userSolution: userSolutionText,
+                            userOptionIndex: userOptionIndex,
+                            answered: false
+                        }
+                    );
+
+                    lastAutosavedTextRef.current = userSolutionText;
+                } catch (error) {
+                    console.error("UserSolution autosave failed:", error);
+                }
+            }
+
             if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
                 stopTimerAndSaveToDatabase();
             }
+
+            localStorage.removeItem("taskId");
         };
         
         window.addEventListener('popstate', handlePopState);
@@ -2093,8 +2143,6 @@ export default function PlayPage() {
                             const newChat = removeLastBlockOptimal(task.chat)
                             setChatBlocks(parseChat(newChat));
 
-                            if (controllerRef.current) controllerRef.current.abort();
-
                             const controller = new AbortController();
                             controllersRef.current.push(controller);
                             const signal = controller.signal;
@@ -2110,8 +2158,6 @@ export default function PlayPage() {
                         }
                         else {
                             setIsChatEnd(true);
-
-                            if (controllerRef.current) controllerRef.current.abort();
 
                             const controller = new AbortController();
                             controllersRef.current.push(controller);
@@ -2333,6 +2379,26 @@ export default function PlayPage() {
                                                 }
                                                 
                                                 setUserSolutionText(el.innerText);
+
+                                                if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+                                                if (el.innerText !== lastAutosavedTextRef.current) {
+                                                    autosaveTimeoutRef.current = setTimeout(async () => {
+                                                        try {
+                                                            await api.put<any>(
+                                                                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                                                                {
+                                                                    userSolution: el.innerText,
+                                                                    userOptionIndex: userOptionIndex,
+                                                                    answered: false
+                                                                }
+                                                            );
+
+                                                            lastAutosavedTextRef.current = el.innerText;
+                                                        } catch (error) {
+                                                            console.error("UserSolution autosave failed:", error);
+                                                        }
+                                                    }, 3000);
+                                                }
                                                 
                                                 requestAnimationFrame(() => {
                                                     el.style.height = "auto";
@@ -2362,7 +2428,7 @@ export default function PlayPage() {
                                 ) : !isEmptyString(task.userSolution) && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} />
+                                        <FormatText content={task.userSolution} isMarkdown={false} />
                                     </div>
                                 </>)}
                                 {!task.answered && task.stage >= 2 && !isSubmittingAnswer && task.theoryFinished &&  (
@@ -2415,8 +2481,6 @@ export default function PlayPage() {
                                                 onClick={async (e) => {
                                                     e.preventDefault();
 
-                                                    if (controllerRef.current) controllerRef.current.abort();
-
                                                     const controller = new AbortController();
                                                     controllerRef.current = controller;
                                                     controllersRef.current.push(controller);
@@ -2448,8 +2512,6 @@ export default function PlayPage() {
                                                     setLoading(true);
                                                     setTextLoading("Przetwarzanie Czatu AI...");
 
-                                                    if (controllerRef.current) controllerRef.current.abort();
-
                                                     const controller = new AbortController();
                                                     controllerRef.current = controller;
                                                     controllersRef.current.push(controller);
@@ -2478,7 +2540,7 @@ export default function PlayPage() {
                                             <div key={index} className="message human">
                                                 <div className="text-title" style={{ fontSize: "18px" }}>{block.title}</div>
                                                 <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                                    <FormatText content={block.content} />
+                                                    <FormatText content={block.content} isMarkdown={false} />
                                                 </div>
                                             </div>
                                         ) : (

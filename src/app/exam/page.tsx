@@ -535,7 +535,7 @@ export default function ExamPage() {
                                         ? 'humanities-solution-container'
                                         : 'math-solution-container'
                                 } style={{ marginTop: "16px", width: "100%" }}>
-                                    <FormatText content={topic.task.userSolution ?? ""} />
+                                    <FormatText content={topic.task.userSolution ?? ""} isMarkdown={false} />
                                 </div>
                             </div>
                         </>)}

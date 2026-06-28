@@ -715,7 +715,7 @@ export default function TasksPage() {
                                                 ? 'humanities-solution-container'
                                                 : 'math-solution-container'
                                         } style={{ marginTop: "16px", width: "100%" }}>
-                                            <FormatText content={task.userSolution ?? ""} />
+                                            <FormatText content={task.userSolution ?? ""} isMarkdown={false} />
                                         </div>
                                     </div>
                                 </div>

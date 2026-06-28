@@ -36,7 +36,7 @@ function subtractPercents(
     });
 }
 
-export default function PlayPage() {
+export default function WritingPlayPage() {
     const router = useRouter();
 
     const [currentSessionSeconds, setCurrentSessionSeconds] = useState(0);
@@ -52,6 +52,8 @@ export default function PlayPage() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const chatRef = useRef<HTMLDivElement>(null);
+    const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastAutosavedTextRef = useRef<string>("");
 
     const [msgDeleteTaskVisible, setMsgDeleteTaskVisible] = useState<boolean>(false);
     const [problemsExpanded, setProblemsExpanded] = useState(true);
@@ -92,6 +94,7 @@ export default function PlayPage() {
     const [typedExplanation, setTypedExplanation] = useState("");
     const [isTaskTextTyping, setIsTaskTextTyping] = useState(false);
     const [typedTaskText, setTypedTaskText] = useState("");
+    const [userSolutionText, setUserSolutionText] = useState("");
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const taskTextIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -571,6 +574,7 @@ export default function PlayPage() {
         topicId: number,
         taskId: number,
         userSolution: string,
+        answered: boolean,
         signal?: AbortSignal
     ) => {
         try {
@@ -578,7 +582,8 @@ export default function PlayPage() {
                 `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${taskId}/user-solution`,
                 {
                     userSolution,
-                    userOptionIndex: 0
+                    userOptionIndex: 0,
+                    answered
                 },
                 { signal } as any
             );
@@ -648,8 +653,6 @@ export default function PlayPage() {
         
         setIsSubmittingAnswer(true);
 
-        if (controllerRef.current) controllerRef.current.abort();
-
         const controller = new AbortController();
         controllerRef.current = controller;
         controllersRef.current.push(controller);
@@ -666,12 +669,18 @@ export default function PlayPage() {
                 const currentSectionId = sectionId;
                 const currentTopicId = topicId;
 
+                if (autosaveTimeoutRef.current) {
+                    clearTimeout(autosaveTimeoutRef.current);
+                    autosaveTimeoutRef.current = null;
+                }
+
                 await handleTaskUserSolutionSave(
                     currentSubjectId ?? 0,
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
                     task.userSolution,
+                    true,
                     signal
                 );
 
@@ -768,6 +777,28 @@ export default function PlayPage() {
     const handleBackClick = async () => {
         await stopTimerAndSaveToDatabase();
 
+        if (autosaveTimeoutRef.current) {
+            clearTimeout(autosaveTimeoutRef.current);
+            autosaveTimeoutRef.current = null;
+        }
+
+        if (userSolutionText.trim() && userSolutionText !== lastAutosavedTextRef.current) {
+            try {
+                await api.put<any>(
+                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                    {
+                        userSolution: userSolutionText,
+                        userOptionIndex: 0,
+                        answered: false
+                    }
+                );
+
+                lastAutosavedTextRef.current = userSolutionText;
+            } catch (error) {
+                console.error("UserSolution autosave failed:", error);
+            }
+        }
+
         localStorage.removeItem("taskId");
         router.back();
     };
@@ -817,8 +848,6 @@ export default function PlayPage() {
         if (!subjectId || !sectionId || !topicId) return;
 
         setLoading(true);
-
-        if (controllerRef.current) controllerRef.current.abort();
 
         const controller = new AbortController();
         controllersRef.current.push(controller);
@@ -986,6 +1015,10 @@ export default function PlayPage() {
             if (taskTextIntervalRef.current) {
                 clearInterval(taskTextIntervalRef.current);
             }
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
         };
     }, []);
 
@@ -1008,10 +1041,34 @@ export default function PlayPage() {
     }, [subjectId, task.id]);
 
     useEffect(() => {
-        const handlePopState = () => {
+        const handlePopState = async () => {
+            if (autosaveTimeoutRef.current) {
+                clearTimeout(autosaveTimeoutRef.current);
+                autosaveTimeoutRef.current = null;
+            }
+
+            if (userSolutionText.trim() && task.id && !task.finished && userSolutionText !== lastAutosavedTextRef.current) {
+                try {
+                    await api.put<any>(
+                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                        {
+                            userSolution: userSolutionText,
+                            userOptionIndex: 0,
+                            answered: false
+                        }
+                    );
+
+                    lastAutosavedTextRef.current = userSolutionText;
+                } catch (error) {
+                    console.error("UserSolution autosave failed:", error);
+                }
+            }
+
             if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
                 stopTimerAndSaveToDatabase();
             }
+
+            localStorage.removeItem("taskId");
         };
         
         window.addEventListener('popstate', handlePopState);
@@ -1153,18 +1210,33 @@ export default function PlayPage() {
                                         className="answer-block"
                                         onInput={(e) => {
                                             const el = e.currentTarget;
-
+                                            
                                             if (el.hasAttribute("data-placeholder-active")) {
                                                 el.removeAttribute("data-placeholder-active");
                                             }
+                                            
+                                            setUserSolutionText(el.innerText);
 
-                                            const value = el.innerText;
-                                            setTask(prev => ({
-                                                ...prev,
-                                                originalSolution: value,
-                                                userSolution: value
-                                            }));
+                                            if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+                                            if (el.innerText !== lastAutosavedTextRef.current) {
+                                                autosaveTimeoutRef.current = setTimeout(async () => {
+                                                    try {
+                                                        await api.put<any>(
+                                                            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                                                            {
+                                                                userSolution: el.innerText,
+                                                                userOptionIndex: 0,
+                                                                answered: false
+                                                            }
+                                                        );
 
+                                                        lastAutosavedTextRef.current = el.innerText;
+                                                    } catch (error) {
+                                                        console.error("UserSolution autosave failed:", error);
+                                                    }
+                                                }, 3000);
+                                            }
+                                            
                                             requestAnimationFrame(() => {
                                                 el.style.height = "auto";
                                                 el.style.height = `${el.scrollHeight}px`;
@@ -1231,7 +1303,7 @@ export default function PlayPage() {
                                 <div className="message human">
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} />
+                                        <FormatText content={task.userSolution} isMarkdown={false} />
                                     </div>
                                 </div>
                             )}

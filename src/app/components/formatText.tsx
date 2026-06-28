@@ -7,9 +7,10 @@ import DOMPurify from 'dompurify';
 
 interface FormatTextProps {
   content: string;
+  isMarkdown?: boolean;
 }
 
-export default function FormatText({ content }: FormatTextProps) {
+export default function FormatText({ content, isMarkdown = true }: FormatTextProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,20 +29,22 @@ export default function FormatText({ content }: FormatTextProps) {
       .replace(/&#x60;/g, '`')
       .replace(/&#x3D;/g, '=');
 
-    cleaned = cleaned
-      .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
-      .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
-      .replace(/^#### (.*)$/gm, '<h4>$1</h4>')
-      .replace(/^### (.*)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.*)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.*)$/gm, '<h1>$1</h1>');
+    if (isMarkdown) { 
+      cleaned = cleaned
+        .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
+        .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
+        .replace(/^#### (.*)$/gm, '<h4>$1</h4>')
+        .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.*)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.*)$/gm, '<h1>$1</h1>');
 
-    cleaned = cleaned
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/~~(.*?)~~/g, '<del>$1</del>')
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-      .replace(/`(.*?)`/g, '<code>$1</code>');
+      cleaned = cleaned
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/~~(.*?)~~/g, '<del>$1</del>')
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+        .replace(/`(.*?)`/g, '<code>$1</code>');
+    }
 
     const blockFormulas: string[] = [];
     cleaned = cleaned.replace(/\$\$([\s\S]+?)\$\$/g, (_, f) => {

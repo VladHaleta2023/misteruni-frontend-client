@@ -167,20 +167,24 @@ textarea:focus {
 
 .btnOption.darkgreen {
   background-color: darkgreen;
+  background-image: none;
 }
 
 .btnOption.completed {
   background-color: #b5d0b2;
   color: black;
+  background-image: none;
 }
 
 .btnOption.progress {
   background-color: #d6cc95;
   color: black;
+  background-image: none;
 }
 
 .btnOption.disabled {
   background-color: #753eaa;
+  background-image: none;
 }
 
 .btnSubmit {
