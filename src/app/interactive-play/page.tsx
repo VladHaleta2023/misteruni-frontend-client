@@ -2120,6 +2120,17 @@ export default function InteractivePlayPage() {
         }
     };
 
+    useEffect(() => {
+        if (!textareaRef.current) return;
+
+        if (userSolutionText) {
+            textareaRef.current.innerText = userSolutionText;
+            textareaRef.current.removeAttribute("data-placeholder-active");
+        } else {
+            updatePlaceholder();
+        }
+    }, [userSolutionText]);
+
     return (
         <>
             <Header>
@@ -2497,10 +2508,10 @@ export default function InteractivePlayPage() {
                                             }}
                                         />
                                     </>
-                                ) : !isEmptyString(task.userSolution) && task.stage >= 3 && (<>
+                                ) : !isEmptyString(userSolutionText) && task.stage >= 3 && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} isMarkdown={false} />
+                                        <FormatText content={userSolutionText} isMarkdown={false} />
                                     </div>
                                 </>)}
                                 {!task.answered && task.stage >= 3 && !isSubmittingAnswer && (

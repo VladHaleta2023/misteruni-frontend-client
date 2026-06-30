@@ -2072,6 +2072,17 @@ export default function PlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
+    useEffect(() => {
+        if (!textareaRef.current) return;
+
+        if (userSolutionText) {
+            textareaRef.current.innerText = userSolutionText;
+            textareaRef.current.removeAttribute("data-placeholder-active");
+        } else {
+            updatePlaceholder();
+        }
+    }, [userSolutionText]);
+
     return (
         <>
             <Header>
@@ -2427,10 +2438,10 @@ export default function PlayPage() {
                                             }}
                                         />
                                     </>
-                                ) : !isEmptyString(task.userSolution) && (<>
+                                ) : !isEmptyString(userSolutionText) && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} isMarkdown={false} />
+                                        <FormatText content={userSolutionText} isMarkdown={false} />
                                     </div>
                                 </>)}
                                 {!task.answered && task.stage >= 2 && !isSubmittingAnswer && task.theoryFinished &&  (

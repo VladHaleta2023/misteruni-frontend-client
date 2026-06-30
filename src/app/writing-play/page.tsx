@@ -263,7 +263,7 @@ export default function WritingPlayPage() {
     }, [currentSessionSeconds, task, subjectId, examTimeLeft]);
 
     const updatePlaceholder = () => {
-        const el = textareaRef.current as any;
+        const el = textareaRef.current;
         if (!el) return;
         
         const isEmpty = el.innerText.trim() === "";
@@ -679,7 +679,7 @@ export default function WritingPlayPage() {
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
-                    task.userSolution,
+                    userSolutionText,
                     true,
                     signal
                 );
@@ -688,7 +688,8 @@ export default function WritingPlayPage() {
 
                 setTask(prev => ({
                     ...prev,
-                    answered: true
+                    answered: true,
+                    userSolution: userSolutionText
                 }));
 
                 const currentSubtopics: Subtopic[] = task.subtopics.length > 0 
@@ -772,7 +773,7 @@ export default function WritingPlayPage() {
                 controllerRef.current = null;
             }
         }
-    }, [task.id, task.answered, task.userSolution, task.subtopics, task.stage, task.text, task.solution, task.options, task.correctOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, handleProblemsGenerate, handleSaveTaskTransaction, handleTaskFinishedTransaction, fetchTaskById, simulateExplanationTyping]);
+    }, [task.id, task.answered, userSolutionText, task.subtopics, task.stage, task.text, task.solution, task.options, task.correctOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, handleProblemsGenerate, handleSaveTaskTransaction, handleTaskFinishedTransaction, fetchTaskById, simulateExplanationTyping]);
 
     const handleBackClick = async () => {
         await stopTimerAndSaveToDatabase();
@@ -1116,6 +1117,17 @@ export default function WritingPlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
+    useEffect(() => {
+        if (!textareaRef.current) return;
+
+        if (userSolutionText) {
+            textareaRef.current.innerText = userSolutionText;
+            textareaRef.current.removeAttribute("data-placeholder-active");
+        } else {
+            updatePlaceholder();
+        }
+    }, [userSolutionText]);
+
     return (
         <>
             <Header>
@@ -1285,7 +1297,7 @@ export default function WritingPlayPage() {
                                                 title={"Sprawdź i zakończ"}
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    const text = task.userSolution?.trim();
+                                                    const text = userSolutionText.trim();
                                                     if (!text) {
                                                         showAlert(400, "Odpowiedź nie może być pusta");
                                                         return;
@@ -1301,11 +1313,11 @@ export default function WritingPlayPage() {
                                 </div>
                             )}
                             
-                            {task.answered && !isEmptyString(task.userSolution) && (
+                            {task.answered && !isEmptyString(userSolutionText) && (
                                 <div className="message human">
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
                                     <div className="answer-block readonly" style={{ marginTop: "8px" }}>
-                                        <FormatText content={task.userSolution} isMarkdown={false} />
+                                        <FormatText content={userSolutionText} isMarkdown={false} />
                                     </div>
                                 </div>
                             )}
