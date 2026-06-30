@@ -38,8 +38,8 @@ export default function PlayPage() {
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
-    const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const chatTextareaRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mainRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2456,7 +2456,9 @@ export default function PlayPage() {
                                                 const text = e.clipboardData?.getData('text/plain') || '';
                                                 document.execCommand('insertText', false, text);
                                             }}
-                                        />
+                                        >
+                                            {userSolutionText}
+                                        </div>
                                     </>
                                 ) : !isEmptyString(userSolutionText) && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>

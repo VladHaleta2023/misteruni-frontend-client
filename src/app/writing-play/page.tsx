@@ -49,7 +49,7 @@ export default function WritingPlayPage() {
     const [spinnerLoading, setSpinnerLoading] = useState(false);
     const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
 
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const chatRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1117,37 +1117,6 @@ export default function WritingPlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-    useEffect(() => {
-        if (!textareaRef.current) return;
-
-        if (userSolutionText) {
-            const el = textareaRef.current;
-            el.innerText = userSolutionText;
-            el.removeAttribute("data-placeholder-active");
-            
-            if (isInitialLoad) {
-                const range = document.createRange();
-                const sel = window.getSelection();
-                
-                if (el.firstChild) {
-                    range.setStartAfter(el.firstChild);
-                } else {
-                    range.setStart(el, 0);
-                }
-                range.collapse(false);
-                sel?.removeAllRanges();
-                sel?.addRange(range);
-                
-                el.focus();
-                setIsInitialLoad(false);
-            }
-        } else {
-            updatePlaceholder();
-        }
-    }, [userSolutionText, isInitialLoad]);
-
     return (
         <>
             <Header>
@@ -1294,7 +1263,9 @@ export default function WritingPlayPage() {
                                             const text = e.clipboardData?.getData('text/plain') || '';
                                             document.execCommand('insertText', false, text);
                                         }}
-                                    />
+                                    >
+                                        {userSolutionText}
+                                    </div>
 
                                     <div
                                         className="options"

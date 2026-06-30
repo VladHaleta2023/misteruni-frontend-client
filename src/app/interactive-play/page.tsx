@@ -38,8 +38,8 @@ export default function InteractivePlayPage() {
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
-    const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const chatTextareaRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mainRef = useRef<HTMLDivElement>(null);
@@ -2120,33 +2120,6 @@ export default function InteractivePlayPage() {
         }
     };
 
-    useEffect(() => {
-        if (!textareaRef.current) return;
-
-        if (userSolutionText) {
-            const el = textareaRef.current;
-            el.innerText = userSolutionText;
-            el.removeAttribute("data-placeholder-active");
-            
-            // ✅ Ustaw kursor na koniec tekstu
-            const range = document.createRange();
-            const sel = window.getSelection();
-            
-            if (el.firstChild) {
-                range.setStartAfter(el.firstChild);
-            } else {
-                range.setStart(el, 0);
-            }
-            range.collapse(false);
-            sel?.removeAllRanges();
-            sel?.addRange(range);
-            
-            el.focus();
-        } else {
-            updatePlaceholder();
-        }
-    }, [userSolutionText]);
-
     return (
         <>
             <Header>
@@ -2522,7 +2495,9 @@ export default function InteractivePlayPage() {
                                                 const text = e.clipboardData?.getData('text/plain') || '';
                                                 document.execCommand('insertText', false, text);
                                             }}
-                                        />
+                                        >
+                                            {userSolutionText}
+                                        </div>
                                     </>
                                 ) : !isEmptyString(userSolutionText) && task.stage >= 3 && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
