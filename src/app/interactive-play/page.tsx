@@ -2124,8 +2124,24 @@ export default function InteractivePlayPage() {
         if (!textareaRef.current) return;
 
         if (userSolutionText) {
-            textareaRef.current.innerText = userSolutionText;
-            textareaRef.current.removeAttribute("data-placeholder-active");
+            const el = textareaRef.current;
+            el.innerText = userSolutionText;
+            el.removeAttribute("data-placeholder-active");
+            
+            // ✅ Ustaw kursor na koniec tekstu
+            const range = document.createRange();
+            const sel = window.getSelection();
+            
+            if (el.firstChild) {
+                range.setStartAfter(el.firstChild);
+            } else {
+                range.setStart(el, 0);
+            }
+            range.collapse(false);
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+            
+            el.focus();
         } else {
             updatePlaceholder();
         }
