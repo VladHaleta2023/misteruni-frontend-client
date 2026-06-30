@@ -2072,37 +2072,6 @@ export default function PlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-    useEffect(() => {
-        if (!textareaRef.current) return;
-
-        if (userSolutionText) {
-            const el = textareaRef.current;
-            el.innerText = userSolutionText;
-            el.removeAttribute("data-placeholder-active");
-            
-            if (isInitialLoad) {
-                const range = document.createRange();
-                const sel = window.getSelection();
-                
-                if (el.firstChild) {
-                    range.setStartAfter(el.firstChild);
-                } else {
-                    range.setStart(el, 0);
-                }
-                range.collapse(false);
-                sel?.removeAllRanges();
-                sel?.addRange(range);
-                
-                el.focus();
-                setIsInitialLoad(false);
-            }
-        } else {
-            updatePlaceholder();
-        }
-    }, [userSolutionText, isInitialLoad]);
-
     return (
         <>
             <Header>
