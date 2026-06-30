@@ -1601,6 +1601,7 @@ export default function PlayPage() {
                         return;
                     }
 
+                    setUserSolutionText(task.userSolution ?? "");
                     setUserOptionIndex(task.userOptionIndex ?? 0)
                     setTask(task);
                     setChatBlocks(parseChat(task.chat));
@@ -1645,6 +1646,7 @@ export default function PlayPage() {
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask(task);
                 setUserOptionIndex(task.userOptionIndex ?? 0);
+                setUserSolutionText(task.userSolution ?? "");
                 setChatBlocks(parseChat(task.chat));
                 setIsShowTheoryQuestion(!task.theoryFinished);
 
@@ -1735,7 +1737,7 @@ export default function PlayPage() {
             const subtractValue = outputMap.get(item.name) || 0;
             return {
                 name: item.name,
-                percent: (100 - subtractValue) * 0.80 + bonus
+                percent: Math.round((100 - subtractValue) * 0.80 + bonus)
             };
         });
     }

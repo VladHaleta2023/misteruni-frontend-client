@@ -191,13 +191,30 @@ textarea:focus {
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  background-color: #7e2ba9;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   width: 200px;
+
+  background-color: #7e2ba9;
+  background-image: radial-gradient(
+    ellipse at center,
+    #9438c4 0%,
+    #7e2ba9 55%,
+    #6a2290 100%
+  );
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 3px 6px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+
+  border: 1px solid #5e1d7d;
+
+  transition: background-color 0.2s ease, color 0.2s ease,
+              box-shadow 0.15s ease, transform 0.1s ease;
 }
 
 .message.human {

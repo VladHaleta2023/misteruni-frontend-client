@@ -522,24 +522,22 @@ export default function StoriesPage() {
                         />
                       </div>
                       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", minWidth: "80px", maxWidth: "80px" }}>
-                        <div className="element-word stats-column" style={{ justifyContent: "flex-start" }}>
+                        <div className="element-word stats-column" style={{ justifyContent: "flex-end" }}>
                           <div className={`element-percent ${word.status}`} style={{ padding: "0px 5px", minWidth: "30px" }}>{word.percent}%</div>
                         </div>
                       </div>
-                      <div className="element-word" style={{
+                      {verificationCompleted && (<div className="element-word" style={{
                         maxWidth: "38px",
                         minWidth: "38px",
                         display: "flex",
                         alignItems: "center"
                       }}>
-                        {verificationCompleted && getValueById(word.id).trim() !== "" ? (
-                          word.finished ? (
-                            <Check size={28} strokeWidth={3} style={{ color: "#556b4f" }} />
-                          ) : (
-                            <X size={28} strokeWidth={3} style={{ color: "#804141" }} />
-                          )
-                        ) : null}
-                      </div>
+                        {getValueById(word.id).trim() !== "" && <>{word.finished ? (
+                          <Check size={28} strokeWidth={3} style={{ color: "#556b4f" }} />
+                        ) : (
+                          <X size={28} strokeWidth={3} style={{ color: "#804141" }} />
+                        )}</>}
+                      </div>)}
                     </div>
                   );
                 })}
@@ -547,17 +545,23 @@ export default function StoriesPage() {
               <div style={{
                 marginTop: "12px"
               }}>
-                {!verificationCompleted && (
-                  <button
-                    onClick={handleVerifyWords}
-                    className="btnSubmit"
-                    style={{
-                      margin: "0px auto"
-                    }}
-                  >
-                    Sprawdź
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    if (verificationCompleted) {
+                      handleBackClick();
+                    }
+                    else {
+                      handleVerifyWords();
+                    }
+                  }}
+                  className="btnSubmit"
+                  style={{
+                    marginLeft: "auto",
+                    width: `${verificationCompleted ? "80px" : "140px"}`
+                  }}
+                >
+                  {verificationCompleted ? "OK" : "Sprawdź"}
+                </button>
               </div>
             </div>
           </div>

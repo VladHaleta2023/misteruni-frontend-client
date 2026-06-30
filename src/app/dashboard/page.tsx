@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Globe, LibraryBig, FileCheck, List } from "lucide-react";
+import { ArrowLeft, Globe, LibraryBig, FileCheck, List, Minus, Plus } from "lucide-react";
 import "@/app/styles/table.css";
 import Spinner from "@/app/components/spinner";
 import { showAlert } from "@/app/scripts/showAlert";
@@ -24,7 +24,6 @@ interface DailyProgressItem {
   deltaPercent: number;
   timeSpentMinutes: number;
   plannedMinutes: number;
-  cumulativeDeltaDays: number;
 }
 
 interface StatisticSnapshot {
@@ -50,12 +49,6 @@ interface StatisticData {
   totalWordsCount: number;
 }
 
-interface StatisticResponse {
-  statusCode: number;
-  message: string;
-  statistic: StatisticData;
-}
-
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -64,8 +57,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [literatures, setLiteratures] = useState<string[]>([]);
   const [statistic, setStatistic] = useState<StatisticData | null>(null);
+  const [expandedDetails, setExpandedDetails] = useState<boolean>(false);
+  const [expandedDailyProgress, setExpandedDailyProgress] = useState<boolean>(true);
 
-  console.log(statistic);
+  const handleDetailsExpand = useCallback(() => {
+    setExpandedDetails(prev => !prev);
+  }, []);
+
+  const handleDailyProgressExpand = useCallback(() => {
+    setExpandedDailyProgress(prev => !prev);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -269,198 +270,230 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <br />
-
-          <div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Pozostało czasu:
+          <div style={{ padding: "8px", backgroundColor: "#e7e7e7"}}>
+            <div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Pozostało czasu:
+              </div>
+              <div className="element-options">
+                {statistic?.current.remainingDaysToExam} dni
+              </div>
             </div>
-            <div className="element-options">
-              {statistic?.current.remainingDaysToExam} dni
+
+            <div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Liczba arkuszy rozwiązanych:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.examsCount}
+                  previousValue={statistic?.previous?.examsCount}
+                  sufix=""
+                />
+              </div>
+              <div className="element-options">
+                {statistic?.current.examsCount} ark.
+              </div>
+            </div>
+
+            <div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Średni procent arkuszy rozwiązanych:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.averageExamScore}
+                  previousValue={statistic?.previous?.averageExamScore}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.averageExamScore}%
+                </div>
+              </div>
+            </div>
+
+            <div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Pokrycie treści przedmiotu:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.totalCovered}
+                  previousValue={statistic?.previous?.totalCovered}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.totalCovered}%
+                </div>
+              </div>
+            </div>
+
+            <div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Przewidywana ocena na egzaminie:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.predictedScore}
+                  previousValue={statistic?.previous?.predictedScore}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.predictedScore}%
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Przewidywana ocena na egzaminie:
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.predictedScore}%
-              </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.predictedScore}
-                previousValue={statistic?.previous?.predictedScore}
-                sufix="%"
-              />
-            </div>
-          </div>
-
-          <div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Liczba arkuszy rozwiązanych:
-            </div>
-            <div className="element-options">
-              {statistic?.current.examsCount} 
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.examsCount}
-                previousValue={statistic?.previous?.examsCount}
-                sufix=""
-              />
-            </div>
-          </div>
-
-          <div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Średni procent arkuszy rozwiązanych:
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.averageExamScore}%
-              </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.averageExamScore}
-                previousValue={statistic?.previous?.averageExamScore}
-                sufix="%"
-              />
-            </div>
-          </div>
-
-          <div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Pokrycie treści przedmiotu:
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.totalCovered}%
-              </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.totalCovered}
-                previousValue={statistic?.previous?.totalCovered}
-                sufix="%"
-              />
-            </div>
-          </div>
-
-          {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Liczba sprawdzonych słów:
-            </div>
-            <div className="element-options">
-              {statistic?.current.checkedWordsCount}
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.checkedWordsCount}
-                previousValue={statistic?.previous?.checkedWordsCount}
-                sufix=""
-              />
+          {(subjectType === "Language" || subjectType === "Humanistic") && (<div className={`element element-section`}>
+            <button
+              className="btnElement"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDetailsExpand();
+              }}
+            >
+              {expandedDetails ? (
+                <Minus size={28} />
+              ) : (
+                <Plus size={28} />
+              )}
+            </button>
+            <div className="element-name" style={{ fontWeight: "bold", fontSize: "18px" }}>
+              Szczegóły
             </div>
           </div>)}
 
-          {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Procent pokrycia słownictwa:
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.wordsCoveragePercent}%
+          {expandedDetails && (<div style={{ padding: "8px", backgroundColor: "#e7e7e7"}}>
+            {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Liczba sprawdzonych słów:
               </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.wordsCoveragePercent}
-                previousValue={statistic?.previous?.wordsCoveragePercent}
-                sufix="%"
-              />
-            </div>
-          </div>)}
-
-          {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Liczba zadań audio:
-            </div>
-            <div className="element-options">
-              {statistic?.current.audioTasksCount}
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.audioTasksCount}
-                previousValue={statistic?.previous?.audioTasksCount}
-                sufix=""
-              />
-            </div>
-          </div>)}
-
-          {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              Średni procent zadań audio:
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.averageAudioScore}%
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.checkedWordsCount}
+                  previousValue={statistic?.previous?.checkedWordsCount}
+                  sufix=""
+                />
               </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.averageAudioScore}
-                previousValue={statistic?.previous?.averageAudioScore}
-                sufix="%"
-              />
-            </div>
-          </div>)}
-
-          {(subjectType === "Language" || subjectType === "Humanistic") && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              {subjectType === "Language" ? `Liczba zadań writing:` : `Liczba wypracowań:`}
-            </div>
-            <div className="element-options">
-              {statistic?.current.writingTasksCount}
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.writingTasksCount}
-                previousValue={statistic?.previous?.writingTasksCount}
-                sufix=""
-              />
-            </div>
-          </div>)}
-
-          {(subjectType === "Language" || subjectType === "Humanistic") && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
-            <div className="element-name" style={{ fontWeight: "bold" }}>
-              {subjectType === "Language" ? `Średni procent zadań writing:` : `Średni procent wypracowań:`}
-            </div>
-            <div className="element-options">
-              <div className={`element-percent`}>
-                {statistic?.current.averageWritingScore}%
+              <div className="element-options">
+                {statistic?.current.checkedWordsCount} sł.
               </div>
-            </div>
-            <div className="element-options">
-              <DeltaBadge
-                currentValue={statistic?.current.averageWritingScore}
-                previousValue={statistic?.previous?.averageWritingScore}
-                sufix="%"
-              />
-            </div>
+            </div>)}
+
+            {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Procent pokrycia słownictwa:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.wordsCoveragePercent}
+                  previousValue={statistic?.previous?.wordsCoveragePercent}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.wordsCoveragePercent}%
+                </div>
+              </div>
+            </div>)}
+
+            {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Liczba zadań audio:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.audioTasksCount}
+                  previousValue={statistic?.previous?.audioTasksCount}
+                  sufix=""
+                />
+              </div>
+              <div className="element-options">
+                {statistic?.current.audioTasksCount} zad.
+              </div>
+            </div>)}
+
+            {subjectType === "Language" && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                Średni procent zadań audio:
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.averageAudioScore}
+                  previousValue={statistic?.previous?.averageAudioScore}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.averageAudioScore}%
+                </div>
+              </div>
+            </div>)}
+
+            {(subjectType === "Language" || subjectType === "Humanistic") && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                {subjectType === "Language" ? `Liczba zadań writing:` : `Liczba wypracowań:`}
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.writingTasksCount}
+                  previousValue={statistic?.previous?.writingTasksCount}
+                  sufix=""
+                />
+              </div>
+              <div className="element-options">
+                {statistic?.current.writingTasksCount} zad.
+              </div>
+            </div>)}
+
+            {(subjectType === "Language" || subjectType === "Humanistic") && (<div className="element element-statistic" style={{ borderBottom: "none" }}>
+              <div className="element-name">
+                {subjectType === "Language" ? `Średni procent zadań writing:` : `Średni procent wypracowań:`}
+              </div>
+              <div className="element-options">
+                <DeltaBadge
+                  currentValue={statistic?.current.averageWritingScore}
+                  previousValue={statistic?.previous?.averageWritingScore}
+                  sufix="%"
+                />
+              </div>
+              <div className="element-options">
+                <div className={`element-percent`}>
+                  {statistic?.current.averageWritingScore}%
+                </div>
+              </div>
+            </div>)}
           </div>)}
-
-          <br />
-
+          
           {statistic?.dailyProgress && statistic?.dailyProgress.length > 0 && (<div className="table">
             <div className={`element element-section`}>
-              <div className="element-name" style={{ fontWeight: "bold" }}>
-                Postęp dzienny
+              <button
+                className="btnElement"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDailyProgressExpand();
+                }}
+              >
+                {expandedDailyProgress ? (
+                  <Minus size={28} />
+                ) : (
+                  <Plus size={28} />
+                )}
+              </button>
+              <div className="element-name" style={{ fontWeight: "bold", fontSize: "18px" }}>
+                Wykonanie normy
               </div>
             </div>
-            {statistic?.dailyProgress.map((item) => (
+            {expandedDailyProgress && statistic?.dailyProgress.map((item) => (
               <div
                 key={item.date}
                 className="element element-topic"
@@ -471,15 +504,13 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="element-options">
-                  <div className={`element-percent ${item.deltaPercent >= 0 ? "123" : "23"}`}>
-                    {item.deltaPercent}%
+                  <div className={`element-percent ${item.deltaPercent < 0 ? "not-finished" : "completed"}`}>
+                    {item.deltaPercent === -100
+                      ? "nieobecność"
+                      : item.deltaPercent > 0
+                      ? `+${item.deltaPercent}%`
+                      : `${item.deltaPercent}%`}
                   </div>
-                </div>
-
-                <div className="element-options" style={{
-                  color: item.cumulativeDeltaDays >= 0 ? '#1b5e20' : '#b71c1c'
-                }}>
-                  {item.cumulativeDeltaDays}
                 </div>
               </div>
             ))}

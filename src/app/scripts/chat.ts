@@ -11,22 +11,12 @@ export type ParseChatResult = ChatBlock[];
 
 type TitlesMap = Record<MarkerType, string>;
 
-function removeAllSubtopicBlocks(blocks: ChatBlock[]): ChatBlock[] {
-  return blocks.filter(block => block.type !== 'AI_SUBTOPIC');
-}
-
 function removeAllAIUserSolutionsBlocks(blocks: ChatBlock[]): ChatBlock[] {
   return blocks.filter(block => block.type !== 'AI_USER_SOLUTION');
 }
 
-function removeAPIBlocks(blocks: ChatBlock[]): ChatBlock[] {
-  blocks = removeAllSubtopicBlocks(blocks);
-  blocks = removeAllAIUserSolutionsBlocks(blocks);
-  return blocks;
-}
-
-export function parseChat(chatText: string): ParseChatResult {
-  const blocks: ChatBlock[] = [];
+export function parseChat(chatText: string, isRemoveAllAIUserSolutionsBlocks = true): ParseChatResult {
+  let blocks: ChatBlock[] = [];
   
   if (!chatText?.trim()) return blocks;
 
@@ -61,8 +51,11 @@ export function parseChat(chatText: string): ParseChatResult {
   if (currentType) {
     saveBlock(currentType as MarkerType, currentContent.trim(), blocks);
   }
+
+  if (isRemoveAllAIUserSolutionsBlocks)
+    blocks = removeAllAIUserSolutionsBlocks(blocks);
   
-  return removeAPIBlocks(blocks);
+  return blocks;
 }
 
 function saveBlock(type: MarkerType, content: string, blocks: ChatBlock[]) {
@@ -122,7 +115,7 @@ export function getLastMarker(chatText: string): MarkerType | null {
 export function removeLastBlockOptimal(chatText: string): string {
   if (!chatText?.trim()) return '';
   
-  const blocks = parseChat(chatText);
+  const blocks = parseChat(chatText, false);
   
   if (blocks.length === 0) {
     return '';

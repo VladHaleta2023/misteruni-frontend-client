@@ -74,8 +74,6 @@ export default function InteractivePlayPage() {
         topicNote: "",
         explanation: "",
         percent: 0,
-        percentAudio: 0,
-        percentWords: 0,
         status: "started",
         solution: "",
         options: [],
@@ -134,9 +132,10 @@ export default function InteractivePlayPage() {
 
         return subtopics.map(item => {
             const subtractValue = outputMap.get(item.name) || 0;
+
             return {
                 name: item.name,
-                percent: (100 - subtractValue) * 0.80 + bonus
+                percent: Math.round((100 - subtractValue) * 0.80 + bonus)
             };
         });
     }
@@ -1297,7 +1296,7 @@ export default function InteractivePlayPage() {
 
             setTask({
                 ...finalTask,
-                explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                explanation: finalTask.explanation
             });
             setSentences(await splitIntoSentences(finalTask.text));
             setWords(extractWords(finalTask.text));
@@ -1354,14 +1353,14 @@ export default function InteractivePlayPage() {
             if (finalTask) {
                 setTask({
                     ...finalTask,
-                    explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`  // ✅
+                    explanation: finalTask.explanation
                 });
                 setChatBlocks(parseChat(finalTask.chat));
                 setShowFinalBlocks(true);
                 if (finalTask.explanation) {
                     setLoading(false);
                     await simulateExplanationTyping(
-                        finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
+                        finalTask.explanation
                     );
                 }
             }
@@ -1545,11 +1544,11 @@ export default function InteractivePlayPage() {
     };
 
     const handleSubmitTaskClick = useCallback(async () => {
-        await stopTimerAndSaveToDatabase();
-
         if (isSubmittingAnswer) return;
         
         setIsSubmittingAnswer(true);
+
+        await stopTimerAndSaveToDatabase();
 
         const controller = new AbortController();
         controllerRef.current = controller;
@@ -1580,7 +1579,7 @@ export default function InteractivePlayPage() {
                     currentSectionId ?? 0,
                     currentTopicId ?? 0,
                     currentTaskId ?? 0,
-                    task.userSolution,
+                    userSolutionText,
                     currentUserOptionIndex ?? 0,
                     true,
                     signal
@@ -1590,9 +1589,10 @@ export default function InteractivePlayPage() {
 
                 setTask(prev => ({
                     ...prev,
-                    explanation: prev.explanation + `\nSłownictwo: ${prev.percentWords}%`,
                     answered: true,
-                    userOptionIndex: currentUserOptionIndex ?? 0
+                    userOptionIndex: currentUserOptionIndex ?? 0,
+                    originalSolution: userSolutionText,
+                    userSolution: userSolutionText
                 }));
 
                 const newTask = await fetchPendingTask(
@@ -1607,6 +1607,7 @@ export default function InteractivePlayPage() {
                     return;
                 }
 
+                setLoading(true);
                 setTextLoading("Przetwarzanie Czatu AI...");
 
                 await loadChat(
@@ -1625,20 +1626,14 @@ export default function InteractivePlayPage() {
                     signal
                 );
 
-                if (finalTask) {
-                    setTask({
-                        ...finalTask,
-                        explanation: finalTask.explanation + `\nSłownictwo: ${finalTask.percentWords}%`
-                    });
-                }
-
+                if (finalTask)
+                    setTask(finalTask);
             } catch (error: unknown) {
                 if ((error as DOMException)?.name === "AbortError") return;
                 setLoading(false);
                 setIsProcessingChat(false);
                 handleApiError(error);
             } finally {
-                setLoading(false);
                 setIsProcessingChat(false);
                 setIsSubmittingAnswer(false);
 
@@ -1646,7 +1641,7 @@ export default function InteractivePlayPage() {
                 controllerRef.current = null;
             }
         }
-    }, [task.id, task.answered, task.userSolution, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
+    }, [task.id, task.answered, userSolutionText, userOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, fetchPendingTask, loadChat, fetchTaskById]);
 
     const handleSendMessage = useCallback(async (type: 'answer' | 'question') => {
         await stopTimerAndSaveToDatabase();
@@ -1721,7 +1716,7 @@ export default function InteractivePlayPage() {
             if (updatedTask) {
                 setTask({
                     ...updatedTask,
-                    explanation: updatedTask.explanation + `\nSłownictwo: ${updatedTask.percentWords}%`
+                    explanation: updatedTask.explanation
                 });
             }
 
@@ -1841,8 +1836,9 @@ export default function InteractivePlayPage() {
                     setUserOptionIndex(task.userOptionIndex ?? 0);
                     setTask({
                         ...task,
-                        explanation: task.explanation + `\nSłownictwo: ${task.percentWords}%`
+                        explanation: task.explanation
                     });
+                    setUserSolutionText(task.userSolution ?? "");
                     setSentences(await splitIntoSentences(task.text));
                     setWords(extractWords(task.text));
                     setChatBlocks(parseChat(task.chat));
@@ -1888,9 +1884,10 @@ export default function InteractivePlayPage() {
                 task = await fetchTaskById(subjectId, sectionId, topicId, task.id, signal);
                 setTask({
                     ...task,
-                    explanation: task.explanation + `\nSłownictwo: ${task.percentWords}%`
+                    explanation: task.explanation
                 });
                 setUserOptionIndex(task.userOptionIndex ?? 0);
+                setUserSolutionText(task.userSolution ?? "");
                 setSentences(await splitIntoSentences(task.text));
                 setWords(extractWords(task.text));
                 setChatBlocks(parseChat(task.chat));
@@ -2281,12 +2278,8 @@ export default function InteractivePlayPage() {
                             
                             {task.answered && (
                                 <div className={`message human ${task.status}`}>
-                                    <div>
-                                        <FormatText content={`Słownictwo: ${task.percentWords}%`} />
-                                        <FormatText content={`Opowiadanie: ${task.percentAudio}%`} />
-                                    </div>
                                     <div className="text-title">
-                                        <FormatText content={`Wynik: ${task.percent}%`} />
+                                        <FormatText content={`Ocena: ${task.percent}%`} />
                                     </div>
                                 </div>
                             )}
@@ -2478,7 +2471,7 @@ export default function InteractivePlayPage() {
                                                         }
                                                     }, 3000);
                                                 }
-
+                                                
                                                 requestAnimationFrame(() => {
                                                     el.style.height = "auto";
                                                     el.style.height = `${el.scrollHeight}px`;

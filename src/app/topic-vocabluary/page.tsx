@@ -57,8 +57,6 @@ export default function TopicVocabluaryPage() {
       setTopicId(storedTopicId ? Number(storedTopicId) : null);
       setSectionId(storedSectionId ? Number(storedSectionId) : null);
     }
-
-    localStorage.removeItem("taskId");
   }, []);
 
   const fetchWords = useCallback(async () => {
@@ -224,7 +222,6 @@ export default function TopicVocabluaryPage() {
 
     try {
       localStorage.setItem("wordIds", JSON.stringify(selectedWordIds));
-      localStorage.removeItem("taskId");
       router.push('/vocabluary');
     } catch {
       showAlert(500, "Nie udało się zapisać wybranych wyrazów");

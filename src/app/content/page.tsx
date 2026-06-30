@@ -244,9 +244,7 @@ export default function SectionsPage() {
     
     return (
       <CirclePieChart 
-        percents={chartData.total} 
-        prediction={chartData.prediction}
-        deltaDays={chartData.deltaDays}
+        percents={chartData.total}
       />
     );
   }, [chartData]);

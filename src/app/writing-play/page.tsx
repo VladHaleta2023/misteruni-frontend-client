@@ -881,6 +881,7 @@ export default function WritingPlayPage() {
                     }
 
                     setTask(task);
+                    setUserSolutionText(task.userSolution ?? "");
 
                     if (task.finished || (!task.answered && stage >= 1)) {
                         setLoading(false);
@@ -904,6 +905,7 @@ export default function WritingPlayPage() {
 
                 task = await fetchPendingTask(subjectId, sectionId, topicId, signal);
                 setTask(task);
+                setUserSolutionText(task.userSolution ?? "");
 
                 localStorage.setItem("taskId", String(task.id));
                 

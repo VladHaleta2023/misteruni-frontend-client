@@ -8,25 +8,17 @@ const COLORS = ['#1b5e20', '#bfa000', '#bbbbbb', '#777777'];
 
 interface CirclePieChartProps {
   percents: [number, number, number, number];
-  prediction: string | null;
-  deltaDays?: number | null;
   names?: [string?, string?, string?, string?];
   width?: string;
   maxWidth?: string;
-  fontSize?: string;
-  showStatistic?: boolean;
   isCountable?: boolean;
 }
 
 export default function CirclePieChart({
   percents,
-  prediction,
-  deltaDays,
   names,
   width = '60%',
   maxWidth = '280px',
-  fontSize = '16px',
-  showStatistic = true,
   isCountable = false
 }: CirclePieChartProps) {
   const [containerWidth, setContainerWidth] = useState(width);
@@ -41,22 +33,16 @@ export default function CirclePieChart({
 
   useEffect(() => {
     if (initializedRef.current) return;
-    
+
     function updateSize() {
       const w = window.innerWidth;
       setIsMobile(w < 768);
-
-      if (w < 768) {
-        setContainerWidth("60%");
-        setContainerMaxWidth(`${isCountable ? "180px" : "220px"}`);
-      } else {
-        setContainerWidth(width);
-        setContainerMaxWidth(maxWidth);
-      }
+      setContainerWidth("60%");
+      setContainerMaxWidth(`${isCountable ? "180px" : "220px"}`);
     }
 
     updateSize();
-    
+
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
@@ -65,12 +51,12 @@ export default function CirclePieChart({
 
     window.addEventListener('resize', handleResize);
     initializedRef.current = true;
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, [width, maxWidth, fontSize]);
+  }, [width, maxWidth, isCountable]);
 
   const clampFont = (min: number, vw: number, max: number) => `clamp(${min}px, ${vw}vw, ${max}px)`;
 
@@ -135,48 +121,6 @@ export default function CirclePieChart({
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-
-            {showStatistic && prediction && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  textAlign: 'center',
-                  pointerEvents: 'none',
-                }}
-              >
-                {prediction != null && (
-                  <div
-                    style={{
-                      fontSize: clampFont(16, 1.67, 18),
-                      fontWeight: 'bold',
-                      color: '#333',
-                    }}
-                  >
-                    {prediction}
-                  </div>
-                )}
-                {deltaDays != null && (
-                  <div
-                    style={{
-                      fontSize: clampFont(16, 1.67, 18),
-                      fontWeight: 'bold',
-                      color:
-                        deltaDays >= 0
-                        ? '#1b5e20'
-                        : '#b71c1c',
-                    }}
-                  >
-                    {deltaDays >= 0
-                      ? '+'
-                      : ''}
-                    {deltaDays} {Math.abs(deltaDays) == 1 ? "dzień" : "dni"}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -185,7 +129,7 @@ export default function CirclePieChart({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            fontSize: clampFont(16, 1.67, 18),
+            fontSize: '17px',
             color: '#333',
           }}
         >
