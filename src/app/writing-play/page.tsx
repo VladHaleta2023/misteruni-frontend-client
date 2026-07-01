@@ -780,7 +780,7 @@ export default function WritingPlayPage() {
         }
     }, [task.id, task.answered, userSolutionText, task.subtopics, task.stage, task.text, task.solution, task.options, task.correctOptionIndex, subjectId, sectionId, topicId, isSubmittingAnswer, handleTaskUserSolutionSave, handleProblemsGenerate, handleSaveTaskTransaction, handleTaskFinishedTransaction, fetchTaskById, simulateExplanationTyping]);
 
-    const handleBackClick = async () => {
+    const handleBackClick = async (isRouting: boolean = true) => {
         await stopTimerAndSaveToDatabase();
 
         if (autosaveTimeoutRef.current) {
@@ -804,7 +804,9 @@ export default function WritingPlayPage() {
         }
 
         localStorage.removeItem("taskId");
-        router.back();
+
+        if (isRouting)
+            router.back();
     };
 
     function isEmptyString(str: string): boolean {
@@ -1047,42 +1049,16 @@ export default function WritingPlayPage() {
     }, [subjectId, task.id]);
 
     useEffect(() => {
-        const handlePopState = async () => {
-            if (autosaveTimeoutRef.current) {
-                clearTimeout(autosaveTimeoutRef.current);
-                autosaveTimeoutRef.current = null;
-            }
-
-            if (userSolutionText.trim() && task.id && !task.finished && userSolutionText !== lastAutosavedTextRef.current) {
-                try {
-                    await api.put<any>(
-                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                        {
-                            userSolution: userSolutionText,
-                            userOptionIndex: 0,
-                            answered: false
-                        }
-                    );
-
-                    lastAutosavedTextRef.current = userSolutionText;
-                } catch (error) {
-                    console.error("UserSolution autosave failed:", error);
-                }
-            }
-
-            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
-                stopTimerAndSaveToDatabase();
-            }
-
-            localStorage.removeItem("taskId");
+        const handlePopState = () => {
+            handleBackClick(false);
         };
-        
-        window.addEventListener('popstate', handlePopState);
+
+        window.addEventListener('popstate',  handlePopState);
         
         return () => {
-            window.removeEventListener('popstate', handlePopState);
+            window.removeEventListener('popstate',  handlePopState);
         };
-    }, [task.id, task.finished, task.chatFinished, stopTimerAndSaveToDatabase]);
+    }, [handleBackClick]);
 
     useEffect(() => {
         const handlePageHide = (event: PageTransitionEvent) => {
@@ -1124,7 +1100,7 @@ export default function WritingPlayPage() {
         <>
             <Header>
                 <div className="menu-icons">
-                    <div className="menu-icon" title="Wróć" onClick={handleBackClick}>
+                    <div className="menu-icon" title="Wróć" onClick={() => { handleBackClick() }}>
                         <ArrowLeft size={28} color="white" />
                     </div>
                     <div className="menu-icon" title="Usuń" onClick={(e) => {

@@ -95,6 +95,10 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+
+      localStorage.removeItem("examId");
+      localStorage.removeItem("isExamView");
+      localStorage.removeItem("remainingExamTimeSeconds");
     }
   }, []);
 

@@ -192,10 +192,24 @@ export default function TopicVocabluaryPage() {
     else setLoading(false);
   }, [fetchWords, subjectId, topicId]);
 
-  function handleBackClick() {
+  function handleBackClick(isRouting: boolean = true) {
     localStorage.removeItem("fetchWordIds");
-    router.back();
+
+    if (isRouting)
+      router.back();
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+        handleBackClick(false);
+    };
+
+    window.addEventListener('popstate',  handlePopState);
+    
+    return () => {
+        window.removeEventListener('popstate',  handlePopState);
+    };
+  }, [handleBackClick]);
 
   function handleApiError(error: unknown) {
     const err = error as any;
@@ -251,7 +265,7 @@ export default function TopicVocabluaryPage() {
     <>
       <Header>
         <div className="menu-icons">
-          <div className="menu-icon" title="Wrócić" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+          <div className="menu-icon" title="Wrócić" onClick={() => { handleBackClick() }} style={{ cursor: "pointer" }}>
             <ArrowLeft size={28} color="white" />
           </div>
         </div>

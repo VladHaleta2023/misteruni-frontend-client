@@ -75,12 +75,6 @@ export default function SectionsPage() {
     router.back();
   }
 
-  function handleTopicVocabluaryClick() {
-    localStorage.removeItem("sectionId");
-    localStorage.removeItem("topicId");
-    router.push("/user-vocabluary");
-  }
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");

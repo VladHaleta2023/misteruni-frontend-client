@@ -129,10 +129,24 @@ export default function UserVocabluaryPage() {
     }
   }, [fetchWords, subjectId]);
 
-  function handleBackClick() {
+  function handleBackClick(isRouting: boolean = true) {
     localStorage.removeItem("wordIds");
-    router.back();
+
+    if (isRouting)
+      router.back();
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      handleBackClick(false);
+    };
+
+    window.addEventListener('popstate',  handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate',  handlePopState);
+    };
+  }, [handleBackClick]);
 
   const handleAddWord = useCallback(async () => {
       if (!subjectId) return;
@@ -322,7 +336,7 @@ export default function UserVocabluaryPage() {
           <div
             className="menu-icon"
             title="Wrócić"
-            onClick={handleBackClick}
+            onClick={() => { handleBackClick() }}
             style={{ cursor: "pointer" }}
           >
             <ArrowLeft size={28} color="white" />

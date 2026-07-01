@@ -1428,7 +1428,7 @@ export default function InteractivePlayPage() {
         ].join(':');
     };
 
-    const handleBackClick = async () => {
+    const handleBackClick = async (isRouting: boolean = true) => {
         await stopTimerAndSaveToDatabase();
 
         if (autosaveTimeoutRef.current) {
@@ -1454,7 +1454,9 @@ export default function InteractivePlayPage() {
 
         localStorage.removeItem("taskId");
         localStorage.removeItem("audioRepeat");
-        router.back();
+
+        if (isRouting)
+            router.back();
     };
 
     const handlePlayPause = () => {
@@ -2035,43 +2037,16 @@ export default function InteractivePlayPage() {
     }, [chatBlocks, tempTypingBlocks]);
 
     useEffect(() => {
-        const handlePopState = async () => {
-            if (autosaveTimeoutRef.current) {
-                clearTimeout(autosaveTimeoutRef.current);
-                autosaveTimeoutRef.current = null;
-            }
-
-            if (userSolutionText.trim() && task.id && !task.finished && userSolutionText !== lastAutosavedTextRef.current) {
-                try {
-                    await api.put<any>(
-                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                        {
-                            userSolution: userSolutionText,
-                            userOptionIndex: userOptionIndex,
-                            answered: false
-                        }
-                    );
-
-                    lastAutosavedTextRef.current = userSolutionText;
-                } catch (error) {
-                    console.error("UserSolution autosave failed:", error);
-                }
-            }
-
-            if (sessionStartTimeRef.current && task.id && !task.finished && !task.chatFinished) {
-                stopTimerAndSaveToDatabase();
-            }
-
-            localStorage.removeItem("taskId");
-            localStorage.removeItem("audioRepeat");
+        const handlePopState = () => {
+            handleBackClick(false);
         };
-        
-        window.addEventListener('popstate', handlePopState);
+
+        window.addEventListener('popstate',  handlePopState);
         
         return () => {
-            window.removeEventListener('popstate', handlePopState);
+            window.removeEventListener('popstate',  handlePopState);
         };
-    }, [task.id, task.finished, task.chatFinished, stopTimerAndSaveToDatabase]);
+    }, [handleBackClick]);
 
     useEffect(() => {
         const handlePageHide = (event: PageTransitionEvent) => {
@@ -2109,21 +2084,6 @@ export default function InteractivePlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
-    const updatePlaceholder = () => {
-        const el = chatTextareaRef.current;
-        if (!el) return;
-        
-        const isEmpty = el.innerText.trim() === "";
-        const hasPlaceholder = el.hasAttribute("data-placeholder-active");
-        
-        if (isEmpty && !hasPlaceholder) {
-            el.setAttribute("data-placeholder-active", "true");
-            el.innerText = "";
-        } else if (!isEmpty && hasPlaceholder) {
-            el.removeAttribute("data-placeholder-active");
-        }
-    };
-
     useEffect(() => {
         if (!textareaRef.current) return;
         autoResize(textareaRef.current);
@@ -2133,7 +2093,7 @@ export default function InteractivePlayPage() {
         <>
             <Header>
                 <div className="menu-icons">
-                    <div className="menu-icon" title="Wróć" onClick={handleBackClick} style={{ cursor: "pointer" }}>
+                    <div className="menu-icon" title="Wróć" onClick={() => { handleBackClick() }} style={{ cursor: "pointer" }}>
                         <ArrowLeft size={28} color="white" />
                     </div>
                     <div className="menu-icon" title="Usuń" onClick={(e) => {

@@ -205,13 +205,27 @@ export default function StoriesPage() {
     }
   }, [fetchWords, findWords, subjectId]);
 
-  function handleBackClick() {
+  function handleBackClick(isRouting: boolean = true) {
     localStorage.removeItem("wordsVerified");
     localStorage.removeItem("verificationCompleted");
     localStorage.removeItem("outputText");
     localStorage.removeItem("textValues");
-    router.back();
+
+    if (isRouting)
+      router.back();
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      handleBackClick(false);
+    };
+
+    window.addEventListener('popstate',  handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate',  handlePopState);
+    };
+  }, [handleBackClick]);
 
   function handleApiError(error: unknown) {
     const err = error as any;
@@ -449,7 +463,7 @@ export default function StoriesPage() {
           <div
             className="menu-icon"
             title="Wrócić"
-            onClick={handleBackClick}
+            onClick={() => { handleBackClick() }}
             style={{ cursor: "pointer" }}
           >
             <ArrowLeft size={28} color="white" />

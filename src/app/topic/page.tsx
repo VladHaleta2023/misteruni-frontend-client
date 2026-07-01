@@ -493,10 +493,24 @@ export default function TasksPage() {
       }
   }, []);
 
-  function handleBackClick() {
+  function handleBackClick(isRouting: boolean = true) {
     localStorage.removeItem("fetchWordIds");
-    router.back();
+
+    if (isRouting)
+        router.back();
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+        handleBackClick(false);
+    };
+
+    window.addEventListener('popstate',  handlePopState);
+    
+    return () => {
+        window.removeEventListener('popstate',  handlePopState);
+    };
+  }, [handleBackClick]);
 
   const handleSubtopicsExpand = useCallback(() => {
     setExpandedSubtopics(prev => !prev);
@@ -536,7 +550,7 @@ export default function TasksPage() {
             <div
                 className="menu-icon"
                 title="Wrócić"
-                onClick={handleBackClick}
+                onClick={() => { handleBackClick() }}
                 style={{ cursor: "pointer" }}
             >
                 <ArrowLeft size={28} color="white" />

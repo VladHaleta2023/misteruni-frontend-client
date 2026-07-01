@@ -22,10 +22,24 @@ export default function LiteraturePage() {
 
   const [loading, setLoading] = useState(true);
 
-  function handleBackClick() {
+  function handleBackClick(isRouting: boolean = true) {
     localStorage.removeItem("literature");
-    router.back();
+
+    if (isRouting)
+      router.back();
   }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      handleBackClick(false);
+    };
+
+    window.addEventListener('popstate',  handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate',  handlePopState);
+    };
+  }, [handleBackClick]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -80,7 +94,7 @@ export default function LiteraturePage() {
           <div
             className="menu-icon"
             title="Wrócić"
-            onClick={handleBackClick}
+            onClick={() => { handleBackClick() }}
             style={{ cursor: "pointer" }}
           >
             <ArrowLeft size={28} color="white" />

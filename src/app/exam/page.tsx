@@ -242,9 +242,6 @@ export default function ExamPage() {
   function handleBackClick() {
     localStorage.removeItem("sectionId");
     localStorage.removeItem("topicId");
-    localStorage.removeItem("examId");
-    localStorage.removeItem("isExamView");
-    localStorage.removeItem("remainingExamTimeSeconds");
     router.back();
   }
 
