@@ -1096,6 +1096,11 @@ export default function WritingPlayPage() {
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
 
+    useEffect(() => {
+        if (!textareaRef.current) return;
+        autoResize(textareaRef.current);
+    }, [userSolutionText]);
+
     return (
         <>
             <Header>
