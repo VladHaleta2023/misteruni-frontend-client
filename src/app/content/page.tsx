@@ -50,26 +50,16 @@ interface ChartData {
 export default function SectionsPage() {
   const router = useRouter();
 
-  const [subjectType, setSubjectType] = useState<string | null>(null);
-
   const [subjectId, setSubjectId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [topicId, setTopicId] = useState<number | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [literatures, setLiteratures] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<{ [key: number]: boolean }>({});
 
   const fetchInProgressRef = useRef(false);
 
   const [chartData, setChartData] = useState<ChartData | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-        const storedSubjectType = localStorage.getItem("subjectType");
-        setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
-    }
-  }, []);
 
   function handleBackClick() {
     router.back();
@@ -145,8 +135,6 @@ export default function SectionsPage() {
           deltaDays: response.data.deltaDays,
           hasData: newTotal.some(percent => percent > 0)
         });
-
-        setLiteratures(response.data.literatures);
 
         setLoading(false);
       } else {
