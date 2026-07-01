@@ -794,7 +794,7 @@ export default function WritingPlayPage() {
                 {
                     userSolution: userSolutionText,
                     userOptionIndex: 0,
-                    answered: false
+                    answered: task.answered ?? false
                 }
             );
 
@@ -1204,7 +1204,7 @@ export default function WritingPlayPage() {
                                                         {
                                                             userSolution: text,
                                                             userOptionIndex: 0,
-                                                            answered: false
+                                                            answered: task.answered ?? false
                                                         }
                                                     );
                                                     lastAutosavedTextRef.current = text;

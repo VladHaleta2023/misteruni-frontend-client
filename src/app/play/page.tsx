@@ -1714,7 +1714,7 @@ export default function PlayPage() {
                 {
                     userSolution: userSolutionText,
                     userOptionIndex: userOptionIndex,
-                    answered: false
+                    answered: task.answered ?? false
                 }
             );
 
@@ -2354,7 +2354,7 @@ export default function PlayPage() {
                                                             {
                                                                 userSolution: text,
                                                                 userOptionIndex: userOptionIndex || 0,
-                                                                answered: false
+                                                                answered: task.answered ?? false
                                                             }
                                                         );
                                                         lastAutosavedTextRef.current = text;

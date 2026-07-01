@@ -1443,7 +1443,7 @@ export default function InteractivePlayPage() {
                 {
                     userSolution: userSolutionText,
                     userOptionIndex: userOptionIndex,
-                    answered: false
+                    answered: task.answered ?? false
                 }
             );
 
@@ -2426,7 +2426,7 @@ export default function InteractivePlayPage() {
                                                             {
                                                                 userSolution: text,
                                                                 userOptionIndex: userOptionIndex || 0,
-                                                                answered: false
+                                                                answered: task.answered ?? false
                                                             }
                                                         );
                                                         lastAutosavedTextRef.current = text;
