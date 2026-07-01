@@ -71,8 +71,8 @@
 
 .math-solution-container {
   background-image: 
-    linear-gradient(to right, grey 1px, transparent 1px),
-    linear-gradient(to bottom, grey 1px, transparent 1px);
+    linear-gradient(to right, #999 1px, transparent 1px),
+    linear-gradient(to bottom, #999 1px, transparent 1px);
   background-size: 24px 24px;
   background-repeat: repeat;
 }

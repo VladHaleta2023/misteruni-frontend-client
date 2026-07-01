@@ -525,6 +525,10 @@ export default function TasksPage() {
     }
   };
 
+  function isEmptyString(str: string): boolean {
+    return /^\s*$/.test(str);
+  }
+
   return (
     <>
       <Header>
@@ -664,7 +668,7 @@ export default function TasksPage() {
                                 </div>
                                 {element.tasks.map(task => (
                                 <div
-                                    className={`element element-task ${!task.finished ? "not-finished" : ""}`}
+                                    className={`element element-task-exam element-task ${!task.finished ? "not-finished" : ""}`}
                                     style={{
                                         justifyContent: "space-between"
                                     }}
@@ -683,6 +687,7 @@ export default function TasksPage() {
                                     flexDirection: "column",
                                     alignItems: "flex-start",
                                     fontSize: "16px",
+                                    marginBottom: "32px",
                                 }}>
                                     <div style={{ display: "flex", marginBottom: "8px", flexDirection: "column" }}>
                                         {type !== "Stories" ? (
@@ -710,13 +715,13 @@ export default function TasksPage() {
                                             <FormatText content={option} />
                                         </div>
                                         ))}
-                                        <div className={
+                                        {!isEmptyString(task.userSolution ?? "") && (<div className={
                                             subjectType === 'Humanistic' || subjectType === 'Language'
                                                 ? 'humanities-solution-container'
                                                 : 'math-solution-container'
-                                        } style={{ marginTop: "16px", width: "100%" }}>
+                                        } style={{ marginTop: "24px", width: "100%" }}>
                                             <FormatText content={task.userSolution ?? ""} isMarkdown={false} />
-                                        </div>
+                                        </div>)}
                                     </div>
                                 </div>
                                 <div className="element-options" style={{

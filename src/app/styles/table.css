@@ -18,6 +18,10 @@
   padding: 0px 8px;
 }
 
+.element-task-exam {
+  border-bottom: 2px solid gray;
+}
+
 .wordsDescription {
   width: 100%;
   padding: 16px;
@@ -191,6 +195,10 @@
   white-space: normal;
   word-break: break-word;
   padding: 8px;
+}
+
+.element-bold {
+  font-weight: bold;
 }
 
 .element-options {

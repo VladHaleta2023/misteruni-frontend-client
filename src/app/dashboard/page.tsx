@@ -275,7 +275,7 @@ export default function DashboardPage() {
               <div className="element-name">
                 Pozostało czasu:
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 {statistic?.current.remainingDaysToExam} dni
               </div>
             </div>
@@ -291,7 +291,7 @@ export default function DashboardPage() {
                   sufix=""
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 {statistic?.current.examsCount} ark.
               </div>
             </div>
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.averageExamScore}%
                 </div>
@@ -325,7 +325,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.totalCovered}%
                 </div>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.predictedScore}%
                 </div>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
                   sufix=""
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 {statistic?.current.checkedWordsCount} sł.
               </div>
             </div>)}
@@ -398,7 +398,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.wordsCoveragePercent}%
                 </div>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
                   sufix=""
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 {statistic?.current.audioTasksCount} zad.
               </div>
             </div>)}
@@ -432,7 +432,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.averageAudioScore}%
                 </div>
@@ -450,7 +450,7 @@ export default function DashboardPage() {
                   sufix=""
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 {statistic?.current.writingTasksCount} zad.
               </div>
             </div>)}
@@ -466,7 +466,7 @@ export default function DashboardPage() {
                   sufix="%"
                 />
               </div>
-              <div className="element-options">
+              <div className="element-options element-bold">
                 <div className={`element-percent`}>
                   {statistic?.current.averageWritingScore}%
                 </div>

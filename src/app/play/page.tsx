@@ -38,8 +38,8 @@ export default function PlayPage() {
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
-    const chatTextareaRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLDivElement>(null);
+    const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const mainRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,6 +111,11 @@ export default function PlayPage() {
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const taskTextIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const optionsIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const autoResize = useCallback((el: HTMLTextAreaElement) => {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+    }, []);
 
     const formatTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
@@ -1068,7 +1073,6 @@ export default function PlayPage() {
             }
             
             mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-            console.log('Перед startTimer, examTimeLeft в момент вызова:', examTimeLeft);
             startTimer();
         }
         catch (error: unknown) {
@@ -1704,21 +1708,19 @@ export default function PlayPage() {
         await stopTimerAndSaveToDatabase();
 
         if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-        if (userSolutionText.trim() && userSolutionText !== lastAutosavedTextRef.current) {
-            try {
-                await api.put<any>(
-                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                    {
-                        userSolution: userSolutionText,
-                        userOptionIndex: userOptionIndex,
-                        answered: false
-                    }
-                );
+        try {
+            await api.put<any>(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                {
+                    userSolution: userSolutionText,
+                    userOptionIndex: userOptionIndex,
+                    answered: false
+                }
+            );
 
-                lastAutosavedTextRef.current = userSolutionText;
-            } catch (error) {
-                console.error("UserSolution autosave failed:", error);
-            }
+            lastAutosavedTextRef.current = userSolutionText;
+        } catch (error) {
+            console.error("UserSolution autosave failed:", error);
         }
 
         localStorage.removeItem("taskId");
@@ -1983,21 +1985,6 @@ export default function PlayPage() {
         return result;
     }, [chatBlocks, tempTypingBlocks]);
 
-    const updatePlaceholder = () => {
-        const el = chatTextareaRef.current;
-        if (!el) return;
-        
-        const isEmpty = el.innerText.trim() === "";
-        const hasPlaceholder = el.hasAttribute("data-placeholder-active");
-        
-        if (isEmpty && !hasPlaceholder) {
-            el.setAttribute("data-placeholder-active", "true");
-            el.innerText = "";
-        } else if (!isEmpty && hasPlaceholder) {
-            el.removeAttribute("data-placeholder-active");
-        }
-    };
-
     useEffect(() => {
         const handlePopState = async () => {
             if (autosaveTimeoutRef.current) {
@@ -2071,6 +2058,11 @@ export default function PlayPage() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, [task.id, task.finished, task.chatFinished, subjectId, sectionId, topicId]);
+
+    useEffect(() => {
+        if (!textareaRef.current) return;
+        autoResize(textareaRef.current);
+    }, [userSolutionText]);
 
     return (
         <>
@@ -2367,67 +2359,36 @@ export default function PlayPage() {
                                 {!task.answered && task.theoryFinished ? (
                                     <>
                                         <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
-                                        <div
-                                            ref={textareaRef as any}
-                                            data-placeholder="Napisz rozwiązanie..."
-                                            contentEditable={!task.answered}
-                                            suppressContentEditableWarning
+                                        <textarea
+                                            ref={textareaRef}
+                                            value={userSolutionText}
+                                            placeholder="Napisz rozwiązanie..."
                                             className="answer-block"
-                                            onInput={(e) => {
-                                                const el = e.currentTarget;
+                                            disabled={task.answered}
+                                            onChange={(e) => {
+                                                const el = e.target;
+                                                const text = el.value;
                                                 
-                                                if (el.hasAttribute("data-placeholder-active")) {
-                                                    el.removeAttribute("data-placeholder-active");
-                                                }
-                                                
-                                                setUserSolutionText(el.innerText);
+                                                setUserSolutionText(text);
 
                                                 if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-                                                if (el.innerText !== lastAutosavedTextRef.current) {
-                                                    autosaveTimeoutRef.current = setTimeout(async () => {
-                                                        try {
-                                                            await api.put<any>(
-                                                                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                                                                {
-                                                                    userSolution: el.innerText,
-                                                                    userOptionIndex: userOptionIndex,
-                                                                    answered: false
-                                                                }
-                                                            );
-
-                                                            lastAutosavedTextRef.current = el.innerText;
-                                                        } catch (error) {
-                                                            console.error("UserSolution autosave failed:", error);
-                                                        }
-                                                    }, 3000);
-                                                }
-                                                
-                                                requestAnimationFrame(() => {
-                                                    el.style.height = "auto";
-                                                    el.style.height = `${el.scrollHeight}px`;
-                                                });
+                                                autosaveTimeoutRef.current = setTimeout(async () => {
+                                                    try {
+                                                        await api.put<any>(
+                                                            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                                                            {
+                                                                userSolution: text,
+                                                                userOptionIndex: userOptionIndex || 0,
+                                                                answered: false
+                                                            }
+                                                        );
+                                                        lastAutosavedTextRef.current = text;
+                                                    } catch (error) {
+                                                        console.error("UserSolution autosave failed:", error);
+                                                    }
+                                                }, 1000);
                                             }}
-                                            onBlur={() => updatePlaceholder()}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Backspace" || e.key === "Delete") {
-                                                    setTimeout(() => updatePlaceholder(), 0);
-                                                }
-                                            }}
-                                            onCopy={(e) => {
-                                                e.preventDefault();
-                                                const selection = window.getSelection();
-                                                const plainText = selection?.toString() || '';
-                                                e.clipboardData?.setData('text/plain', plainText);
-                                                e.clipboardData?.setData('text/html', plainText);
-                                            }}
-                                            onPaste={(e) => {
-                                                e.preventDefault();
-                                                const text = e.clipboardData?.getData('text/plain') || '';
-                                                document.execCommand('insertText', false, text);
-                                            }}
-                                        >
-                                            {userSolutionText}
-                                        </div>
+                                        />
                                     </>
                                 ) : !isEmptyString(userSolutionText) && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
@@ -2559,44 +2520,19 @@ export default function PlayPage() {
                                     
                                     {((getLastMarker(task.chat) === "AI_QUESTION" || !task.theoryFinished && getLastMarker(task.chat) === "AI_ANSWER") && !isChatEnd && !task.chatFinished && chatBlocks.length > 0 && !isTyping && !isProcessingChat) && (
                                         <div className="message human">
-                                            <div
-                                                ref={chatTextareaRef as any}
-                                                contentEditable
-                                                suppressContentEditableWarning
+                                            <textarea
+                                                ref={chatTextareaRef}
+                                                value={chatTextValue}
+                                                placeholder="Daj odpowiedź..."
                                                 className="answer-block"
                                                 style={{ marginTop: "0px" }}
-                                                data-placeholder="Daj odpowiedź..."
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setChatTextValue(value);
+                                                    autoResize(e.target);
+                                                }}
                                                 onInput={(e) => {
-                                                    const el = e.currentTarget;
-                                                    
-                                                    if (el.hasAttribute("data-placeholder-active")) {
-                                                        el.removeAttribute("data-placeholder-active");
-                                                    }
-                                                    
-                                                    setChatTextValue(el.innerText);
-                                                    
-                                                    requestAnimationFrame(() => {
-                                                        el.style.height = "auto";
-                                                        el.style.height = `${el.scrollHeight}px`;
-                                                    });
-                                                }}
-                                                onBlur={() => updatePlaceholder()}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Backspace" || e.key === "Delete") {
-                                                        setTimeout(() => updatePlaceholder(), 0);
-                                                    }
-                                                }}
-                                                onCopy={(e) => {
-                                                    e.preventDefault();
-                                                    const selection = window.getSelection();
-                                                    const plainText = selection?.toString() || '';
-                                                    e.clipboardData?.setData('text/plain', plainText);
-                                                    e.clipboardData?.setData('text/html', plainText);
-                                                }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const text = e.clipboardData?.getData('text/plain') || '';
-                                                    document.execCommand('insertText', false, text);
+                                                    autoResize(e.currentTarget);
                                                 }}
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (

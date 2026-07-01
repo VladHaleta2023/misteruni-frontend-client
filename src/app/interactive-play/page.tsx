@@ -38,8 +38,8 @@ export default function InteractivePlayPage() {
 
     const [isChatEnd, setIsChatEnd] = useState(false);
     
-    const chatTextareaRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLDivElement>(null);
+    const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mainRef = useRef<HTMLDivElement>(null);
@@ -122,6 +122,11 @@ export default function InteractivePlayPage() {
     const controllerRef = useRef<AbortController | null>(null);
     const controllersRef = useRef<AbortController[]>([]);
     const firstClickRef = useRef(true);
+
+    const autoResize = useCallback((el: HTMLTextAreaElement) => {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+    }, []);
 
     function subtractPercents(subtopics: Subtopic[], correctOptionIndex: number, userOptionIndex: number, outputSubtopics: Subtopic[]): Subtopic[] {
         const outputMap = new Map<string, number>(
@@ -1431,21 +1436,20 @@ export default function InteractivePlayPage() {
             autosaveTimeoutRef.current = null;
         }
 
-        if (userSolutionText.trim() && userSolutionText !== lastAutosavedTextRef.current) {
-            try {
-                await api.put<any>(
-                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                    {
-                        userSolution: userSolutionText,
-                        userOptionIndex: userOptionIndex,
-                        answered: false
-                    }
-                );
+        
+        try {
+            await api.put<any>(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                {
+                    userSolution: userSolutionText,
+                    userOptionIndex: userOptionIndex,
+                    answered: false
+                }
+            );
 
-                lastAutosavedTextRef.current = userSolutionText;
-            } catch (error) {
-                console.error("UserSolution autosave failed:", error);
-            }
+            lastAutosavedTextRef.current = userSolutionText;
+        } catch (error) {
+            console.error("UserSolution autosave failed:", error);
         }
 
         localStorage.removeItem("taskId");
@@ -2120,6 +2124,11 @@ export default function InteractivePlayPage() {
         }
     };
 
+    useEffect(() => {
+        if (!textareaRef.current) return;
+        autoResize(textareaRef.current);
+    }, [userSolutionText]);
+
     return (
         <>
             <Header>
@@ -2437,67 +2446,36 @@ export default function InteractivePlayPage() {
                                 {!task.answered && task.stage >= 3 ? (
                                     <>
                                         <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
-                                        <div
-                                            ref={textareaRef as any}
-                                            data-placeholder="Napisz rozwiązanie..."
-                                            contentEditable={!task.answered}
-                                            suppressContentEditableWarning
+                                        <textarea
+                                            ref={textareaRef}
+                                            value={userSolutionText}
+                                            placeholder="Napisz rozwiązanie..."
                                             className="answer-block"
-                                            onInput={(e) => {
-                                                const el = e.currentTarget;
+                                            disabled={task.answered}
+                                            onChange={(e) => {
+                                                const el = e.target;
+                                                const text = el.value;
                                                 
-                                                if (el.hasAttribute("data-placeholder-active")) {
-                                                    el.removeAttribute("data-placeholder-active");
-                                                }
+                                                setUserSolutionText(text);
                                                 
-                                                setUserSolutionText(el.innerText);
-
                                                 if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-                                                if (el.innerText !== lastAutosavedTextRef.current) {
-                                                    autosaveTimeoutRef.current = setTimeout(async () => {
-                                                        try {
-                                                            await api.put<any>(
-                                                                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                                                                {
-                                                                    userSolution: el.innerText,
-                                                                    userOptionIndex: userOptionIndex,
-                                                                    answered: false
-                                                                }
-                                                            );
-
-                                                            lastAutosavedTextRef.current = el.innerText;
-                                                        } catch (error) {
-                                                            console.error("UserSolution autosave failed:", error);
-                                                        }
-                                                    }, 3000);
-                                                }
-                                                
-                                                requestAnimationFrame(() => {
-                                                    el.style.height = "auto";
-                                                    el.style.height = `${el.scrollHeight}px`;
-                                                });
+                                                autosaveTimeoutRef.current = setTimeout(async () => {
+                                                    try {
+                                                        await api.put<any>(
+                                                            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                                                            {
+                                                                userSolution: text,
+                                                                userOptionIndex: userOptionIndex || 0,
+                                                                answered: false
+                                                            }
+                                                        );
+                                                        lastAutosavedTextRef.current = text;
+                                                    } catch (error) {
+                                                        console.error("UserSolution autosave failed:", error);
+                                                    }
+                                                }, 1000);
                                             }}
-                                            onBlur={() => updatePlaceholder()}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Backspace" || e.key === "Delete") {
-                                                    setTimeout(() => updatePlaceholder(), 0);
-                                                }
-                                            }}
-                                            onCopy={(e) => {
-                                                e.preventDefault();
-                                                const selection = window.getSelection();
-                                                const plainText = selection?.toString() || '';
-                                                e.clipboardData?.setData('text/plain', plainText);
-                                                e.clipboardData?.setData('text/html', plainText);
-                                            }}
-                                            onPaste={(e) => {
-                                                e.preventDefault();
-                                                const text = e.clipboardData?.getData('text/plain') || '';
-                                                document.execCommand('insertText', false, text);
-                                            }}
-                                        >
-                                            {userSolutionText}
-                                        </div>
+                                        />
                                     </>
                                 ) : !isEmptyString(userSolutionText) && task.stage >= 3 && (<>
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
@@ -2554,35 +2532,19 @@ export default function InteractivePlayPage() {
                                     
                                     {(getLastMarker(task.chat) === "AI_QUESTION" && !isChatEnd && !task.chatFinished && chatBlocks.length > 0 && !isTyping && !isProcessingChat) && (
                                         <div className="message human">
-                                            <div
-                                                ref={chatTextareaRef as any}
-                                                contentEditable
-                                                suppressContentEditableWarning
+                                            <textarea
+                                                ref={chatTextareaRef}
+                                                value={chatTextValue}
+                                                placeholder="Daj odpowiedź..."
                                                 className="answer-block"
                                                 style={{ marginTop: "0px" }}
-                                                data-placeholder="Daj odpowiedź..."
-                                                onInput={(e) => {
-                                                    const el = e.currentTarget;
-                                                    const value = el.innerText;
-
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
                                                     setChatTextValue(value);
-
-                                                    requestAnimationFrame(() => {
-                                                        el.style.height = "auto";
-                                                        el.style.height = `${el.scrollHeight}px`;
-                                                    });
+                                                    autoResize(e.target);
                                                 }}
-                                                onCopy={(e) => {
-                                                    e.preventDefault();
-                                                    const selection = window.getSelection();
-                                                    const plainText = selection?.toString() || '';
-                                                    e.clipboardData?.setData('text/plain', plainText);
-                                                    e.clipboardData?.setData('text/html', plainText);
-                                                }}
-                                                onPaste={(e) => {
-                                                    e.preventDefault();
-                                                    const text = e.clipboardData?.getData('text/plain') || '';
-                                                    document.execCommand('insertText', false, text);
+                                                onInput={(e) => {
+                                                    autoResize(e.currentTarget);
                                                 }}
                                             />
                                             {!isTyping && !loading && !isProcessingChat && (

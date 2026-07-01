@@ -277,6 +277,53 @@ export default function ExamPage() {
     router.push("/topic");
   };
 
+  const handleTaskClick = useCallback(async (
+    subjectId: number,
+    sectionId: number,
+    topicId: number,
+    taskId: number,
+    type: string
+  ) => {
+    if (!subjectId) {
+        setLoading(false);
+        showAlert(400, "Przedmiot nie został znaleziony");
+        return;
+    }
+
+    if (!sectionId) {
+        setLoading(false);
+        showAlert(400, "Rozdział nie został znaleziony");
+        return;
+    }
+
+    if (!topicId) {
+        setLoading(false);
+        showAlert(400, "Temat nie został znaleziony");
+        return;
+    }
+
+    if (!taskId) {
+        setLoading(false);
+        showAlert(400, "Zadanie nie zostało znalezione");
+        return;
+    }
+
+    localStorage.setItem("subjectId", String(subjectId));
+    localStorage.setItem("sectionId", String(sectionId));
+    localStorage.setItem("topicId", String(topicId));
+    localStorage.setItem("taskId", String(taskId));
+
+    if (type == "Stories") {
+        router.push("/interactive-play");
+    }
+    else if (type == "Writing") {
+        router.push("/writing-play");
+    }
+    else {
+        router.push("/play");
+    }
+  }, []);
+
   const handleExamPlayClick = useCallback(async (
     subjectId: number,
     signal?: AbortSignal
@@ -297,6 +344,10 @@ export default function ExamPage() {
         return await fetchPendingExam(subjectId, signal);
     }
   }, []);
+
+  function isEmptyString(str: string): boolean {
+    return /^\s*$/.test(str);
+  }
 
   useEffect(() => {
     if (!subjectId) return;
@@ -481,10 +532,26 @@ export default function ExamPage() {
             <div className="table">
                 {exam.topics && exam.topics.map((topic, index) => (
                     <div
-                        className={`element element-topic ${topic.task && !topic.task.finished ? "not-finished" : ""}`}
+                        className={`element element-task-exam element-topic ${topic.task && !topic.task.finished ? "not-finished" : ""}`}
                         onClick={(e) => {
                             e.stopPropagation();
-                            handleTopicClick(topic.sectionId, topic.id, topic.type);
+
+                            if (topic.task) {
+                                handleTaskClick(
+                                    subjectId ?? 0,
+                                    topic.sectionId,
+                                    topic.id,
+                                    topic.task.id,
+                                    topic.type
+                                );
+                            }
+                            else {
+                                handleTopicClick(
+                                    topic.sectionId,
+                                    topic.id,
+                                    topic.type
+                                );
+                            }
                         }}
                         style={{
                             justifyContent: "space-between",
@@ -513,7 +580,8 @@ export default function ExamPage() {
                             <div className="element-name" style={{
                                 flexDirection: "column",
                                 fontSize: "16px",
-                                alignItems: "flex-start"
+                                alignItems: "flex-start",
+                                marginBottom: "32px",
                             }}>
                                 <div style={{ marginBottom: "8px", fontWeight: "bold" }}>
                                     <FormatText content={topic.task.text ?? ""} />
@@ -530,13 +598,13 @@ export default function ExamPage() {
                                     <FormatText content={option} />
                                 </div>
                                 ))}
-                                <div className={
+                                {!isEmptyString(topic.task.userSolution ?? "") && (<div className={
                                     subjectType === 'Humanistic' || subjectType === 'Language'
                                         ? 'humanities-solution-container'
                                         : 'math-solution-container'
-                                } style={{ marginTop: "16px", width: "100%" }}>
+                                } style={{ marginTop: "24px", width: "100%" }}>
                                     <FormatText content={topic.task.userSolution ?? ""} isMarkdown={false} />
-                                </div>
+                                </div>)}
                             </div>
                         </>)}
                         <div className="element-options">

@@ -49,7 +49,7 @@ export default function WritingPlayPage() {
     const [spinnerLoading, setSpinnerLoading] = useState(false);
     const [textLoading, setTextLoading] = useState<string>("Pobieranie Zadania...");
 
-    const textareaRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const chatRef = useRef<HTMLDivElement>(null);
     const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +97,11 @@ export default function WritingPlayPage() {
     const [userSolutionText, setUserSolutionText] = useState("");
     const explanationIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const taskTextIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const autoResize = useCallback((el: HTMLTextAreaElement) => {
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+    }, []);
 
     const formatTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
@@ -783,21 +788,19 @@ export default function WritingPlayPage() {
             autosaveTimeoutRef.current = null;
         }
 
-        if (userSolutionText.trim() && userSolutionText !== lastAutosavedTextRef.current) {
-            try {
-                await api.put<any>(
-                    `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                    {
-                        userSolution: userSolutionText,
-                        userOptionIndex: 0,
-                        answered: false
-                    }
-                );
+        try {
+            await api.put<any>(
+                `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                {
+                    userSolution: userSolutionText,
+                    userOptionIndex: 0,
+                    answered: false
+                }
+            );
 
-                lastAutosavedTextRef.current = userSolutionText;
-            } catch (error) {
-                console.error("UserSolution autosave failed:", error);
-            }
+            lastAutosavedTextRef.current = userSolutionText;
+        } catch (error) {
+            console.error("UserSolution autosave failed:", error);
         }
 
         localStorage.removeItem("taskId");
@@ -1205,67 +1208,36 @@ export default function WritingPlayPage() {
                                 <div className="message human">
                                     <div className="text-title" style={{ fontSize: "18px" }}>Moje Rozwiązanie:</div>
 
-                                    <div
-                                        ref={textareaRef as any}
-                                        data-placeholder="Napisz rozwiązanie..."
-                                        contentEditable={!task.answered}
-                                        suppressContentEditableWarning
+                                    <textarea
+                                        ref={textareaRef}
+                                        value={userSolutionText}
+                                        placeholder="Napisz rozwiązanie..."
                                         className="answer-block"
-                                        onInput={(e) => {
-                                            const el = e.currentTarget;
+                                        disabled={task.answered}
+                                        onChange={(e) => {
+                                            const el = e.target;
+                                            const text = el.value;
                                             
-                                            if (el.hasAttribute("data-placeholder-active")) {
-                                                el.removeAttribute("data-placeholder-active");
-                                            }
+                                            setUserSolutionText(text);
                                             
-                                            setUserSolutionText(el.innerText);
-
                                             if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
-                                            if (el.innerText !== lastAutosavedTextRef.current) {
-                                                autosaveTimeoutRef.current = setTimeout(async () => {
-                                                    try {
-                                                        await api.put<any>(
-                                                            `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
-                                                            {
-                                                                userSolution: el.innerText,
-                                                                userOptionIndex: 0,
-                                                                answered: false
-                                                            }
-                                                        );
-
-                                                        lastAutosavedTextRef.current = el.innerText;
-                                                    } catch (error) {
-                                                        console.error("UserSolution autosave failed:", error);
-                                                    }
-                                                }, 3000);
-                                            }
-                                            
-                                            requestAnimationFrame(() => {
-                                                el.style.height = "auto";
-                                                el.style.height = `${el.scrollHeight}px`;
-                                            });
+                                            autosaveTimeoutRef.current = setTimeout(async () => {
+                                                try {
+                                                    await api.put<any>(
+                                                        `/subjects/${subjectId}/sections/${sectionId}/topics/${topicId}/tasks/${task.id}/user-solution`,
+                                                        {
+                                                            userSolution: text,
+                                                            userOptionIndex: 0,
+                                                            answered: false
+                                                        }
+                                                    );
+                                                    lastAutosavedTextRef.current = text;
+                                                } catch (error) {
+                                                    console.error("UserSolution autosave failed:", error);
+                                                }
+                                            }, 1000);
                                         }}
-                                        onBlur={() => updatePlaceholder()}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Backspace" || e.key === "Delete") {
-                                                setTimeout(() => updatePlaceholder(), 0);
-                                            }
-                                        }}
-                                        onCopy={(e) => {
-                                            e.preventDefault();
-                                            const selection = window.getSelection();
-                                            const plainText = selection?.toString() || '';
-                                            e.clipboardData?.setData('text/plain', plainText);
-                                            e.clipboardData?.setData('text/html', plainText);
-                                        }}
-                                        onPaste={(e) => {
-                                            e.preventDefault();
-                                            const text = e.clipboardData?.getData('text/plain') || '';
-                                            document.execCommand('insertText', false, text);
-                                        }}
-                                    >
-                                        {userSolutionText}
-                                    </div>
+                                    />
 
                                     <div
                                         className="options"

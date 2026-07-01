@@ -17,12 +17,9 @@ interface CirclePieChartProps {
 export default function CirclePieChart({
   percents,
   names,
-  width = '60%',
-  maxWidth = '280px',
+  width = '100%',
   isCountable = false
 }: CirclePieChartProps) {
-  const [containerWidth, setContainerWidth] = useState(width);
-  const [containerMaxWidth, setContainerMaxWidth] = useState(maxWidth);
   const [isMobile, setIsMobile] = useState(false);
   const initializedRef = useRef(false);
 
@@ -37,8 +34,6 @@ export default function CirclePieChart({
     function updateSize() {
       const w = window.innerWidth;
       setIsMobile(w < 768);
-      setContainerWidth("60%");
-      setContainerMaxWidth(`${isCountable ? "180px" : "220px"}`);
     }
 
     updateSize();
@@ -56,7 +51,7 @@ export default function CirclePieChart({
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
-  }, [width, maxWidth, isCountable]);
+  }, [width, isCountable]);
 
   const clampFont = (min: number, vw: number, max: number) => `clamp(${min}px, ${vw}vw, ${max}px)`;
 
@@ -65,13 +60,12 @@ export default function CirclePieChart({
       <div
         className={`container ${isMobile ? 'mobile' : 'desktop'}`}
         style={{
-          width: containerWidth,
-          maxWidth: containerMaxWidth,
+          width: "100%",
           margin: '0 auto',
           alignItems: 'center',
           justifyContent: 'center',
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: 'row',
           position: 'relative',
           userSelect: 'none',
           WebkitUserSelect: 'none',
@@ -87,7 +81,8 @@ export default function CirclePieChart({
             alignItems: 'center',
             justifyContent: 'center',
             position: 'relative',
-            width: '100%',
+            width: '40%',
+            maxWidth: "240px",
             height: 'auto',
           }}
         >
@@ -107,8 +102,8 @@ export default function CirclePieChart({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius="60%"
-                  outerRadius="85%"
+                  innerRadius="55%"
+                  outerRadius="90%"
                   startAngle={90}
                   endAngle={-270}
                   paddingAngle={0}
@@ -129,7 +124,7 @@ export default function CirclePieChart({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            fontSize: '17px',
+            fontSize: '16px',
             color: '#333',
           }}
         >
