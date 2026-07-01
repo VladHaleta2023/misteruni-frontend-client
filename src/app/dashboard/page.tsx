@@ -68,13 +68,6 @@ export default function DashboardPage() {
     setExpandedDailyProgress(prev => !prev);
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedSubjectType = localStorage.getItem("subjectType");
-      setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
-    }
-  }, []);
-
   function handleBackClick() {
     router.back();
   }
@@ -95,9 +88,12 @@ export default function DashboardPage() {
     if (typeof window !== "undefined") {
       const storedSubjectId = localStorage.getItem("subjectId");
       setSubjectId(storedSubjectId ? Number(storedSubjectId) : null);
+      const storedSubjectType = localStorage.getItem("subjectType");
+      setSubjectType(storedSubjectType ? String(storedSubjectType) : null);
 
       localStorage.clear();
       localStorage.setItem("subjectId", String(storedSubjectId));
+      localStorage.setItem("subjectType", String(storedSubjectType));
     }
   }, []);
 
